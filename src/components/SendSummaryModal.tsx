@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Mail, Calendar, CheckCircle2, AlertCircle, X, Send, Users, Car, TrendingUp, DollarSign, Copy, ExternalLink, Check, Key, Lock } from 'lucide-react';
 import { useTVDE } from '../context/TVDEContext';
 import { parseHHMMToHours } from '../utils/formatters';
@@ -34,7 +34,25 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
 
   const [gmailUser, setGmailUser] = useState(() => localStorage.getItem('tvde_gmail_user') || 'josreb@gmail.com');
   const [gmailAppPassword, setGmailAppPassword] = useState(() => localStorage.getItem('tvde_gmail_app_pass') || '');
+  const [serverSmtpConfigured, setServerSmtpConfigured] = useState(false);
   const [showCredentialsSection, setShowCredentialsSection] = useState(() => !localStorage.getItem('tvde_gmail_app_pass'));
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/smtp-status')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.configured) {
+            setServerSmtpConfigured(true);
+            setShowCredentialsSection(false);
+          }
+          if (data.user) {
+            setGmailUser(data.user);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   // Quick preset handlers
   const handlePresetCurrentWeek = () => {
@@ -304,31 +322,39 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
             {showCredentialsSection ? (
               <div className="space-y-2 pt-1">
                 <p className="text-[11px] text-indigo-800 leading-relaxed">
-                  Cole a Palavra-passe de Aplicação de 16 letras gerada no Google (fica guardada no seu browser para os próximos envios):
+                  Necessária <strong>apenas para envio direto e automático</strong> via servidor Gmail SMTP. Guardada no browser (pede só 1 vez):
                 </p>
                 <div className="relative">
                   <input
                     type="password"
                     value={gmailAppPassword}
                     onChange={(e) => setGmailAppPassword(e.target.value)}
-                    placeholder="Cole aqui a palavra-passe de 16 letras (ex: abcd efgh ijkl mnop)"
+                    placeholder="Palavra-passe de 16 letras do Google (ex: abcd efgh ijkl mnop)"
                     className="w-full pl-8 pr-3 py-1.5 text-xs font-mono bg-white border border-indigo-300 rounded-md shadow-2xs focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800"
                   />
                   <Lock className="w-3.5 h-3.5 text-indigo-400 absolute left-2.5 top-2" />
                 </div>
+                <p className="text-[10px] text-indigo-600/90 leading-tight">
+                  💡 <strong>Alternativa sem palavra-passe:</strong> Clique em <em>"Abrir no E-mail"</em> ou <em>"Copiar"</em> no fundo deste modal para enviar usando o seu programa de email habitual.
+                </p>
               </div>
             ) : (
               <div className="flex items-center justify-between text-xs text-indigo-950 font-medium">
                 <span className="flex items-center space-x-1.5">
-                  {gmailAppPassword ? (
+                  {serverSmtpConfigured ? (
                     <>
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-emerald-800 font-semibold">Palavra-passe de 16 letras introduzida</span>
+                      <span className="text-emerald-800 font-semibold">Configurado no servidor (GMAIL_APP_PASSWORD)</span>
+                    </>
+                  ) : gmailAppPassword ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-800 font-semibold">Palavra-passe de 16 letras guardada neste browser</span>
                     </>
                   ) : (
                     <>
                       <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                      <span className="text-amber-800">Palavra-passe não configurada (clique em Editar)</span>
+                      <span className="text-amber-800">Palavra-passe não configurada (clique em Editar/Configurar)</span>
                     </>
                   )}
                 </span>

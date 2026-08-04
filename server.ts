@@ -52,6 +52,13 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
+  // SMTP Status Check
+  app.get('/api/smtp-status', (_req, res) => {
+    const hasEnvPass = Boolean(process.env.GMAIL_APP_PASSWORD);
+    const user = process.env.GMAIL_USER || 'josreb@gmail.com';
+    res.json({ configured: hasEnvPass, user });
+  });
+
   // Send Summary Email Endpoint
   app.post('/api/send-summary', async (req, res) => {
     try {
