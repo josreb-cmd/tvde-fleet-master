@@ -48,6 +48,17 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+  // CORS & OPTIONS middleware
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
@@ -60,8 +71,8 @@ async function startServer() {
     res.json({ configured: hasEnvPass, user });
   });
 
-  // Send Summary Email Endpoint
-  app.post('/api/send-summary', async (req, res) => {
+  // Send Summary Email Endpoint Handler
+  const handleSendSummary = async (req: express.Request, res: express.Response) => {
     try {
       const { startDate, endDate } = req.body;
 
@@ -406,7 +417,12 @@ async function startServer() {
         details: err.message
       });
     }
-  });
+  };
+
+  app.post('/api/send-summary', handleSendSummary);
+  app.post('/api/send-summary-email', handleSendSummary);
+  app.post('/api/send-summary/', handleSendSummary);
+  app.post('/api/send-summary-email/', handleSendSummary);
 
   // AI Insights Endpoint for TVDE Fleet Optimization
   app.post('/api/ai/tvde-insights', async (req, res) => {
@@ -472,6 +488,11 @@ Responde num formato JSON válido com a seguinte estrutura:
       console.error('Erro na chamada ao Gemini API:', err);
       return res.status(500).json({ error: 'Erro ao gerar análise inteligente da frota: ' + err.message });
     }
+  });
+
+  // Catch-all for unmatched /api routes (prevents Vite 405 / HTML response on API calls)
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: `Rota de API não encontrada: ${req.method} ${req.path}` });
   });
 
   // Vite middleware setup for dev vs production static serving
