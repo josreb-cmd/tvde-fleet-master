@@ -4,7 +4,7 @@ export type VehicleStatus = 'active' | 'maintenance' | 'inactive';
 
 export type DriverStatus = 'active' | 'on_leave' | 'inactive';
 
-export type ExpenseCategory = 'fuel_charging' | 'maintenance' | 'insurance' | 'vehicle_rental' | 'tolls_wash' | 'other';
+export type ExpenseCategory = 'fuel_charging' | 'maintenance' | 'insurance' | 'vehicle_rental' | 'tolls_wash' | 'irs' | 'iva' | 'other';
 
 export type PlatformType = 'uber' | 'bolt' | 'other';
 
@@ -61,6 +61,7 @@ export interface DailyShiftLog {
   otherEarnings: number; // ganho noutras plataformas (€)
   hoursWorked: number; // horas trabalhadas
   fuelExpenseAmount: number; // custo combustível / carregamento no dia (€)
+  rentalExpenseAmount?: number; // custo/renda de viatura no dia (€)
   fuelLitersOrKwh?: number; // litros de combustível ou kWh
   status: 'submitted' | 'verified' | 'paid';
   notes?: string;
@@ -107,6 +108,9 @@ export interface MonthlyStats {
   totalMaintenanceCost: number;
   totalInsuranceCost: number;
   totalVehicleRentals: number;
+  totalIrsCost: number;
+  totalIvaCost: number;
+  totalOtherCost: number;
   earningsPerKm: number;
   earningsPerHour: number;
   netProfitMarginPct: number;

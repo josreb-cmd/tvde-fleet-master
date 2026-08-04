@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTVDE } from '../context/TVDEContext';
+import { formatHoursToHHMM } from '../utils/formatters';
+import { SendSummaryModal } from './SendSummaryModal';
 import {
   TrendingUp,
   TrendingDown,
@@ -13,7 +15,8 @@ import {
   Fuel,
   Wrench,
   Award,
-  Layers
+  Layers,
+  Mail
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -42,6 +45,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewExpenseModal,
   setActiveTab
 }) => {
+  const [isSendSummaryModalOpen, setIsSendSummaryModalOpen] = useState(false);
+
   const {
     monthlyStats,
     historicalMonthlyData,
@@ -54,24 +59,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const unreadNotifs = notifications.filter(n => !n.read);
 
   // Platform Share Data calculation for selected month
-  const monthShifts = shiftLogs.filter(s => s.date.startsWith(selectedMonth));
+  const monthShifts = shiftLogs.filter(s => selectedMonth === 'all' || s.date.startsWith(selectedMonth));
   const uberTotal = monthShifts.reduce((acc, s) => acc + (s.uberEarnings || 0), 0);
   const boltTotal = monthShifts.reduce((acc, s) => acc + (s.boltEarnings || 0), 0);
   const otherTotal = monthShifts.reduce((acc, s) => acc + (s.otherEarnings || 0), 0);
 
-  const platformData = [
-    { name: 'Uber', value: uberTotal || 5200, color: '#10B981' }, // emerald
-    { name: 'Bolt', value: boltTotal || 3400, color: '#3B82F6' }, // blue
-    { name: 'Outros', value: otherTotal || 250, color: '#F59E0B' }  // amber
+  const rawPlatformData = [
+    { name: 'Uber', value: uberTotal, color: '#10B981' }, // emerald
+    { name: 'Bolt', value: boltTotal, color: '#3B82F6' }, // blue
+    { name: 'Outros', value: otherTotal, color: '#F59E0B' }  // amber
   ];
+  const platformData = rawPlatformData.some(p => p.value > 0)
+    ? rawPlatformData.filter(p => p.value > 0)
+    : rawPlatformData;
 
   // Expenses Breakdown Data
   const expenseBreakdown = [
-    { name: 'Combustível/EV', value: monthlyStats.totalFuelCost || 420, color: '#EF4444' },
-    { name: 'Rendas Viaturas', value: monthlyStats.totalVehicleRentals || 770, color: '#8B5CF6' },
-    { name: 'Manutenção', value: monthlyStats.totalMaintenanceCost || 285, color: '#F59E0B' },
-    { name: 'Seguros', value: monthlyStats.totalInsuranceCost || 810, color: '#06B6D4' }
-  ];
+    { name: 'Combustível/EV', value: monthlyStats.totalFuelCost, color: '#EF4444' },
+    { name: 'Rendas Viaturas', value: monthlyStats.totalVehicleRentals, color: '#8B5CF6' },
+    { name: 'Manutenção', value: monthlyStats.totalMaintenanceCost, color: '#F59E0B' },
+    { name: 'Seguros', value: monthlyStats.totalInsuranceCost, color: '#06B6D4' },
+    { name: 'IRS', value: monthlyStats.totalIrsCost || 0, color: '#A855F7' },
+    { name: 'IVA', value: monthlyStats.totalIvaCost || 0, color: '#F43F5E' },
+    { name: 'Outros / Portagens', value: monthlyStats.totalOtherCost || 0, color: '#64748B' }
+  ].filter(e => e.value > 0 || (monthlyStats.totalExpenses === 0 && e.name === 'Combustível/EV'));
 
   return (
     <div className="space-y-6">
@@ -94,6 +105,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={() => setIsSendSummaryModalOpen(true)}
+            className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm transition flex items-center space-x-1.5"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>ENVIAR RESUMO</span>
+          </button>
+          <button
             onClick={onOpenNewShiftModal}
             className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-sm transition flex items-center space-x-1.5"
           >
@@ -107,6 +125,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Send Summary Email Modal */}
+      <SendSummaryModal
+        isOpen={isSendSummaryModalOpen}
+        onClose={() => setIsSendSummaryModalOpen(false)}
+      />
 
       {/* Critical Alerts Bar if any */}
       {unreadNotifs.length > 0 && (
@@ -475,7 +499,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <td className="p-3 text-slate-700 font-mono font-bold">{log.vehiclePlate}</td>
                   <td className="p-3 text-center text-slate-700">{log.tripsCount}</td>
                   <td className="p-3 text-center text-slate-700">{log.kilometers} km</td>
-                  <td className="p-3 text-center text-slate-700">{log.hoursWorked}h</td>
+                  <td className="p-3 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
                   <td className="p-3 text-right font-bold text-slate-900">
                     {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                   </td>

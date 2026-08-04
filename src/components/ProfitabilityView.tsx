@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTVDE } from '../context/TVDEContext';
+import { formatHoursToHHMM } from '../utils/formatters';
 import {
   TrendingUp,
   DollarSign,
@@ -179,7 +180,7 @@ export const ProfitabilityView: React.FC = () => {
                   <td className="p-3.5 font-bold text-slate-900">{item.driver.name}</td>
                   <td className="p-3.5 text-center text-slate-700">{item.totalTrips}</td>
                   <td className="p-3.5 text-center text-slate-700">{item.totalKm} km</td>
-                  <td className="p-3.5 text-center text-slate-700">{item.totalHours.toFixed(1)} h</td>
+                  <td className="p-3.5 text-center text-slate-700 font-mono">{formatHoursToHHMM(item.totalHours)}</td>
                   <td className="p-3.5 text-right font-bold text-slate-900">
                     {item.totalEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                   </td>

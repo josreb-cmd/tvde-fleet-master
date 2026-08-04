@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTVDE } from '../../context/TVDEContext';
-import { ExpenseCategory } from '../../types';
-import { X, DollarSign } from 'lucide-react';
+import { ExpenseCategory, Expense } from '../../types';
+import { X, DollarSign, Edit3 } from 'lucide-react';
 
 interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialData?: Expense | null;
 }
 
-export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose }) => {
-  const { vehicles, drivers, addExpense } = useTVDE();
+export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, initialData }) => {
+  const { vehicles, drivers, addExpense, updateExpense } = useTVDE();
 
   const [category, setCategory] = useState<ExpenseCategory>('fuel_charging');
   const [title, setTitle] = useState<string>('');
@@ -19,6 +20,42 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose }) =
   const [driverId, setDriverId] = useState<string>('');
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setCategory(initialData.category || 'fuel_charging');
+        setTitle(initialData.title || '');
+        setAmount(initialData.amount?.toString() || '');
+        setDate(initialData.date || new Date().toISOString().split('T')[0]);
+        setVehicleId(initialData.vehicleId || '');
+        setDriverId(initialData.driverId || '');
+        setInvoiceNumber(initialData.invoiceNumber || '');
+        setDescription(initialData.description || '');
+      } else {
+        setCategory('fuel_charging');
+        setTitle('');
+        setAmount('');
+        setDate(new Date().toISOString().split('T')[0]);
+        setVehicleId('');
+        setDriverId('');
+        setInvoiceNumber('');
+        setDescription('');
+      }
+    }
+  }, [isOpen, initialData]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -32,29 +69,47 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose }) =
     const veh = vehicles.find(v => v.id === vehicleId);
     const drv = drivers.find(d => d.id === driverId);
 
-    addExpense({
+    const payload = {
       category,
       title,
       amount: parseFloat(amount) || 0,
       date,
-      vehicleId: veh?.id,
-      vehiclePlate: veh?.licensePlate,
-      driverId: drv?.id,
-      driverName: drv?.name,
+      vehicleId: veh?.id || '',
+      vehiclePlate: veh?.licensePlate || '',
+      driverId: drv?.id || '',
+      driverName: drv?.name || '',
       invoiceNumber,
       description
-    });
+    };
+
+    if (initialData) {
+      updateExpense(initialData.id, payload);
+    } else {
+      addExpense(payload);
+    }
 
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-md w-full max-w-lg p-6 shadow-xl relative overflow-hidden">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="bg-white border border-slate-200 rounded-md w-full max-w-lg p-6 shadow-xl relative overflow-hidden max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center space-x-2">
-            <DollarSign className="w-5 h-5 text-red-600" />
-            <h2 className="text-base font-bold text-slate-900">Lançar Nova Despesa ou Renda</h2>
+            {initialData ? (
+              <Edit3 className="w-5 h-5 text-blue-600" />
+            ) : (
+              <DollarSign className="w-5 h-5 text-red-600" />
+            )}
+            <h2 className="text-base font-bold text-slate-900">
+              {initialData ? 'Editar Registo de Custos / Rendas' : 'Lançar Nova Despesa ou Renda'}
+            </h2>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
             <X className="w-5 h-5" />
@@ -74,6 +129,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose }) =
               <option value="insurance">Seguro TVDE</option>
               <option value="vehicle_rental">Renda de Viatura</option>
               <option value="tolls_wash">Portagens / Lavagens</option>
+              <option value="irs">IRS (Imposto sobre o Rendimento)</option>
+              <option value="iva">IVA (Imposto sobre o Valor Acrescentado)</option>
               <option value="other">Outras Despesas</option>
             </select>
           </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TVDEProvider } from './context/TVDEContext';
+import { DailyShiftLog, Expense } from './types';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
@@ -10,6 +11,7 @@ import { FleetView } from './components/FleetView';
 import { DriversView } from './components/DriversView';
 import { NotificationsView } from './components/NotificationsView';
 import { ProfitabilityView } from './components/ProfitabilityView';
+import { CustomQueryView } from './components/CustomQueryView';
 
 // Modals
 import { ShiftModal } from './components/modals/ShiftModal';
@@ -20,10 +22,15 @@ import { AiAdvisorModal } from './components/modals/AiAdvisorModal';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // Modal states
   const [showShiftModal, setShowShiftModal] = useState(false);
+  const [editingShiftLog, setEditingShiftLog] = useState<DailyShiftLog | null>(null);
+
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [vehicleIdToEdit, setVehicleIdToEdit] = useState<string | null>(null);
 
@@ -31,6 +38,26 @@ function AppContent() {
   const [driverIdToEdit, setDriverIdToEdit] = useState<string | null>(null);
 
   const [showAiAdvisorModal, setShowAiAdvisorModal] = useState(false);
+
+  const handleNewShiftModal = () => {
+    setEditingShiftLog(null);
+    setShowShiftModal(true);
+  };
+
+  const handleEditShiftLog = (log: DailyShiftLog) => {
+    setEditingShiftLog(log);
+    setShowShiftModal(true);
+  };
+
+  const handleNewExpenseModal = () => {
+    setEditingExpense(null);
+    setShowExpenseModal(true);
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setShowExpenseModal(true);
+  };
 
   const handleEditVehicle = (vId: string) => {
     setVehicleIdToEdit(vId);
@@ -47,43 +74,58 @@ function AppContent() {
       {/* Top Navbar */}
       <Navbar
         onOpenAiAdvisor={() => setShowAiAdvisorModal(true)}
-        onOpenNewShiftModal={() => setShowShiftModal(true)}
+        onOpenNewShiftModal={handleNewShiftModal}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setIsMobileMenuOpen(false);
+        }}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
       />
 
       {/* Main Body Layout */}
       <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto">
         <Sidebar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onOpenAiAdvisor={() => setShowAiAdvisorModal(true)}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setIsMobileMenuOpen(false);
+          }}
+          onOpenAiAdvisor={() => {
+            setShowAiAdvisorModal(true);
+            setIsMobileMenuOpen(false);
+          }}
+          isMobileMenuOpen={isMobileMenuOpen}
+          onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 overflow-y-auto min-w-0">
           {activeTab === 'dashboard' && (
             <DashboardView
-              onOpenNewShiftModal={() => setShowShiftModal(true)}
-              onOpenNewExpenseModal={() => setShowExpenseModal(true)}
+              onOpenNewShiftModal={handleNewShiftModal}
+              onOpenNewExpenseModal={handleNewExpenseModal}
               setActiveTab={setActiveTab}
             />
           )}
 
           {activeTab === 'driver-portal' && (
             <DriverPortalView
-              onOpenNewShiftModal={() => setShowShiftModal(true)}
+              onOpenNewShiftModal={handleNewShiftModal}
             />
           )}
 
           {activeTab === 'shift-logs' && (
             <ShiftLogsView
-              onOpenNewShiftModal={() => setShowShiftModal(true)}
+              onOpenNewShiftModal={handleNewShiftModal}
+              onEditShiftLog={handleEditShiftLog}
             />
           )}
 
           {activeTab === 'expenses' && (
             <ExpensesView
-              onOpenNewExpenseModal={() => setShowExpenseModal(true)}
+              onOpenNewExpenseModal={handleNewExpenseModal}
+              onEditExpense={handleEditExpense}
             />
           )}
 
@@ -109,6 +151,8 @@ function AppContent() {
 
           {activeTab === 'profitability' && <ProfitabilityView />}
 
+          {activeTab === 'custom-query' && <CustomQueryView />}
+
           {activeTab === 'notifications' && <NotificationsView />}
         </main>
       </div>
@@ -116,12 +160,20 @@ function AppContent() {
       {/* Global Modals */}
       <ShiftModal
         isOpen={showShiftModal}
-        onClose={() => setShowShiftModal(false)}
+        onClose={() => {
+          setShowShiftModal(false);
+          setEditingShiftLog(null);
+        }}
+        initialData={editingShiftLog}
       />
 
       <ExpenseModal
         isOpen={showExpenseModal}
-        onClose={() => setShowExpenseModal(false)}
+        onClose={() => {
+          setShowExpenseModal(false);
+          setEditingExpense(null);
+        }}
+        initialData={editingExpense}
       />
 
       <VehicleModal

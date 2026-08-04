@@ -3,8 +3,8 @@ import { Driver, Vehicle, DailyShiftLog, Expense, AppNotification } from '../typ
 export const INITIAL_DRIVERS: Driver[] = [
   {
     id: 'drv-1',
-    name: 'João Silva',
-    email: 'joao.silva@tvdefrota.pt',
+    name: 'Alexandre Rebelo',
+    email: 'alexandre.rebelo@tvdefrota.pt',
     phone: '+351 912 345 678',
     tvdeLicenseNumber: 'TVDE-883492-PT',
     tvdeLicenseExpiry: '2027-11-15',
@@ -13,475 +13,178 @@ export const INITIAL_DRIVERS: Driver[] = [
     commissionRate: 60, // 60% motorista / 40% parceiro
     startDate: '2024-03-01',
     iban: 'PT50 0033 0000 1234 5678 9015 4'
-  },
-  {
-    id: 'drv-2',
-    name: 'Maria Santos',
-    email: 'maria.santos@tvdefrota.pt',
-    phone: '+351 961 888 234',
-    tvdeLicenseNumber: 'TVDE-991204-PT',
-    tvdeLicenseExpiry: '2026-08-30', // prestes a caducar
-    status: 'active',
-    assignedVehicleId: 'veh-2',
-    commissionRate: 65,
-    startDate: '2023-09-15',
-    iban: 'PT50 0018 0000 9876 5432 1012 3'
-  },
-  {
-    id: 'drv-3',
-    name: 'Carlos Ferreira',
-    email: 'carlos.ferreira@tvdefrota.pt',
-    phone: '+351 934 112 990',
-    tvdeLicenseNumber: 'TVDE-552109-PT',
-    tvdeLicenseExpiry: '2028-04-10',
-    status: 'active',
-    assignedVehicleId: 'veh-3',
-    commissionRate: 60,
-    startDate: '2024-01-10',
-    iban: 'PT50 0035 0000 5544 3322 1100 9'
-  },
-  {
-    id: 'drv-4',
-    name: 'Ana Rodrigues',
-    email: 'ana.rodrigues@tvdefrota.pt',
-    phone: '+351 925 771 002',
-    tvdeLicenseNumber: 'TVDE-771239-PT',
-    tvdeLicenseExpiry: '2027-01-20',
-    status: 'active',
-    assignedVehicleId: 'veh-4',
-    commissionRate: 70, // Contrato de renda de viatura
-    startDate: '2024-05-01',
-    iban: 'PT50 0007 0000 8822 1133 4455 6'
-  },
-  {
-    id: 'drv-5',
-    name: 'Pedro Costa',
-    email: 'pedro.costa@tvdefrota.pt',
-    phone: '+351 919 001 445',
-    tvdeLicenseNumber: 'TVDE-339012-PT',
-    tvdeLicenseExpiry: '2026-12-05',
-    status: 'on_leave',
-    assignedVehicleId: undefined,
-    commissionRate: 60,
-    startDate: '2023-11-01',
-    iban: 'PT50 0038 0000 1199 2288 3377 1'
   }
 ];
 
 export const INITIAL_VEHICLES: Vehicle[] = [
   {
     id: 'veh-1',
-    licensePlate: 'AA-42-TV',
+    licensePlate: 'CE-84-UO',
     brand: 'Tesla',
-    model: 'Model 3 Standard',
-    year: 2023,
+    model: 'Model Y',
+    year: 2024,
     fuelType: 'ev',
     currentKm: 78500,
     lastServiceKm: 70000,
-    nextMaintenanceKm: 80000, // Falta 1500 km para manutenção
-    rentalFeePerWeek: 210, // 210€/semana
+    nextMaintenanceKm: 85000,
+    rentalFeePerWeek: 350,
     insuranceCompany: 'Fidelidade TVDE Pro',
-    insuranceExpiry: '2026-10-15',
-    ipoExpiry: '2027-03-20',
+    insuranceExpiry: '2027-10-15',
+    ipoExpiry: '2028-03-20',
     status: 'active',
     assignedDriverId: 'drv-1',
-    assignedDriverName: 'João Silva'
-  },
-  {
-    id: 'veh-2',
-    licensePlate: '99-ZZ-11',
-    brand: 'Renault',
-    model: 'Zoe R135 EV',
-    year: 2022,
-    fuelType: 'ev',
-    currentKm: 114800,
-    lastServiceKm: 100000,
-    nextMaintenanceKm: 115000, // Falta 200 km - ALERTA!
-    rentalFeePerWeek: 175,
-    insuranceCompany: 'Tranquilidade Frota',
-    insuranceExpiry: '2026-08-05', // ALERTA! Vence em breve
-    ipoExpiry: '2026-09-12', // ALERTA! IPO em breve
-    status: 'active',
-    assignedDriverId: 'drv-2',
-    assignedDriverName: 'Maria Santos'
-  },
-  {
-    id: 'veh-3',
-    licensePlate: 'AB-88-CD',
-    brand: 'Peugeot',
-    model: 'e-208 GT',
-    year: 2023,
-    fuelType: 'ev',
-    currentKm: 62100,
-    lastServiceKm: 50000,
-    nextMaintenanceKm: 65000,
-    rentalFeePerWeek: 185,
-    insuranceCompany: 'Generali TVDE',
-    insuranceExpiry: '2027-01-30',
-    ipoExpiry: '2027-05-15',
-    status: 'active',
-    assignedDriverId: 'drv-3',
-    assignedDriverName: 'Carlos Ferreira'
-  },
-  {
-    id: 'veh-4',
-    licensePlate: '44-YY-55',
-    brand: 'Nissan',
-    model: 'Leaf 62kWh',
-    year: 2022,
-    fuelType: 'ev',
-    currentKm: 132400,
-    lastServiceKm: 120000,
-    nextMaintenanceKm: 135000,
-    rentalFeePerWeek: 180,
-    insuranceCompany: 'Fidelidade TVDE Pro',
-    insuranceExpiry: '2026-11-20',
-    ipoExpiry: '2026-08-18', // ALERTA! IPO em menos de um mês
-    status: 'active',
-    assignedDriverId: 'drv-4',
-    assignedDriverName: 'Ana Rodrigues'
-  },
-  {
-    id: 'veh-5',
-    licensePlate: '33-XX-88',
-    brand: 'Toyota',
-    model: 'Corolla Touring Hybrid',
-    year: 2021,
-    fuelType: 'hybrid',
-    currentKm: 189000,
-    lastServiceKm: 180000,
-    nextMaintenanceKm: 190000,
-    rentalFeePerWeek: 190,
-    insuranceCompany: 'Allianz Seguros',
-    insuranceExpiry: '2026-12-01',
-    ipoExpiry: '2026-10-10',
-    status: 'maintenance',
-    assignedDriverId: undefined,
-    assignedDriverName: undefined
+    assignedDriverName: 'Alexandre Rebelo'
   }
 ];
 
-// Generates historical shift logs for realistic charts & data analytics
-export const INITIAL_SHIFT_LOGS: DailyShiftLog[] = [
-  // Recent shifts (July 2026)
-  {
-    id: 'sft-101',
+const RAW_CSV_IMPORT = `Data;Plataforma;Nr. Viagens;Horas;Faturacao Liquida;Kms;Energia;Renda Diaria;Lucro
+2026-08-02;Uber;28;08:30;196.02;400;25.92;50.00;120.10
+2026-08-01;Uber;30;08:40;175.81;350;18.65;50.00;107.16
+2026-07-31;Uber;28;09:15;176.01;350;21.04;50.00;104.97
+2026-07-30;Uber;32;08:40;167.85;350;26.45;50.00;91.40
+2026-07-29;Uber;29;08:40;161.52;350;16.54;50.00;94.98
+2026-07-28;Uber;30;08:55;163.16;350;34.14;50.00;79.02
+2026-07-26;Uber;27;08:40;172.80;320;20.69;50.00;102.11
+2026-07-25;Uber;31;08:45;165.28;320;16.99;50.00;98.29
+2026-07-24;Uber;30;08:20;159.83;320;18.04;50.00;91.79
+2026-07-23;Uber;11;3:20;59.20;150;5.34;50.00;3.86
+2026-07-20;Uber;28;08:45;163.79;320;33.15;50.00;80.64
+2026-07-19;Uber;27;08:30;188.24;320;18.65;50.00;119.59
+2026-07-18;Uber;29;08:40;154.04;320;26.04;50.00;78.00
+2026-07-17;Uber;30;09:00;177.96;320;15.21;50.00;112.75
+2026-07-16;Uber;25;08:30;145.78;320;36.33;50.00;59.45
+2026-07-15;Uber;29;08:30;160.37;320;8.04;50.00;102.33
+2026-07-14;Uber;34;09:10;163.44;320;19.18;50.00;94.26
+2026-07-13;Uber;0;08:00;0.00;0;14.69;50.00;-64.69
+2026-07-12;Uber;33;08:50;171.53;320;13.50;50.00;108.03
+2026-07-11;Uber;32;09:10;164.85;320;25.73;50.00;89.12
+2026-07-10;Uber;27;08:30;157.87;320;14.45;50.00;93.42
+2026-07-09;Uber;30;09:00;169.03;320;32.67;50.00;86.36
+2026-07-08;Uber;32;08:55;177.05;320;10.38;50.00;116.67
+2026-07-07;Uber;29;08:30;161.39;320;17.42;50.00;93.97
+2026-07-06;Uber;0;0;0.00;14;4.16;50.00;-54.16
+2026-07-05;Uber;28;08:25;188.67;320;26.23;50.00;112.44
+2026-07-04;Uber;32;08:30;175.91;320;12.32;50.00;113.59
+2026-07-03;Uber;28;08:20;210.23;320;35.06;50.00;125.17
+2026-07-02;Uber;28;08:40;179.82;300;30.63;50.00;99.19
+2026-07-01;Uber;30;08:40;168.64;300;10.59;50.00;108.05
+2026-06-30;Uber;26;08:30;151.98;315;18.60;50.00;83.38
+2026-06-29;Uber;0;0:13;2.88;0;15.42;50.00;-62.54
+2026-06-28;Uber;30;09:20;171.22;350;18.26;50.00;102.96
+2026-06-27;Uber;25;09:30;181.64;333;32.06;50.00;99.58
+2026-06-26;Uber;28;09:30;169.59;333;12.36;50.00;107.23
+2026-06-25;Uber;30;09:10;152.29;332;31.89;50.00;70.40
+2026-06-24;Uber;22;09:10;142.49;333;12.87;50.00;79.62
+2026-06-23;Uber;27;08:12;154.31;333;12.59;50.00;91.72
+2026-06-22;Uber;0;08:00;0.00;0;16.10;50.00;-66.10
+2026-06-21;Uber;32;09:00;176.53;320;20.62;50.00;105.91
+2026-06-20;Uber;30;08:55;177.10;320;10.65;50.00;116.45
+2026-06-19;Uber;28;08:08;174.29;300;31.31;50.00;92.98
+2026-06-18;Uber;31;09:30;153.70;300;13.45;50.00;90.25
+2026-06-17;Uber;30;08:55;186.15;300;20.56;50.00;115.59
+2026-06-16;Uber;26;07:20;127.99;200;16.30;50.00;61.69
+2026-06-15;Uber;0;0;0.00;0;0.00;50.00;-50.00
+2026-06-14;Uber;31;09:00;168.77;320;15.16;50.00;103.61
+2026-06-13;Uber;29;08:50;172.44;320;29.74;50.00;92.70
+2026-06-12;Uber;29;08:40;187.43;320;13.04;50.00;124.39
+2026-06-11;Uber;25;8:40;156.80;320;30.96;50.00;75.84
+2026-06-10;Uber;30;08:40;152.32;300;13.36;50.00;88.96
+2026-06-09;Uber;27;09:30;180.84;350;15.55;50.00;115.29
+2026-06-08;Uber;0;0;0.00;33;16.78;50.00;-66.78
+2026-06-07;Uber;33;09:00;163.58;300;26.80;50.00;86.78
+2026-06-06;Uber;31;10:30;190.28;350;16.88;50.00;123.40
+2026-06-05;Uber;20;07:50;147.96;250;20.73;50.00;77.23
+2026-06-04;Uber;36;09:45;172.25;300;30.90;50.00;91.35
+2026-06-03;Uber;25;09:00;178.36;300;12.62;50.00;115.74
+2026-06-02;Uber;33;09:00;157.61;300;15.27;50.00;92.34
+2026-06-01;Uber;0;0;0.00;275;14.73;50.00;-64.73
+2026-05-31;Uber;32;09:15;170.41;320;22.46;50.00;97.95
+2026-05-30;Uber;29;09:00;166.93;300;19.44;50.00;97.49
+2026-05-29;Uber;25;09:30;170.48;300;34.92;50.00;85.56
+2026-05-28;Uber;31;09:00;138.48;300;19.50;50.00;68.98
+2026-05-27;Uber;29;09:40;175.97;300;31.65;50.00;94.32
+2026-05-26;Uber;28;8:45;138.52;300;7.97;50.00;80.55
+2026-05-25;Uber;1;08:00;3.19;58;0.00;50.00;-46.81
+2026-05-24;Uber;26;9:15;171.10;300;24.24;50.00;96.86
+2026-05-23;Uber;30;09:30;166.65;300;10.38;50.00;106.27
+2026-05-22;Uber;29;09:30;150.97;300;19.81;50.00;81.16
+2026-05-21;Uber;31;10:15;168.22;300;13.91;50.00;104.31
+2026-05-20;Uber;30;10:00;132.41;300;16.59;50.00;65.82
+2026-05-19;Uber;31;9:30;152.23;320;8.50;50.00;93.73
+2026-05-18;Uber;1;00:15;3.81;10;17.92;50.00;-64.11
+2026-05-17;Uber;33;11:00;173.00;300;21.89;50.00;101.11
+2026-05-16;Uber;32;10:30;166.84;300;9.41;50.00;107.43
+2026-05-15;Uber;33;10:15;162.22;300;31.45;50.00;80.77
+2026-05-14;Uber;25;10:00;134.26;300;11.77;50.00;72.49
+2026-05-13;Uber;31;10:00;163.30;300;28.60;50.00;84.70
+2026-05-12;Uber;35;09:30;145.26;300;4.15;50.00;91.11
+2026-05-11;Uber;0;0;0.00;79;17.46;50.00;-67.46
+2026-05-10;Uber;33;10:45;198.02;350;13.72;50.00;134.30
+2026-05-09;Uber;31;9:30;150.33;300;17.79;50.00;82.54
+2026-05-08;Uber;33;10:30;254.16;320;12.66;50.00;191.50
+2026-05-07;Uber;27;10:00;121.08;300;21.54;50.00;49.54
+2026-05-06;Uber;33;10:45;173.74;300;9.57;50.00;114.17
+2026-05-05;Uber;25;10:30;124.25;300;14.26;50.00;59.99
+2026-05-04;Uber;1;0:40;13.12;30;17.00;50.00;-53.88
+2026-05-03;Uber;28;11:30;221.25;300;17.01;50.00;154.24
+2026-05-02;Uber;32;10:30;150.06;300;21.50;50.00;78.56
+2026-05-01;Uber;38;10:30;155.80;300;20.60;50.00;85.20
+2026-04-30;Uber;26;10:20;137.77;300;17.58;50.00;70.19
+2026-04-29;Uber;29;10:30;146.59;300;11.53;50.00;85.06
+2026-04-28;Uber;26;10:00;155.69;300;13.69;50.00;92.00
+2026-04-27;Uber;5;01:15;80.94;50;18.54;50.00;12.40
+2026-04-26;Uber;27;08:00;108.00;200;10.12;50.00;47.88
+2026-04-25;Uber;15;05:25;94.00;170;18.25;50.00;25.75
+2026-04-24;Uber;20;09:00;147.61;300;17.06;50.00;80.55
+2026-04-23;Uber;22;09:00;132.93;300;20.69;50.00;62.24
+2026-04-22;Uber;27;9:00;127.12;290;12.14;50.00;64.98
+2026-04-21;Uber;21;9:00;119.36;290;15.54;50.00;53.82
+2026-04-20;Uber;25;8:40;109.83;270;8.45;50.00;51.38
+2026-04-19;Uber;23;11:15;132.13;240;10.73;50.00;71.40`;
+
+function parseHours(hStr: string): number {
+  if (!hStr || hStr === '0') return 0;
+  if (!hStr.includes(':')) return parseFloat(hStr) || 0;
+  const [h, m] = hStr.split(':').map(Number);
+  return Math.round(((h || 0) + (m || 0) / 60) * 100) / 100;
+}
+
+const csvLines = RAW_CSV_IMPORT.trim().split('\n').slice(1);
+
+export const INITIAL_SHIFT_LOGS: DailyShiftLog[] = csvLines.map((line, idx) => {
+  const parts = line.split(';');
+  const date = parts[0]?.trim() || '';
+  const tripsStr = parts[2]?.trim() || '0';
+  const hoursStr = parts[3]?.trim() || '0';
+  const faturacaoStr = parts[4]?.trim() || '0';
+  const kmsStr = parts[5]?.trim() || '0';
+  const energiaStr = parts[6]?.trim() || '0';
+  const rendaStr = parts[7]?.trim() || '0';
+
+  const gross = parseFloat(faturacaoStr) || 0;
+
+  return {
+    id: `sft-imported-${idx + 1}`,
     driverId: 'drv-1',
-    driverName: 'João Silva',
+    driverName: 'Alexandre Rebelo',
     vehicleId: 'veh-1',
-    vehiclePlate: 'AA-42-TV',
-    date: '2026-07-21',
-    tripsCount: 22,
-    kilometers: 285,
-    grossEarnings: 184.50,
-    uberEarnings: 115.00,
-    boltEarnings: 69.50,
+    vehiclePlate: 'CE-84-UO',
+    date,
+    tripsCount: parseInt(tripsStr, 10) || 0,
+    kilometers: parseInt(kmsStr, 10) || 0,
+    grossEarnings: gross,
+    uberEarnings: gross, // Todos os registos 100% Uber conforme solicitado
+    boltEarnings: 0,
     otherEarnings: 0,
-    hoursWorked: 9.5,
-    fuelExpenseAmount: 18.20,
-    fuelLitersOrKwh: 45, // kWh
+    hoursWorked: parseHours(hoursStr),
+    fuelExpenseAmount: parseFloat(energiaStr) || 0,
+    rentalExpenseAmount: parseFloat(rendaStr) || 0,
     status: 'verified',
-    notes: 'Turno da manhã e pico de fim de tarde. Excelente afluência em Lisboa.'
-  },
-  {
-    id: 'sft-102',
-    driverId: 'drv-2',
-    driverName: 'Maria Santos',
-    vehicleId: 'veh-2',
-    vehiclePlate: '99-ZZ-11',
-    date: '2026-07-21',
-    tripsCount: 18,
-    kilometers: 210,
-    grossEarnings: 142.00,
-    uberEarnings: 90.00,
-    boltEarnings: 52.00,
-    otherEarnings: 0,
-    hoursWorked: 8.0,
-    fuelExpenseAmount: 14.50,
-    fuelLitersOrKwh: 36,
-    status: 'submitted',
-    notes: 'Trânsito intenso na Ponte 25 de Abril.'
-  },
-  {
-    id: 'sft-103',
-    driverId: 'drv-3',
-    driverName: 'Carlos Ferreira',
-    vehicleId: 'veh-3',
-    vehiclePlate: 'AB-88-CD',
-    date: '2026-07-21',
-    tripsCount: 25,
-    kilometers: 310,
-    grossEarnings: 215.80,
-    uberEarnings: 140.80,
-    boltEarnings: 75.00,
-    otherEarnings: 0,
-    hoursWorked: 10.0,
-    fuelExpenseAmount: 22.00,
-    fuelLitersOrKwh: 52,
-    status: 'verified',
-    notes: 'Serviço de aeroporto de manhã cedo.'
-  },
-  {
-    id: 'sft-104',
-    driverId: 'drv-4',
-    driverName: 'Ana Rodrigues',
-    vehicleId: 'veh-4',
-    vehiclePlate: '44-YY-55',
-    date: '2026-07-21',
-    tripsCount: 19,
-    kilometers: 240,
-    grossEarnings: 158.00,
-    uberEarnings: 95.00,
-    boltEarnings: 63.00,
-    otherEarnings: 0,
-    hoursWorked: 8.5,
-    fuelExpenseAmount: 16.80,
-    fuelLitersOrKwh: 40,
-    status: 'verified'
-  },
-  {
-    id: 'sft-105',
-    driverId: 'drv-1',
-    driverName: 'João Silva',
-    vehicleId: 'veh-1',
-    vehiclePlate: 'AA-42-TV',
-    date: '2026-07-20',
-    tripsCount: 24,
-    kilometers: 298,
-    grossEarnings: 198.00,
-    uberEarnings: 128.00,
-    boltEarnings: 70.00,
-    otherEarnings: 0,
-    hoursWorked: 9.8,
-    fuelExpenseAmount: 19.50,
-    fuelLitersOrKwh: 48,
-    status: 'paid'
-  },
-  {
-    id: 'sft-106',
-    driverId: 'drv-2',
-    driverName: 'Maria Santos',
-    vehicleId: 'veh-2',
-    vehiclePlate: '99-ZZ-11',
-    date: '2026-07-20',
-    tripsCount: 20,
-    kilometers: 225,
-    grossEarnings: 155.00,
-    uberEarnings: 98.00,
-    boltEarnings: 57.00,
-    otherEarnings: 0,
-    hoursWorked: 8.2,
-    fuelExpenseAmount: 15.00,
-    status: 'paid'
-  },
-  {
-    id: 'sft-107',
-    driverId: 'drv-3',
-    driverName: 'Carlos Ferreira',
-    vehicleId: 'veh-3',
-    vehiclePlate: 'AB-88-CD',
-    date: '2026-07-20',
-    tripsCount: 21,
-    kilometers: 260,
-    grossEarnings: 172.50,
-    uberEarnings: 102.50,
-    boltEarnings: 70.00,
-    otherEarnings: 0,
-    hoursWorked: 9.0,
-    fuelExpenseAmount: 17.00,
-    status: 'paid'
-  },
-  {
-    id: 'sft-108',
-    driverId: 'drv-4',
-    driverName: 'Ana Rodrigues',
-    vehicleId: 'veh-4',
-    vehiclePlate: '44-YY-55',
-    date: '2026-07-20',
-    tripsCount: 17,
-    kilometers: 215,
-    grossEarnings: 139.00,
-    uberEarnings: 84.00,
-    boltEarnings: 55.00,
-    otherEarnings: 0,
-    hoursWorked: 7.8,
-    fuelExpenseAmount: 14.20,
-    status: 'paid'
-  },
-  // Previous shifts in June 2026
-  {
-    id: 'sft-080',
-    driverId: 'drv-1',
-    driverName: 'João Silva',
-    vehicleId: 'veh-1',
-    vehiclePlate: 'AA-42-TV',
-    date: '2026-06-28',
-    tripsCount: 26,
-    kilometers: 320,
-    grossEarnings: 230.00,
-    uberEarnings: 150.00,
-    boltEarnings: 80.00,
-    otherEarnings: 0,
-    hoursWorked: 10.2,
-    fuelExpenseAmount: 21.00,
-    status: 'paid'
-  },
-  {
-    id: 'sft-081',
-    driverId: 'drv-3',
-    driverName: 'Carlos Ferreira',
-    vehicleId: 'veh-3',
-    vehiclePlate: 'AB-88-CD',
-    date: '2026-06-28',
-    tripsCount: 28,
-    kilometers: 345,
-    grossEarnings: 245.00,
-    uberEarnings: 160.00,
-    boltEarnings: 85.00,
-    otherEarnings: 0,
-    hoursWorked: 10.5,
-    fuelExpenseAmount: 23.50,
-    status: 'paid'
-  }
-];
+    notes: 'Faturação registada via Uber'
+  };
+});
 
-export const INITIAL_EXPENSES: Expense[] = [
-  {
-    id: 'exp-1',
-    category: 'fuel_charging',
-    title: 'Carregamento EV Semanal - Rede Miio / Galp Electric',
-    amount: 142.50,
-    date: '2026-07-18',
-    vehicleId: 'veh-1',
-    vehiclePlate: 'AA-42-TV',
-    driverId: 'drv-1',
-    driverName: 'João Silva',
-    invoiceNumber: 'FT 2026/9981',
-    description: 'Postos Rápidos PCR Lisboa / Cascais'
-  },
-  {
-    id: 'exp-2',
-    category: 'maintenance',
-    title: 'Revisão Geral de Calços e Pneus Frontais',
-    amount: 285.00,
-    date: '2026-07-15',
-    vehicleId: 'veh-5',
-    vehiclePlate: '33-XX-88',
-    invoiceNumber: 'FT 2026/4412',
-    description: 'Troca de pastilhas de travão e calibração de direção em oficina parceira.'
-  },
-  {
-    id: 'exp-3',
-    category: 'insurance',
-    title: 'Prémio Trimestral Seguro Responsabilidade Civil TVDE',
-    amount: 420.00,
-    date: '2026-07-01',
-    vehicleId: 'veh-1',
-    vehiclePlate: 'AA-42-TV',
-    invoiceNumber: 'SEG-883921',
-    description: 'Seguro Fidelidade para transporte de passageiros TVDE com cobertura contra terceiros e ocupantes.'
-  },
-  {
-    id: 'exp-4',
-    category: 'insurance',
-    title: 'Seguro Anual TVDE Renault Zoe',
-    amount: 390.00,
-    date: '2026-07-01',
-    vehicleId: 'veh-2',
-    vehiclePlate: '99-ZZ-11',
-    invoiceNumber: 'SEG-100293',
-    description: 'Aviso de pagamento pendente para renovação de apólice.'
-  },
-  {
-    id: 'exp-5',
-    category: 'vehicle_rental',
-    title: 'Renda Semanal Viatura Tesla Model 3',
-    amount: 210.00,
-    date: '2026-07-20',
-    vehicleId: 'veh-1',
-    vehiclePlate: 'AA-42-TV',
-    driverId: 'drv-1',
-    driverName: 'João Silva',
-    description: 'Liquidação da renda semanal de contrato de exploração.'
-  },
-  {
-    id: 'exp-6',
-    category: 'vehicle_rental',
-    title: 'Renda Semanal Viatura Renault Zoe',
-    amount: 175.00,
-    date: '2026-07-20',
-    vehicleId: 'veh-2',
-    vehiclePlate: '99-ZZ-11',
-    driverId: 'drv-2',
-    driverName: 'Maria Santos',
-    description: 'Pagamento de renda semanal em falta.'
-  },
-  {
-    id: 'exp-7',
-    category: 'tolls_wash',
-    title: 'Via Verde & Lavagem Profissional de Frota',
-    amount: 68.40,
-    date: '2026-07-12',
-    vehicleId: 'veh-3',
-    vehiclePlate: 'AB-88-CD',
-    description: 'Portagens autoestradas A1/A2 e lavagem completa de viatura.'
-  }
-];
+export const INITIAL_EXPENSES: Expense[] = [];
 
-export const INITIAL_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'notif-1',
-    type: 'maintenance',
-    title: 'Alerta de Manutenção Imminente (Renault Zoe)',
-    message: 'A viatura 99-ZZ-11 encontra-se a apenas 200 km da revisão preventiva dos 115.000 km.',
-    date: '2026-07-21T09:30:00Z',
-    priority: 'high',
-    read: false,
-    relatedVehicleId: 'veh-2',
-    actionRequired: 'Agendar revisão em oficina'
-  },
-  {
-    id: 'notif-2',
-    type: 'payment_pending',
-    title: 'Pagamento de Renda Semanal Pendente',
-    message: 'A renda semanal da viatura 99-ZZ-11 da motorista Maria Santos (175,00 €) venceu em 20/07/2026.',
-    date: '2026-07-21T08:00:00Z',
-    priority: 'high',
-    read: false,
-    relatedVehicleId: 'veh-2',
-    relatedDriverId: 'drv-2',
-    actionRequired: 'Confirmar cobrança'
-  },
-  {
-    id: 'notif-3',
-    type: 'document_expiry',
-    title: 'Licença TVDE a Caducar',
-    message: 'A licença TVDE de Maria Santos (TVDE-991204-PT) caduca a 30/08/2026. Necessário renovar certificado IMT.',
-    date: '2026-07-20T14:15:00Z',
-    priority: 'medium',
-    read: false,
-    relatedDriverId: 'drv-2',
-    actionRequired: 'Pedir renovação no portal IMT'
-  },
-  {
-    id: 'notif-4',
-    type: 'document_expiry',
-    title: 'Inspeção IPO Próxima (Nissan Leaf)',
-    message: 'A inspeção periódica obrigatória da viatura 44-YY-55 vence a 18/08/2026.',
-    date: '2026-07-19T11:00:00Z',
-    priority: 'medium',
-    read: true,
-    relatedVehicleId: 'veh-4',
-    actionRequired: 'Marcar centro de inspeções'
-  },
-  {
-    id: 'notif-5',
-    type: 'performance_alert',
-    title: 'Média de Faturação Elevada',
-    message: 'Carlos Ferreira atingiu uma média de 21,58 €/hora no turno de hoje com 25 viagens efetuadas!',
-    date: '2026-07-21T18:45:00Z',
-    priority: 'low',
-    read: false,
-    relatedDriverId: 'drv-3'
-  }
-];
+export const INITIAL_NOTIFICATIONS: AppNotification[] = [];
+

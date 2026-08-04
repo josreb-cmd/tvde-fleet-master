@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTVDE } from '../context/TVDEContext';
-import { ExpenseCategory } from '../types';
+import { ExpenseCategory, Expense } from '../types';
 import {
   DollarSign,
   Fuel,
@@ -11,14 +11,18 @@ import {
   Plus,
   Trash2,
   Calendar,
-  FileText
+  FileText,
+  Edit3,
+  Landmark,
+  Receipt
 } from 'lucide-react';
 
 interface ExpensesViewProps {
   onOpenNewExpenseModal: () => void;
+  onEditExpense?: (expense: Expense) => void;
 }
 
-export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModal }) => {
+export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModal, onEditExpense }) => {
   const { expenses, deleteExpense, selectedMonth } = useTVDE();
 
   const [activeCategory, setActiveCategory] = useState<ExpenseCategory | 'all'>('all');
@@ -30,11 +34,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
     insurance: { label: 'Seguros', icon: Shield, color: 'text-cyan-700 bg-cyan-50 border border-cyan-200' },
     vehicle_rental: { label: 'Rendas de Viaturas', icon: Car, color: 'text-indigo-700 bg-indigo-50 border border-indigo-200' },
     tolls_wash: { label: 'Portagens / Lavagens', icon: FileText, color: 'text-teal-700 bg-teal-50 border border-teal-200' },
+    irs: { label: 'IRS', icon: Landmark, color: 'text-purple-700 bg-purple-50 border border-purple-200' },
+    iva: { label: 'IVA', icon: Receipt, color: 'text-rose-700 bg-rose-50 border border-rose-200' },
     other: { label: 'Outras Despesas', icon: DollarSign, color: 'text-slate-700 bg-slate-100 border border-slate-200' }
   };
 
   // Filter Expenses by Month and Category
-  const monthExpenses = expenses.filter(e => e.date.startsWith(selectedMonth));
+  const monthExpenses = expenses.filter(e => selectedMonth === 'all' || e.date.startsWith(selectedMonth));
   const filteredExpenses = monthExpenses.filter(e => {
     const matchesCategory = activeCategory === 'all' || e.category === activeCategory;
     const matchesSearch =
@@ -51,6 +57,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
   const totalMaint = monthExpenses.filter(e => e.category === 'maintenance').reduce((a, e) => a + e.amount, 0);
   const totalInsur = monthExpenses.filter(e => e.category === 'insurance').reduce((a, e) => a + e.amount, 0);
   const totalRent = monthExpenses.filter(e => e.category === 'vehicle_rental').reduce((a, e) => a + e.amount, 0);
+  const totalIrs = monthExpenses.filter(e => e.category === 'irs').reduce((a, e) => a + e.amount, 0);
+  const totalIva = monthExpenses.filter(e => e.category === 'iva').reduce((a, e) => a + e.amount, 0);
   const totalAll = monthExpenses.reduce((a, e) => a + e.amount, 0);
 
   return (
@@ -63,7 +71,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
             <h1 className="text-xl font-bold text-slate-900">Registo de Custos e Rendas de Viaturas</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Controlo rigoroso de despesas operacionais da frota TVDE: combustíveis/carregamentos, manutenção de veículos, apólices de seguro e rendas.
+            Controlo rigoroso de despesas operacionais da frota TVDE: combustíveis/carregamentos, manutenção de veículos, seguros, impostos (IRS e IVA) e rendas.
           </p>
         </div>
 
@@ -77,24 +85,24 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
       </div>
 
       {/* Category Totals Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <div
           onClick={() => setActiveCategory('all')}
-          className={`p-4 rounded-md border cursor-pointer transition ${
+          className={`p-3.5 rounded-md border cursor-pointer transition ${
             activeCategory === 'all'
               ? 'bg-blue-50 border-blue-500 text-blue-900'
               : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
           }`}
         >
           <span className="text-[10px] font-bold uppercase tracking-wider block">Total Geral</span>
-          <span className="text-lg font-bold text-slate-900 mt-1 block">
+          <span className="text-base font-bold text-slate-900 mt-1 block">
             {totalAll.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
 
         <div
           onClick={() => setActiveCategory('fuel_charging')}
-          className={`p-4 rounded-md border cursor-pointer transition ${
+          className={`p-3.5 rounded-md border cursor-pointer transition ${
             activeCategory === 'fuel_charging'
               ? 'bg-blue-50 border-blue-500 text-blue-900'
               : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
@@ -104,14 +112,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
             <Fuel className="w-3.5 h-3.5 text-red-600" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Combustível/EV</span>
           </div>
-          <span className="text-lg font-bold text-slate-900 mt-1 block">
+          <span className="text-base font-bold text-slate-900 mt-1 block">
             {totalFuel.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
 
         <div
           onClick={() => setActiveCategory('maintenance')}
-          className={`p-4 rounded-md border cursor-pointer transition ${
+          className={`p-3.5 rounded-md border cursor-pointer transition ${
             activeCategory === 'maintenance'
               ? 'bg-blue-50 border-blue-500 text-blue-900'
               : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
@@ -121,14 +129,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
             <Wrench className="w-3.5 h-3.5 text-amber-600" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Manutenção</span>
           </div>
-          <span className="text-lg font-bold text-slate-900 mt-1 block">
+          <span className="text-base font-bold text-slate-900 mt-1 block">
             {totalMaint.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
 
         <div
           onClick={() => setActiveCategory('insurance')}
-          className={`p-4 rounded-md border cursor-pointer transition ${
+          className={`p-3.5 rounded-md border cursor-pointer transition ${
             activeCategory === 'insurance'
               ? 'bg-blue-50 border-blue-500 text-blue-900'
               : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
@@ -138,14 +146,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
             <Shield className="w-3.5 h-3.5 text-cyan-600" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Seguros</span>
           </div>
-          <span className="text-lg font-bold text-slate-900 mt-1 block">
+          <span className="text-base font-bold text-slate-900 mt-1 block">
             {totalInsur.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
 
         <div
           onClick={() => setActiveCategory('vehicle_rental')}
-          className={`p-4 rounded-md border cursor-pointer transition ${
+          className={`p-3.5 rounded-md border cursor-pointer transition ${
             activeCategory === 'vehicle_rental'
               ? 'bg-blue-50 border-blue-500 text-blue-900'
               : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
@@ -155,8 +163,42 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
             <Car className="w-3.5 h-3.5 text-indigo-600" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Rendas Viaturas</span>
           </div>
-          <span className="text-lg font-bold text-slate-900 mt-1 block">
+          <span className="text-base font-bold text-slate-900 mt-1 block">
             {totalRent.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+          </span>
+        </div>
+
+        <div
+          onClick={() => setActiveCategory('irs')}
+          className={`p-3.5 rounded-md border cursor-pointer transition ${
+            activeCategory === 'irs'
+              ? 'bg-blue-50 border-blue-500 text-blue-900'
+              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center space-x-1.5">
+            <Landmark className="w-3.5 h-3.5 text-purple-600" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">IRS</span>
+          </div>
+          <span className="text-base font-bold text-slate-900 mt-1 block">
+            {totalIrs.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+          </span>
+        </div>
+
+        <div
+          onClick={() => setActiveCategory('iva')}
+          className={`p-3.5 rounded-md border cursor-pointer transition ${
+            activeCategory === 'iva'
+              ? 'bg-blue-50 border-blue-500 text-blue-900'
+              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center space-x-1.5">
+            <Receipt className="w-3.5 h-3.5 text-rose-600" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">IVA</span>
+          </div>
+          <span className="text-base font-bold text-slate-900 mt-1 block">
+            {totalIva.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
       </div>
@@ -232,7 +274,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
                       <td className="p-3.5 text-right font-bold text-red-600 text-sm whitespace-nowrap">
                         {exp.amount.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                       </td>
-                      <td className="p-3.5 text-right">
+                      <td className="p-3.5 text-right flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => onEditExpense?.(exp)}
+                          className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                          title="Editar Despesa / Renda"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => {
                             if (confirm('Eliminar esta despesa do registo?')) {

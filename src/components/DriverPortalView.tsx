@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTVDE } from '../context/TVDEContext';
+import { formatHoursToHHMM, parseHHMMToHours } from '../utils/formatters';
 import {
   UserCheck,
   PlusCircle,
@@ -79,7 +80,7 @@ export const DriverPortalView: React.FC<DriverPortalViewProps> = ({ onOpenNewShi
       uberEarnings: uberNum,
       boltEarnings: boltNum,
       otherEarnings: 0,
-      hoursWorked: parseFloat(hoursWorked),
+      hoursWorked: parseHHMMToHours(hoursWorked),
       fuelExpenseAmount: parseFloat(fuelExpense) || 0,
       notes
     });
@@ -166,7 +167,7 @@ export const DriverPortalView: React.FC<DriverPortalViewProps> = ({ onOpenNewShi
             <span className="font-bold uppercase tracking-wider">Horas em Serviço</span>
             <Clock className="w-4 h-4 text-slate-600" />
           </div>
-          <p className="text-xl font-bold text-slate-900 mt-2">{myTotalHours.toFixed(1)} h</p>
+          <p className="text-xl font-bold text-slate-900 mt-2">{formatHoursToHHMM(myTotalHours)}</p>
           <span className="text-[10px] text-slate-500">horas registadas</span>
         </div>
 
@@ -272,15 +273,14 @@ export const DriverPortalView: React.FC<DriverPortalViewProps> = ({ onOpenNewShi
             {/* Horas Trabalhadas */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Horas Trabalhadas *
+                Horas Trabalhadas (hh:mm) *
               </label>
               <input
-                type="number"
-                step="0.5"
-                placeholder="Ex: 9.5"
+                type="text"
+                placeholder="Ex: 08:30"
                 value={hoursWorked}
                 onChange={e => setHoursWorked(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 required
               />
             </div>
@@ -409,7 +409,7 @@ export const DriverPortalView: React.FC<DriverPortalViewProps> = ({ onOpenNewShi
                     <td className="p-3 font-mono font-bold text-slate-800">{log.vehiclePlate}</td>
                     <td className="p-3 text-center text-slate-700">{log.tripsCount}</td>
                     <td className="p-3 text-center text-slate-700">{log.kilometers} km</td>
-                    <td className="p-3 text-center text-slate-700">{log.hoursWorked}h</td>
+                    <td className="p-3 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
                     <td className="p-3 text-right font-bold text-slate-900">
                       {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                     </td>

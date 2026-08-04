@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
+import { parseHHMMToHours } from '../utils/formatters';
 import {
   Driver,
   Vehicle,
@@ -44,17 +45,21 @@ interface TVDEContextType {
   
   // Actions
   addShiftLog: (log: Omit<DailyShiftLog, 'id' | 'status'>) => void;
+  updateShiftLog: (id: string, logData: Partial<DailyShiftLog>) => void;
   updateShiftLogStatus: (id: string, status: DailyShiftLog['status']) => void;
   deleteShiftLog: (id: string) => void;
   
   addExpense: (expense: Omit<Expense, 'id'>) => void;
+  updateExpense: (id: string, expense: Partial<Expense>) => void;
   deleteExpense: (id: string) => void;
   
   addVehicle: (vehicle: Omit<Vehicle, 'id'>) => void;
   updateVehicle: (id: string, vehicle: Partial<Vehicle>) => void;
+  deleteVehicle: (id: string) => void;
   
   addDriver: (driver: Omit<Driver, 'id'>) => void;
   updateDriver: (id: string, driver: Partial<Driver>) => void;
+  deleteDriver: (id: string) => void;
   
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
@@ -93,6 +98,22 @@ const STORAGE_KEYS = {
   MONTH: 'tvde_selected_month_v1'
 };
 
+// Helper to remove undefined fields before writing to Firestore
+function cleanObject<T extends Record<string, any>>(obj: T): T {
+  const cleaned: Record<string, any> = {};
+  Object.keys(obj).forEach(key => {
+    const val = obj[key];
+    if (val !== undefined) {
+      if (val !== null && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+        cleaned[key] = cleanObject(val);
+      } else {
+        cleaned[key] = val;
+      }
+    }
+  });
+  return cleaned as T;
+}
+
 export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRoleState] = useState<UserRole>(() => {
     return (localStorage.getItem(STORAGE_KEYS.ROLE) as UserRole) || 'manager';
@@ -103,7 +124,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [selectedMonth, setSelectedMonthState] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.MONTH) || '2026-07';
+    return localStorage.getItem(STORAGE_KEYS.MONTH) || '2026-08';
   });
 
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
@@ -123,11 +144,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Firestore Sync for DRIVERS
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'drivers'), async snapshot => {
-      if (snapshot.empty) {
-        // Seed initial data to cloud if collection is empty
+      const oldIds = ['drv-2', 'drv-3', 'drv-4', 'drv-5'];
+      const hasOldDrivers = snapshot.docs.some(d => oldIds.includes(d.id) || d.data().name === 'João Silva');
+      if (snapshot.empty || hasOldDrivers) {
         const batch = writeBatch(db);
+        snapshot.docs.forEach(d => batch.delete(d.ref));
         INITIAL_DRIVERS.forEach(d => {
-          batch.set(doc(db, 'drivers', d.id), d);
+          batch.set(doc(db, 'drivers', d.id), cleanObject(d));
         });
         await batch.commit();
       } else {
@@ -144,10 +167,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Firestore Sync for VEHICLES
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'vehicles'), async snapshot => {
-      if (snapshot.empty) {
+      const oldIds = ['veh-2', 'veh-3', 'veh-4', 'veh-5'];
+      const hasOldVehicles = snapshot.docs.some(d => oldIds.includes(d.id) || d.data().assignedDriverName === 'João Silva' || d.data().licensePlate === 'AA-42-TV');
+      if (snapshot.empty || hasOldVehicles) {
         const batch = writeBatch(db);
+        snapshot.docs.forEach(d => batch.delete(d.ref));
         INITIAL_VEHICLES.forEach(v => {
-          batch.set(doc(db, 'vehicles', v.id), v);
+          batch.set(doc(db, 'vehicles', v.id), cleanObject(v));
         });
         await batch.commit();
       } else {
@@ -164,10 +190,12 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Firestore Sync for SHIFT LOGS
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'shiftLogs'), async snapshot => {
-      if (snapshot.empty) {
+      const hasOldData = snapshot.docs.some(d => d.data().driverName === 'João Silva' || (d.data().boltEarnings || 0) > 0 || d.data().vehiclePlate === 'AA-42-TV' || d.data().rentalExpenseAmount === undefined);
+      if (snapshot.empty || hasOldData) {
         const batch = writeBatch(db);
+        snapshot.docs.forEach(d => batch.delete(d.ref));
         INITIAL_SHIFT_LOGS.forEach(s => {
-          batch.set(doc(db, 'shiftLogs', s.id), s);
+          batch.set(doc(db, 'shiftLogs', s.id), cleanObject(s));
         });
         await batch.commit();
       } else {
@@ -186,11 +214,20 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Firestore Sync for EXPENSES
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'expenses'), async snapshot => {
-      if (snapshot.empty) {
+      const testExpenses = snapshot.docs.filter(
+        d => d.id === 'exp-maint-1' ||
+             d.data().amount === 180 ||
+             d.data().driverName === 'João Silva' ||
+             d.id.startsWith('exp-rnd-monday-') ||
+             d.id.startsWith('exp-nrg-') ||
+             d.id.startsWith('exp-rnd-daily-') ||
+             d.id.startsWith('exp-fuel-shift-') ||
+             d.id.startsWith('exp-rnd-shift-') ||
+             d.data().vehiclePlate === 'AA-42-TV'
+      );
+      if (testExpenses.length > 0) {
         const batch = writeBatch(db);
-        INITIAL_EXPENSES.forEach(e => {
-          batch.set(doc(db, 'expenses', e.id), e);
-        });
+        testExpenses.forEach(d => batch.delete(d.ref));
         await batch.commit();
       } else {
         const loaded = snapshot.docs.map(doc => doc.data() as Expense);
@@ -207,16 +244,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Firestore Sync for NOTIFICATIONS
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'notifications'), async snapshot => {
-      if (snapshot.empty) {
+      if (!snapshot.empty) {
         const batch = writeBatch(db);
-        INITIAL_NOTIFICATIONS.forEach(n => {
-          batch.set(doc(db, 'notifications', n.id), n);
-        });
+        snapshot.docs.forEach(d => batch.delete(d.ref));
         await batch.commit();
+        setNotifications([]);
       } else {
-        const loaded = snapshot.docs.map(doc => doc.data() as AppNotification);
-        loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setNotifications(loaded);
+        setNotifications([]);
         setIsCloudSynced(true);
       }
     }, err => {
@@ -262,6 +296,62 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [shiftLogs, vehicles]);
 
+  // Helper to sync rental and fuel expenses linked to a shift log
+  const syncShiftExpenses = async (shiftLog: DailyShiftLog) => {
+    const rentalExpId = `exp-rnd-shift-${shiftLog.id}`;
+    const fuelExpId = `exp-fuel-shift-${shiftLog.id}`;
+
+    // 1. Rental Expense Sync
+    if (shiftLog.rentalExpenseAmount && shiftLog.rentalExpenseAmount > 0) {
+      const rentalExpense: Expense = {
+        id: rentalExpId,
+        category: 'vehicle_rental',
+        title: `Renda de Viatura (${shiftLog.vehiclePlate})`,
+        amount: shiftLog.rentalExpenseAmount,
+        date: shiftLog.date,
+        vehicleId: shiftLog.vehicleId,
+        vehiclePlate: shiftLog.vehiclePlate,
+        driverId: shiftLog.driverId,
+        driverName: shiftLog.driverName,
+        description: `Sincronizado de Faturação Diária (${shiftLog.driverName})`
+      };
+      setExpenses(prev => [...prev.filter(e => e.id !== rentalExpId), rentalExpense]);
+      try {
+        await setDoc(doc(db, 'expenses', rentalExpId), cleanObject(rentalExpense));
+      } catch (err) {
+        console.error("Error syncing rental expense:", err);
+      }
+    } else {
+      setExpenses(prev => prev.filter(e => e.id !== rentalExpId));
+      try { await deleteDoc(doc(db, 'expenses', rentalExpId)); } catch (_) {}
+    }
+
+    // 2. Fuel Expense Sync
+    if (shiftLog.fuelExpenseAmount && shiftLog.fuelExpenseAmount > 0) {
+      const fuelExpense: Expense = {
+        id: fuelExpId,
+        category: 'fuel_charging',
+        title: `Combustível / Energia (${shiftLog.vehiclePlate})`,
+        amount: shiftLog.fuelExpenseAmount,
+        date: shiftLog.date,
+        vehicleId: shiftLog.vehicleId,
+        vehiclePlate: shiftLog.vehiclePlate,
+        driverId: shiftLog.driverId,
+        driverName: shiftLog.driverName,
+        description: `Sincronizado de Faturação Diária (${shiftLog.driverName})`
+      };
+      setExpenses(prev => [...prev.filter(e => e.id !== fuelExpId), fuelExpense]);
+      try {
+        await setDoc(doc(db, 'expenses', fuelExpId), cleanObject(fuelExpense));
+      } catch (err) {
+        console.error("Error syncing fuel expense:", err);
+      }
+    } else {
+      setExpenses(prev => prev.filter(e => e.id !== fuelExpId));
+      try { await deleteDoc(doc(db, 'expenses', fuelExpId)); } catch (_) {}
+    }
+  };
+
   // Actions writing directly to Firestore
   const addShiftLog = async (logData: Omit<DailyShiftLog, 'id' | 'status'>) => {
     const newId = `sft-${Date.now()}`;
@@ -271,32 +361,63 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: 'submitted'
     };
 
+    setShiftLogs(prev => [newLog, ...prev]);
+
     try {
-      await setDoc(doc(db, 'shiftLogs', newId), newLog);
+      await setDoc(doc(db, 'shiftLogs', newId), cleanObject(newLog));
 
       if (logData.vehicleId) {
         const targetVehicle = vehicles.find(v => v.id === logData.vehicleId);
         if (targetVehicle) {
           const newKm = Math.max(targetVehicle.currentKm, targetVehicle.currentKm + logData.kilometers);
-          await updateDoc(doc(db, 'vehicles', logData.vehicleId), { currentKm: newKm });
+          await updateDoc(doc(db, 'vehicles', logData.vehicleId), cleanObject({ currentKm: newKm }));
         }
       }
+
+      await syncShiftExpenses(newLog);
     } catch (err) {
       console.error("Error adding shiftLog to Firestore:", err);
     }
   };
 
+  const updateShiftLog = async (id: string, logData: Partial<DailyShiftLog>) => {
+    let updatedLog: DailyShiftLog | undefined;
+    setShiftLogs(prev => {
+      return prev.map(s => {
+        if (s.id === id) {
+          updatedLog = { ...s, ...logData };
+          return updatedLog;
+        }
+        return s;
+      });
+    });
+    try {
+      await updateDoc(doc(db, 'shiftLogs', id), cleanObject(logData));
+      if (updatedLog) {
+        await syncShiftExpenses(updatedLog);
+      }
+    } catch (err) {
+      console.error("Error updating shiftLog in Firestore:", err);
+    }
+  };
+
   const updateShiftLogStatus = async (id: string, status: DailyShiftLog['status']) => {
     try {
-      await updateDoc(doc(db, 'shiftLogs', id), { status });
+      await updateDoc(doc(db, 'shiftLogs', id), cleanObject({ status }));
     } catch (err) {
       console.error("Error updating shiftLog in Firestore:", err);
     }
   };
 
   const deleteShiftLog = async (id: string) => {
+    setShiftLogs(prev => prev.filter(s => s.id !== id));
+    const rentalExpId = `exp-rnd-shift-${id}`;
+    const fuelExpId = `exp-fuel-shift-${id}`;
+    setExpenses(prev => prev.filter(e => e.id !== rentalExpId && e.id !== fuelExpId));
     try {
       await deleteDoc(doc(db, 'shiftLogs', id));
+      await deleteDoc(doc(db, 'expenses', rentalExpId));
+      await deleteDoc(doc(db, 'expenses', fuelExpId));
     } catch (err) {
       console.error("Error deleting shiftLog from Firestore:", err);
     }
@@ -308,14 +429,25 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...expenseData,
       id: newId
     };
+    setExpenses(prev => [...prev.filter(e => e.id !== newId), newExpense]);
     try {
-      await setDoc(doc(db, 'expenses', newId), newExpense);
+      await setDoc(doc(db, 'expenses', newId), cleanObject(newExpense));
     } catch (err) {
       console.error("Error adding expense to Firestore:", err);
     }
   };
 
+  const updateExpense = async (id: string, expenseData: Partial<Expense>) => {
+    setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...expenseData } : e));
+    try {
+      await updateDoc(doc(db, 'expenses', id), cleanObject(expenseData));
+    } catch (err) {
+      console.error("Error updating expense in Firestore:", err);
+    }
+  };
+
   const deleteExpense = async (id: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
     try {
       await deleteDoc(doc(db, 'expenses', id));
     } catch (err) {
@@ -329,18 +461,30 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...vehicleData,
       id: newId
     };
+    setVehicles(prev => [...prev.filter(v => v.id !== newId), newVehicle]);
     try {
-      await setDoc(doc(db, 'vehicles', newId), newVehicle);
+      await setDoc(doc(db, 'vehicles', newId), cleanObject(newVehicle));
     } catch (err) {
       console.error("Error adding vehicle to Firestore:", err);
     }
   };
 
   const updateVehicle = async (id: string, vehicleData: Partial<Vehicle>) => {
+    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...vehicleData } : v));
     try {
-      await updateDoc(doc(db, 'vehicles', id), vehicleData);
+      await updateDoc(doc(db, 'vehicles', id), cleanObject(vehicleData));
     } catch (err) {
       console.error("Error updating vehicle in Firestore:", err);
+    }
+  };
+
+  const deleteVehicle = async (id: string) => {
+    setVehicles(prev => prev.filter(v => v.id !== id));
+    setDrivers(prev => prev.map(d => d.assignedVehicleId === id ? { ...d, assignedVehicleId: undefined } : d));
+    try {
+      await deleteDoc(doc(db, 'vehicles', id));
+    } catch (err) {
+      console.error("Error deleting vehicle from Firestore:", err);
     }
   };
 
@@ -350,24 +494,36 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...driverData,
       id: newId
     };
+    setDrivers(prev => [...prev.filter(d => d.id !== newId), newDriver]);
     try {
-      await setDoc(doc(db, 'drivers', newId), newDriver);
+      await setDoc(doc(db, 'drivers', newId), cleanObject(newDriver));
     } catch (err) {
       console.error("Error adding driver to Firestore:", err);
     }
   };
 
   const updateDriver = async (id: string, driverData: Partial<Driver>) => {
+    setDrivers(prev => prev.map(d => d.id === id ? { ...d, ...driverData } : d));
     try {
-      await updateDoc(doc(db, 'drivers', id), driverData);
+      await updateDoc(doc(db, 'drivers', id), cleanObject(driverData));
     } catch (err) {
       console.error("Error updating driver in Firestore:", err);
     }
   };
 
+  const deleteDriver = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'drivers', id));
+    } catch (err) {
+      console.error("Error deleting driver from Firestore:", err);
+    }
+    setDrivers(prev => prev.filter(d => d.id !== id));
+    setVehicles(prev => prev.map(v => v.assignedDriverId === id ? { ...v, assignedDriverId: undefined, assignedDriverName: undefined } : v));
+  };
+
   const markNotificationAsRead = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'notifications', id), { read: true });
+      await updateDoc(doc(db, 'notifications', id), cleanObject({ read: true }));
     } catch (err) {
       console.error("Error marking notification read in Firestore:", err);
     }
@@ -377,7 +533,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const batch = writeBatch(db);
       notifications.forEach(n => {
-        batch.update(doc(db, 'notifications', n.id), { read: true });
+        batch.update(doc(db, 'notifications', n.id), cleanObject({ read: true }));
       });
       await batch.commit();
     } catch (err) {
@@ -394,7 +550,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       read: false
     };
     try {
-      await setDoc(doc(db, 'notifications', newId), newNotif);
+      await setDoc(doc(db, 'notifications', newId), cleanObject(newNotif));
     } catch (err) {
       console.error("Error adding notification to Firestore:", err);
     }
@@ -410,11 +566,11 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       expenses.forEach(e => batch.delete(doc(db, 'expenses', e.id)));
       notifications.forEach(n => batch.delete(doc(db, 'notifications', n.id)));
 
-      INITIAL_DRIVERS.forEach(d => batch.set(doc(db, 'drivers', d.id), d));
-      INITIAL_VEHICLES.forEach(v => batch.set(doc(db, 'vehicles', v.id), v));
-      INITIAL_SHIFT_LOGS.forEach(s => batch.set(doc(db, 'shiftLogs', s.id), s));
-      INITIAL_EXPENSES.forEach(e => batch.set(doc(db, 'expenses', e.id), e));
-      INITIAL_NOTIFICATIONS.forEach(n => batch.set(doc(db, 'notifications', n.id), n));
+      INITIAL_DRIVERS.forEach(d => batch.set(doc(db, 'drivers', d.id), cleanObject(d)));
+      INITIAL_VEHICLES.forEach(v => batch.set(doc(db, 'vehicles', v.id), cleanObject(v)));
+      INITIAL_SHIFT_LOGS.forEach(s => batch.set(doc(db, 'shiftLogs', s.id), cleanObject(s)));
+      INITIAL_EXPENSES.forEach(e => batch.set(doc(db, 'expenses', e.id), cleanObject(e)));
+      INITIAL_NOTIFICATIONS.forEach(n => batch.set(doc(db, 'notifications', n.id), cleanObject(n)));
 
       await batch.commit();
 
@@ -426,22 +582,55 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Helper to identify duplicate seed/shift fuel and rental expenses
+  const isDuplicateShiftExpense = (e: { id?: string; description?: string }) => {
+    if (!e) return false;
+    if (e.id && (
+      e.id.startsWith('exp-fuel-shift-') ||
+      e.id.startsWith('exp-rnd-shift-') ||
+      e.id.startsWith('exp-nrg-') ||
+      e.id.startsWith('exp-rnd-daily-') ||
+      e.id.startsWith('exp-rnd-monday-')
+    )) {
+      return true;
+    }
+    if (e.description && (
+      e.description.includes('Custo diário de energia') ||
+      e.description.includes('Renda diária de viatura') ||
+      e.description.includes('Sincronizado de Faturação Diária')
+    )) {
+      return true;
+    }
+    return false;
+  };
+
   // CALCULATED MONTHLY STATS
   const monthlyStats = useMemo(() => {
-    const targetMonth = selectedMonth; // e.g. '2026-07'
+    const targetMonth = selectedMonth; // e.g. '2026-07', '2026', or 'all'
+    const isAll = targetMonth === 'all';
+    const matchesMonth = (d: string) => isAll || d.startsWith(targetMonth);
 
-    const filteredShifts = shiftLogs.filter(s => s.date.startsWith(targetMonth));
-    const filteredExpenses = expenses.filter(e => e.date.startsWith(targetMonth));
+    const filteredShifts = shiftLogs.filter(s => matchesMonth(s.date));
+    const filteredExpenses = expenses.filter(e => matchesMonth(e.date));
 
     const totalGrossEarnings = filteredShifts.reduce((acc, s) => acc + s.grossEarnings, 0);
     const totalTrips = filteredShifts.reduce((acc, s) => acc + s.tripsCount, 0);
     const totalKm = filteredShifts.reduce((acc, s) => acc + s.kilometers, 0);
-    const totalHours = filteredShifts.reduce((acc, s) => acc + s.hoursWorked, 0);
+    const totalHours = filteredShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
 
-    const totalFuelCost = filteredExpenses
-      .filter(e => e.category === 'fuel_charging')
-      .reduce((acc, e) => acc + e.amount, 0) +
-      filteredShifts.reduce((acc, s) => acc + (s.fuelExpenseAmount || 0), 0);
+    const shiftFuelCost = filteredShifts.reduce((acc, s) => acc + (s.fuelExpenseAmount || 0), 0);
+    const shiftRentalCost = filteredShifts.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
+
+    const standaloneFuelCost = filteredExpenses
+      .filter(e => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e))
+      .reduce((acc, e) => acc + e.amount, 0);
+
+    const standaloneRentalCost = filteredExpenses
+      .filter(e => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e))
+      .reduce((acc, e) => acc + e.amount, 0);
+
+    const totalFuelCost = shiftFuelCost + standaloneFuelCost;
+    const totalVehicleRentals = shiftRentalCost + standaloneRentalCost;
 
     const totalMaintenanceCost = filteredExpenses
       .filter(e => e.category === 'maintenance')
@@ -451,19 +640,27 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .filter(e => e.category === 'insurance')
       .reduce((acc, e) => acc + e.amount, 0);
 
-    const totalVehicleRentals = filteredExpenses
-      .filter(e => e.category === 'vehicle_rental')
+    const totalIrsCost = filteredExpenses
+      .filter(e => e.category === 'irs')
       .reduce((acc, e) => acc + e.amount, 0);
 
-    const totalExpenses = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
+    const totalIvaCost = filteredExpenses
+      .filter(e => e.category === 'iva')
+      .reduce((acc, e) => acc + e.amount, 0);
+
+    const totalOtherCost = filteredExpenses
+      .filter(e => (e.category === 'tolls_wash' || e.category === 'other') && !isDuplicateShiftExpense(e))
+      .reduce((acc, e) => acc + e.amount, 0);
+
+    const totalExpenses = totalFuelCost + totalVehicleRentals + totalMaintenanceCost + totalInsuranceCost + totalIrsCost + totalIvaCost + totalOtherCost;
     const netProfit = totalGrossEarnings - totalExpenses;
 
     const earningsPerKm = totalKm > 0 ? totalGrossEarnings / totalKm : 0;
     const earningsPerHour = totalHours > 0 ? totalGrossEarnings / totalHours : 0;
     const netProfitMarginPct = totalGrossEarnings > 0 ? (netProfit / totalGrossEarnings) * 100 : 0;
 
-    let monthName = `Ano Completo ${targetMonth}`;
-    if (targetMonth.includes('-')) {
+    let monthName = isAll ? 'Todos os Meses (Geral)' : `Ano Completo ${targetMonth}`;
+    if (!isAll && targetMonth.includes('-')) {
       const dateObj = new Date(`${targetMonth}-01T00:00:00`);
       const monthNamesPt = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -485,6 +682,9 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalMaintenanceCost,
       totalInsuranceCost,
       totalVehicleRentals,
+      totalIrsCost,
+      totalIvaCost,
+      totalOtherCost,
       earningsPerKm,
       earningsPerHour,
       netProfitMarginPct
@@ -493,13 +693,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // HISTORICAL COMPARATIVE MONTHLY DATA
   const historicalMonthlyData = useMemo(() => {
-    const monthKeys = ['2026-03', '2026-04', '2026-05', '2026-06', '2026-07'];
+    const monthKeys = ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08'];
     const monthNamesMap: Record<string, string> = {
-      '2026-03': 'Mar 26',
       '2026-04': 'Abr 26',
       '2026-05': 'Mai 26',
       '2026-06': 'Jun 26',
-      '2026-07': 'Jul 26'
+      '2026-07': 'Jul 26',
+      '2026-08': 'Ago 26'
     };
 
     return monthKeys.map(mKey => {
@@ -507,43 +707,59 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const mExpenses = expenses.filter(e => e.date.startsWith(mKey));
 
       const gross = mShifts.reduce((acc, s) => acc + s.grossEarnings, 0);
-      const exp = mExpenses.reduce((acc, e) => acc + e.amount, 0);
+      const shiftFuel = mShifts.reduce((acc, s) => acc + (s.fuelExpenseAmount || 0), 0);
+      const shiftRental = mShifts.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
+
+      const standaloneFuel = mExpenses
+        .filter(e => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e))
+        .reduce((a, e) => a + e.amount, 0);
+
+      const standaloneRental = mExpenses
+        .filter(e => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e))
+        .reduce((a, e) => a + e.amount, 0);
+
+      const totalFuelCost = shiftFuel + standaloneFuel;
+      const totalVehicleRentals = shiftRental + standaloneRental;
+
+      const totalMaintenanceCost = mExpenses.filter(e => e.category === 'maintenance').reduce((a, e) => a + e.amount, 0);
+      const totalInsuranceCost = mExpenses.filter(e => e.category === 'insurance').reduce((a, e) => a + e.amount, 0);
+      const totalOtherCost = mExpenses.filter(e => (e.category === 'tolls_wash' || e.category === 'other') && !isDuplicateShiftExpense(e)).reduce((a, e) => a + e.amount, 0);
+
+      const exp = totalFuelCost + totalVehicleRentals + totalMaintenanceCost + totalInsuranceCost + totalOtherCost;
       const trips = mShifts.reduce((acc, s) => acc + s.tripsCount, 0);
       const km = mShifts.reduce((acc, s) => acc + s.kilometers, 0);
-      const hours = mShifts.reduce((acc, s) => acc + s.hoursWorked, 0);
-
-      const isCurrentMonth = mKey === '2026-07';
-      const syntheticBaseGross = isCurrentMonth ? gross : Math.max(gross, mKey === '2026-06' ? 4120 : mKey === '2026-05' ? 3850 : 3600);
-      const syntheticBaseExp = isCurrentMonth ? exp : Math.max(exp, mKey === '2026-06' ? 1280 : mKey === '2026-05' ? 1150 : 1080);
+      const hours = mShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
+      const netProfit = gross - exp;
 
       return {
         monthKey: mKey,
         monthName: monthNamesMap[mKey] || mKey,
-        totalGrossEarnings: syntheticBaseGross,
-        totalExpenses: syntheticBaseExp,
-        netProfit: syntheticBaseGross - syntheticBaseExp,
-        totalTrips: isCurrentMonth ? trips : (trips || 480),
-        totalKm: isCurrentMonth ? km : (km || 6200),
-        totalHours: isCurrentMonth ? hours : (hours || 210),
-        totalFuelCost: 350,
-        totalMaintenanceCost: 280,
-        totalInsuranceCost: 400,
-        totalVehicleRentals: 750,
-        earningsPerKm: km > 0 ? gross / km : 0.65,
-        earningsPerHour: hours > 0 ? gross / hours : 19.5,
-        netProfitMarginPct: syntheticBaseGross > 0 ? ((syntheticBaseGross - syntheticBaseExp) / syntheticBaseGross) * 100 : 0
+        totalGrossEarnings: gross,
+        totalExpenses: exp,
+        netProfit,
+        totalTrips: trips,
+        totalKm: km,
+        totalHours: hours,
+        totalFuelCost,
+        totalMaintenanceCost,
+        totalInsuranceCost,
+        totalVehicleRentals,
+        earningsPerKm: km > 0 ? gross / km : 0,
+        earningsPerHour: hours > 0 ? gross / hours : 0,
+        netProfitMarginPct: gross > 0 ? (netProfit / gross) * 100 : 0
       };
     });
   }, [shiftLogs, expenses]);
 
   // DRIVER PERFORMANCE COMPARISON
   const driverPerformanceList = useMemo(() => {
+    const isAll = selectedMonth === 'all';
     return drivers.map(driver => {
-      const dShifts = shiftLogs.filter(s => s.driverId === driver.id && s.date.startsWith(selectedMonth));
+      const dShifts = shiftLogs.filter(s => s.driverId === driver.id && (isAll || s.date.startsWith(selectedMonth)));
       const totalEarnings = dShifts.reduce((acc, s) => acc + s.grossEarnings, 0);
       const totalKm = dShifts.reduce((acc, s) => acc + s.kilometers, 0);
       const totalTrips = dShifts.reduce((acc, s) => acc + s.tripsCount, 0);
-      const totalHours = dShifts.reduce((acc, s) => acc + s.hoursWorked, 0);
+      const totalHours = dShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
 
       return {
         driver,
@@ -559,9 +775,10 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // VEHICLE PROFITABILITY LIST
   const vehicleProfitabilityList = useMemo(() => {
+    const isAll = selectedMonth === 'all';
     return vehicles.map(vehicle => {
-      const vShifts = shiftLogs.filter(s => s.vehicleId === vehicle.id && s.date.startsWith(selectedMonth));
-      const vExpenses = expenses.filter(e => e.vehicleId === vehicle.id && e.date.startsWith(selectedMonth));
+      const vShifts = shiftLogs.filter(s => s.vehicleId === vehicle.id && (isAll || s.date.startsWith(selectedMonth)));
+      const vExpenses = expenses.filter(e => e.vehicleId === vehicle.id && (isAll || e.date.startsWith(selectedMonth)));
 
       const grossEarnings = vShifts.reduce((acc, s) => acc + s.grossEarnings, 0);
       const totalExpenses = vExpenses.reduce((acc, e) => acc + e.amount, 0);
@@ -595,14 +812,18 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSelectedMonth,
         isCloudSynced,
         addShiftLog,
+        updateShiftLog,
         updateShiftLogStatus,
         deleteShiftLog,
         addExpense,
+        updateExpense,
         deleteExpense,
         addVehicle,
         updateVehicle,
+        deleteVehicle,
         addDriver,
         updateDriver,
+        deleteDriver,
         markNotificationAsRead,
         markAllNotificationsAsRead,
         addNotification,

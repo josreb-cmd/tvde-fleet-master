@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useTVDE } from '../context/TVDEContext';
+import { DailyShiftLog } from '../types';
+import { formatHoursToHHMM, parseHHMMToHours } from '../utils/formatters';
 import {
   Receipt,
   Search,
@@ -8,14 +10,16 @@ import {
   Trash2,
   Plus,
   Layers,
-  Filter
+  Filter,
+  Edit3
 } from 'lucide-react';
 
 interface ShiftLogsViewProps {
   onOpenNewShiftModal: () => void;
+  onEditShiftLog?: (log: DailyShiftLog) => void;
 }
 
-export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModal }) => {
+export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModal, onEditShiftLog }) => {
   const {
     shiftLogs,
     drivers,
@@ -31,7 +35,7 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
 
   // Filtering
   const filteredLogs = shiftLogs.filter(log => {
-    const matchesMonth = log.date.startsWith(selectedMonth);
+    const matchesMonth = selectedMonth === 'all' || log.date.startsWith(selectedMonth);
     const matchesDriver = filterDriver === 'all' || log.driverId === filterDriver;
     const matchesVehicle = filterVehicle === 'all' || log.vehicleId === filterVehicle;
     const matchesSearch =
@@ -46,7 +50,7 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
   const totalGross = filteredLogs.reduce((acc, s) => acc + s.grossEarnings, 0);
   const totalTrips = filteredLogs.reduce((acc, s) => acc + s.tripsCount, 0);
   const totalKm = filteredLogs.reduce((acc, s) => acc + s.kilometers, 0);
-  const totalHours = filteredLogs.reduce((acc, s) => acc + s.hoursWorked, 0);
+  const totalHours = filteredLogs.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
   const totalUber = filteredLogs.reduce((acc, s) => acc + (s.uberEarnings || 0), 0);
   const totalBolt = filteredLogs.reduce((acc, s) => acc + (s.boltEarnings || 0), 0);
 
@@ -59,7 +63,7 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
       l.vehiclePlate,
       l.tripsCount,
       l.kilometers,
-      l.hoursWorked,
+      formatHoursToHHMM(l.hoursWorked),
       l.grossEarnings,
       l.uberEarnings || 0,
       l.boltEarnings || 0,
@@ -128,7 +132,7 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
         </div>
         <div>
           <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Horas no Turno</span>
-          <span className="text-xl font-bold text-slate-800">{totalHours.toFixed(1)} h</span>
+          <span className="text-xl font-bold text-slate-800">{formatHoursToHHMM(totalHours)}</span>
         </div>
         <div className="col-span-2 md:col-span-1">
           <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Uber vs Bolt</span>
@@ -224,7 +228,7 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
                     <td className="p-3.5 font-mono font-bold text-slate-800 whitespace-nowrap">{log.vehiclePlate}</td>
                     <td className="p-3.5 text-center font-semibold text-slate-700">{log.tripsCount}</td>
                     <td className="p-3.5 text-center text-slate-700">{log.kilometers} km</td>
-                    <td className="p-3.5 text-center text-slate-700">{log.hoursWorked} h</td>
+                    <td className="p-3.5 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
                     <td className="p-3.5 text-right font-bold text-slate-900">
                       {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                     </td>
@@ -249,7 +253,14 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
                         <option value="paid">Pago</option>
                       </select>
                     </td>
-                    <td className="p-3.5 text-right">
+                    <td className="p-3.5 text-right flex items-center justify-end space-x-1">
+                      <button
+                        onClick={() => onEditShiftLog?.(log)}
+                        className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Editar Registo"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => {
                           if (confirm('Eliminar este registo de faturação?')) {

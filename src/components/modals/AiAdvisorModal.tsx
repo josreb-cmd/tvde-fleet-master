@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTVDE } from '../../context/TVDEContext';
 import { X, Sparkles, AlertCircle, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 
@@ -13,6 +13,18 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({ isOpen, onClose 
   const [loading, setLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -43,22 +55,92 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({ isOpen, onClose 
         body: JSON.stringify({ fleetSummary })
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error || 'Não foi possível gerar análise no momento.');
-      } else {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
         setAnalysisResult(data);
+      } else {
+        // Fallback para motor de análise local
+        const localInsights = generateLocalTvdeInsights(fleetSummary);
+        setAnalysisResult(localInsights);
       }
     } catch (err: any) {
-      setErrorMessage('Erro de rede ou servidor ao consultar o assistente de IA.');
+      // Fallback em caso de erro de rede ou hosting estático
+      const localInsights = generateLocalTvdeInsights(fleetSummary);
+      setAnalysisResult(localInsights);
     } finally {
       setLoading(false);
     }
   };
 
+  const generateLocalTvdeInsights = (summary: any) => {
+    const faturacao = summary.faturacaoBruta || 0;
+    const margem = summary.margemLucroPct || 0;
+    const km = summary.totalKm || 1;
+    const custoKm = (summary.custosTotais || 0) / km;
+    const custoEnergia = summary.custoCombustivelEV || 0;
+    const pctEnergia = faturacao > 0 ? (custoEnergia / faturacao) * 100 : 0;
+
+    const recs = [];
+
+    if (pctEnergia > 12) {
+      recs.push({
+        titulo: 'Otimização de Carregamento / Combustível',
+        descricao: `Os custos de energia representam ${pctEnergia.toFixed(1)}% da faturação. Recomendamos aderir a cartões de frota TVDE com desconto ou priorizar carregamento elétrico em horários de tarifa simples/vazio.`,
+        impactoEstimado: '+8% a +15% Margem',
+        categoria: 'combustivel'
+      });
+    } else {
+      recs.push({
+        titulo: 'Eficiência de Consumo Energético',
+        descricao: `O custo energético está otimizado (${pctEnergia.toFixed(1)}% da faturação). Verifique semanalmente a pressão dos pneus para manter a autonomia máxima.`,
+        impactoEstimado: 'Desgaste Mínimo',
+        categoria: 'combustivel'
+      });
+    }
+
+    if (custoKm > 0.45) {
+      recs.push({
+        titulo: 'Plano Preventivo de Manutenção da Frota',
+        descricao: `O custo por km percorrido está em ${custoKm.toFixed(2)}€/km. Agende revisões preventivas periódicas para evitar reparações de emergência e viaturas paradas.`,
+        impactoEstimado: '-10% Custo Operacional',
+        categoria: 'manutencao'
+      });
+    } else {
+      recs.push({
+        titulo: 'Maximização do Uso das Viaturas',
+        descricao: `Com um custo por km controlado (${custoKm.toFixed(2)}€/km), estude a atribuição de turnos rotativos duplos para diluir os custos fixos de rendas e seguros.`,
+        impactoEstimado: '+20% Faturação Semanal',
+        categoria: 'motoristas'
+      });
+    }
+
+    recs.push({
+      titulo: 'Acompanhamento por Hora de Trabalho',
+      descricao: `O rendimento médio atual é de ${summary.totalHoras > 0 ? (faturacao / summary.totalHoras).toFixed(2) : '0'}€/hora. Incentive os motoristas a atuar nos horários de pico (manhã e final de tarde).`,
+      impactoEstimado: '+5€/hora por Turno',
+      categoria: 'motoristas'
+    });
+
+    return {
+      resumoExecutivo: `A frota registou uma faturação bruta de ${faturacao.toFixed(2)}€ com uma margem líquida estimada de ${margem.toFixed(1)}%.`,
+      recomendacoes: recs,
+      pontoAtencaoCritico: margem < 25
+        ? `A margem líquida (${margem.toFixed(1)}%) encontra-se abaixo do valor ideal de 30% em frotas TVDE. Reveja os custos fixos com rendas e seguros.`
+        : `Mantenha o controlo dos custos operacionais para preservar a margem atual de ${margem.toFixed(1)}%.`,
+      isLocal: true
+    };
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-md w-full max-w-2xl p-6 shadow-xl relative overflow-hidden max-h-[90vh] flex flex-col justify-between">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="bg-white border border-slate-200 rounded-md w-full max-w-2xl p-6 shadow-xl relative overflow-hidden max-h-[90vh] flex flex-col justify-between"
+      >
         {/* Modal Header */}
         <div>
           <div className="flex items-center justify-between pb-4 border-b border-slate-200">

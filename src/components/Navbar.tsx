@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   ChevronDown,
   Shield,
-  Layers
+  Layers,
+  Menu
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -19,13 +20,17 @@ interface NavbarProps {
   onOpenNewShiftModal: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isMobileMenuOpen?: boolean;
+  setIsMobileMenuOpen?: (open: boolean) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenAiAdvisor,
   onOpenNewShiftModal,
   activeTab,
-  setActiveTab
+  setActiveTab,
+  isMobileMenuOpen = false,
+  setIsMobileMenuOpen
 }) => {
   const {
     role,
@@ -54,34 +59,45 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-30 bg-white text-slate-900 border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Brand Logo & Name */}
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-500 rounded-sm flex items-center justify-center shadow-sm">
+          {/* Brand Logo & Mobile Menu Toggle */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Hamburger Button for Mobile */}
+            <button
+              onClick={() => setIsMobileMenuOpen && setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-md hover:bg-slate-100 text-slate-700 md:hidden transition border border-slate-200 focus:outline-none"
+              title="Abrir Menu de Navegação"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <div className="w-8 h-8 bg-blue-500 rounded-sm flex items-center justify-center shadow-sm flex-shrink-0">
               <Car className="w-5 h-5 text-white stroke-[2.5]" />
             </div>
+
             <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-lg tracking-tight text-slate-900">
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <span className="font-bold text-base sm:text-lg tracking-tight text-slate-900">
                   TVDE Manager
                 </span>
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 rounded-sm uppercase tracking-wider">
+                <span className="px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 rounded-sm uppercase tracking-wider hidden sm:inline-block">
                   Frota PT
                 </span>
                 {isCloudSynced ? (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-sm flex items-center space-x-1" title="Sincronizado em tempo real na nuvem Firebase para múltiplos utilizadores">
+                  <span className="px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-sm flex items-center space-x-1" title="Sincronizado na nuvem Firebase">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Nuvem em Tempo Real</span>
+                    <span className="hidden sm:inline">Nuvem em Tempo Real</span>
+                    <span className="sm:hidden">Nuvem</span>
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-sm flex items-center space-x-1">
+                  <span className="px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-sm flex items-center space-x-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
                     <span>A Ligar...</span>
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 hidden sm:block">
+              <p className="text-xs text-slate-500 hidden lg:block">
                 Gestão de Frota, Faturação e Rentabilidade
               </p>
             </div>
@@ -117,15 +133,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={handleMonthChange}
                 className="bg-transparent text-slate-800 text-xs font-medium focus:outline-none cursor-pointer"
               >
+                <optgroup label="Consultas Gerais">
+                  <option value="all">Todos os Meses (Ver Tudo)</option>
+                  <option value="2026">Ano Completo 2026</option>
+                </optgroup>
                 <optgroup label="Consultas Mensais">
+                  <option value="2026-08">Agosto 2026</option>
                   <option value="2026-07">Julho 2026</option>
                   <option value="2026-06">Junho 2026</option>
                   <option value="2026-05">Maio 2026</option>
                   <option value="2026-04">Abril 2026</option>
                   <option value="2026-03">Março 2026</option>
-                </optgroup>
-                <optgroup label="Consultas Anuais">
-                  <option value="2026">Ano Completo 2026</option>
                 </optgroup>
               </select>
             </div>

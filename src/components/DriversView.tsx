@@ -9,7 +9,8 @@ import {
   Car,
   AlertTriangle,
   Award,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 
 interface DriversViewProps {
@@ -21,7 +22,13 @@ export const DriversView: React.FC<DriversViewProps> = ({
   onOpenNewDriverModal,
   onEditDriver
 }) => {
-  const { drivers, vehicles, driverPerformanceList } = useTVDE();
+  const { drivers, vehicles, driverPerformanceList, deleteDriver } = useTVDE();
+
+  const handleDeleteDriver = (driverId: string, driverName: string) => {
+    if (window.confirm(`Tem a certeza que deseja eliminar o motorista "${driverName}"? Esta ação não pode ser desfeita.`)) {
+      deleteDriver(driverId);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -145,7 +152,15 @@ export const DriversView: React.FC<DriversViewProps> = ({
               </div>
 
               {/* Actions Footer */}
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end">
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  onClick={() => handleDeleteDriver(driver.id, driver.name)}
+                  className="px-2.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-medium transition shadow-sm flex items-center space-x-1"
+                  title="Eliminar Motorista"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar</span>
+                </button>
                 <button
                   onClick={() => onEditDriver(driver.id)}
                   className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-medium transition shadow-sm"

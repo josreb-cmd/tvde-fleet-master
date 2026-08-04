@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTVDE } from '../../context/TVDEContext';
 import { DriverStatus } from '../../types';
-import { X, Users } from 'lucide-react';
+import { X, Users, Trash2 } from 'lucide-react';
 
 interface DriverModalProps {
   isOpen: boolean;
@@ -14,7 +14,7 @@ export const DriverModal: React.FC<DriverModalProps> = ({
   onClose,
   driverIdToEdit
 }) => {
-  const { drivers, vehicles, addDriver, updateDriver } = useTVDE();
+  const { drivers, vehicles, addDriver, updateDriver, deleteDriver } = useTVDE();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -25,6 +25,18 @@ export const DriverModal: React.FC<DriverModalProps> = ({
   const [assignedVehicleId, setAssignedVehicleId] = useState('');
   const [status, setStatus] = useState<DriverStatus>('active');
   const [iban, setIban] = useState('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (driverIdToEdit) {
@@ -80,9 +92,24 @@ export const DriverModal: React.FC<DriverModalProps> = ({
     onClose();
   };
 
+  const handleDelete = () => {
+    if (driverIdToEdit) {
+      if (window.confirm(`Tem a certeza que deseja eliminar o motorista "${name}"?`)) {
+        deleteDriver(driverIdToEdit);
+        onClose();
+      }
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-md w-full max-w-lg p-6 shadow-xl relative overflow-hidden">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="bg-white border border-slate-200 rounded-md w-full max-w-lg p-6 shadow-xl relative overflow-hidden max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center space-x-2">
             <Users className="w-5 h-5 text-blue-600" />
@@ -192,20 +219,32 @@ export const DriverModal: React.FC<DriverModalProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-md bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition shadow-sm"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition shadow-sm"
-            >
-              Salvar Motorista
-            </button>
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+            {driverIdToEdit ? (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="px-3 py-2 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-medium transition shadow-sm flex items-center space-x-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar Motorista</span>
+              </button>
+            ) : <div />}
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-md bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition shadow-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition shadow-sm"
+              >
+                Salvar Motorista
+              </button>
+            </div>
           </div>
         </form>
       </div>

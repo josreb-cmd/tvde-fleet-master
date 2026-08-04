@@ -9,7 +9,8 @@ import {
   Plus,
   Zap,
   CheckCircle2,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 
 interface FleetViewProps {
@@ -21,7 +22,13 @@ export const FleetView: React.FC<FleetViewProps> = ({
   onOpenNewVehicleModal,
   onEditVehicle
 }) => {
-  const { vehicles } = useTVDE();
+  const { vehicles, deleteVehicle } = useTVDE();
+
+  const handleDeleteVehicle = (vehicleId: string, licensePlate: string) => {
+    if (window.confirm(`Tem a certeza que deseja eliminar a viatura com a matrícula "${licensePlate}"? Esta ação não pode ser desfeita.`)) {
+      deleteVehicle(vehicleId);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -167,8 +174,16 @@ export const FleetView: React.FC<FleetViewProps> = ({
                 </div>
               </div>
 
-              {/* Edit button footer */}
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end">
+              {/* Edit and Delete buttons footer */}
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  onClick={() => handleDeleteVehicle(v.id, v.licensePlate)}
+                  className="px-2.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-medium transition shadow-sm flex items-center space-x-1"
+                  title="Eliminar Viatura"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar</span>
+                </button>
                 <button
                   onClick={() => onEditVehicle(v.id)}
                   className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-medium transition shadow-sm"
