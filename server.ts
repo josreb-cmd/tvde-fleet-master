@@ -60,12 +60,12 @@ async function startServer() {
   });
 
   // Health check endpoint
-  app.get('/api/health', (_req, res) => {
+  app.all('/api/health*', (_req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
   // SMTP Status Check
-  app.get('/api/smtp-status', (_req, res) => {
+  app.all('/api/smtp-status*', (_req, res) => {
     const hasEnvPass = Boolean(process.env.GMAIL_APP_PASSWORD);
     const user = process.env.GMAIL_USER || 'josreb@gmail.com';
     res.json({ configured: hasEnvPass, user });
@@ -419,13 +419,11 @@ async function startServer() {
     }
   };
 
-  app.post('/api/send-summary', handleSendSummary);
-  app.post('/api/send-summary-email', handleSendSummary);
-  app.post('/api/send-summary/', handleSendSummary);
-  app.post('/api/send-summary-email/', handleSendSummary);
+  app.all('/api/send-summary*', handleSendSummary);
+  app.all('/api/send-summary-email*', handleSendSummary);
 
   // AI Insights Endpoint for TVDE Fleet Optimization
-  app.post('/api/ai/tvde-insights', async (req, res) => {
+  app.all('/api/ai/tvde-insights*', async (req, res) => {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
