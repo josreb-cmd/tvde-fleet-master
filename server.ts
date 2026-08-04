@@ -68,8 +68,8 @@ async function startServer() {
         return res.status(400).json({ error: 'Parâmetros startDate e endDate são obrigatórios.' });
       }
 
-      const gmailUser = req.body.gmailUser || process.env.GMAIL_USER || 'josreb@gmail.com';
-      const gmailPass = req.body.gmailAppPassword || process.env.GMAIL_APP_PASSWORD;
+      const gmailUser = (req.body.gmailUser || process.env.GMAIL_USER || 'josreb@gmail.com').trim();
+      const rawGmailPass = req.body.gmailAppPassword || process.env.GMAIL_APP_PASSWORD;
 
       let { shiftLogs, expenses, drivers, vehicles } = req.body;
 
@@ -275,20 +275,27 @@ async function startServer() {
         generatedAt
       });
 
-      if (!gmailUser || !gmailPass) {
+      if (!gmailUser || !rawGmailPass) {
         return res.status(400).json({
-          error: 'Variáveis de ambiente GMAIL_USER e GMAIL_APP_PASSWORD não configuradas.',
-          details: 'Por favor, adicione GMAIL_USER e GMAIL_APP_PASSWORD no ambiente do servidor.'
+          error: 'Palavra-passe de Aplicação do Gmail não fornecida.',
+          details: 'Introduza a sua Palavra-passe de Aplicação de 16 letras do Google no campo correspondente ou configure GMAIL_APP_PASSWORD no servidor.'
         });
       }
 
+      const cleanGmailPass = rawGmailPass.replace(/\s+/g, '');
+
       try {
         const transporter = nodemailer.createTransport({
-          service: 'gmail',
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
           auth: {
             user: gmailUser,
-            pass: gmailPass
-          }
+            pass: cleanGmailPass
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000
         });
 
         const mailOptions = {
@@ -309,10 +316,31 @@ async function startServer() {
       } catch (mailErr: any) {
         console.error('Erro ao enviar e-mail via SMTP Gmail:', mailErr);
         const errString = String(mailErr?.message || mailErr || '');
-        if (errString.includes('534') || errString.includes('InvalidSecondFactor') || errString.includes('Application-specific password required')) {
+        if (
+          errString.includes('535') ||
+          errString.includes('EAUTH') ||
+          errString.includes('Username and Password not accepted') ||
+          errString.includes('Invalid login')
+        ) {
+          return res.status(401).json({
+            error: 'Palavra-passe ou utilizador rejeitado pela Google (Erro 535 / Autenticação).',
+            details: 'Verifique se a Palavra-passe de Aplicação de 16 letras foi gerada para a conta ' + gmailUser + ' em https://myaccount.google.com/apppasswords e se o e-mail do remetente está correto.'
+          });
+        }
+        if (
+          errString.includes('534') ||
+          errString.includes('InvalidSecondFactor') ||
+          errString.includes('Application-specific password required')
+        ) {
           return res.status(401).json({
             error: 'Google exige Palavra-passe de Aplicação (Erro 534-5.7.9).',
-            details: 'A conta Gmail tem a Verificação em 2 Passos ativa. A palavra-passe normal é rejeitada pela Google. É necessário gerar uma Palavra-passe de Aplicação de 16 letras em https://myaccount.google.com/apppasswords e definir na variável GMAIL_APP_PASSWORD.'
+            details: 'A conta Gmail tem a Verificação em 2 Passos ativa. A palavra-passe normal do email é rejeitada pela Google. Gere uma Palavra-passe de Aplicação em https://myaccount.google.com/apppasswords.'
+          });
+        }
+        if (errString.includes('ETIMEDOUT') || errString.includes('ESOCKETTIMEDOUT')) {
+          return res.status(504).json({
+            error: 'Tempo limite esgotado ao ligar ao servidor SMTP do Gmail.',
+            details: 'Não foi possível ligar ao smtp.gmail.com a tempo. Pode tentar novamente ou usar o botão "Abrir no E-mail" para enviar através do seu programa de e-mail.'
           });
         }
         return res.status(500).json({

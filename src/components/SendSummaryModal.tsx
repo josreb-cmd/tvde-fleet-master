@@ -213,10 +213,16 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
         })
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: any = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(`Servidor inacessível ou erro HTTP (${response.status} ${response.statusText}). Detalhes: ${responseText.slice(0, 150) || 'Sem resposta'}`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error ? `${data.error} ${data.details || ''}` : 'Falha ao enviar resumo por e-mail');
+        throw new Error(data.error ? `${data.error}${data.details ? ' ' + data.details : ''}` : 'Falha ao enviar resumo por e-mail');
       }
 
       setStatusMessage({
@@ -333,6 +339,17 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
                     className="w-full pl-8 pr-3 py-1.5 text-xs font-mono bg-white border border-indigo-300 rounded-md shadow-2xs focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-800"
                   />
                   <Lock className="w-3.5 h-3.5 text-indigo-400 absolute left-2.5 top-2" />
+                </div>
+                <div className="flex items-center justify-between pt-0.5">
+                  <a
+                    href="https://myaccount.google.com/apppasswords"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 underline hover:no-underline"
+                  >
+                    <span>Gerar Palavra-passe no Google</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
                 <p className="text-[10px] text-indigo-600/90 leading-tight">
                   💡 <strong>Alternativa sem palavra-passe:</strong> Clique em <em>"Abrir no E-mail"</em> ou <em>"Copiar"</em> no fundo deste modal para enviar usando o seu programa de email habitual.
