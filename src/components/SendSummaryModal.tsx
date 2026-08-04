@@ -222,7 +222,9 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
       }
 
       if (!response.ok) {
-        throw new Error(data.error ? `${data.error}${data.details ? ' ' + data.details : ''}` : 'Falha ao enviar resumo por e-mail');
+        const errorTitle = data.error || data.message || `Erro do Servidor (${response.status})`;
+        const errorDetails = data.details || '';
+        throw new Error(`${errorTitle}${errorDetails ? '\n' + errorDetails : ''}`);
       }
 
       setStatusMessage({
@@ -236,6 +238,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
       }, 3000);
     } catch (err: any) {
       console.error('Erro ao enviar resumo:', err);
+      setShowCredentialsSection(true);
       setStatusMessage({
         type: 'error',
         text: err.message || 'Ocorreu um erro ao comunicar com o servidor.'
@@ -286,7 +289,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
               ) : (
                 <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
               )}
-              <span>{statusMessage.text}</span>
+              <span className="whitespace-pre-line leading-relaxed">{statusMessage.text}</span>
             </div>
           )}
 
@@ -316,13 +319,27 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
                 <Key className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Palavra-passe de Aplicação Google</span>
               </span>
-              <button
-                type="button"
-                onClick={() => setShowCredentialsSection(!showCredentialsSection)}
-                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition"
-              >
-                {showCredentialsSection ? 'Ocultar' : 'Editar / Configurar'}
-              </button>
+              <div className="flex items-center space-x-2">
+                {gmailAppPassword && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGmailAppPassword('');
+                      localStorage.removeItem('tvde_gmail_app_pass');
+                    }}
+                    className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 transition underline"
+                  >
+                    Limpar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowCredentialsSection(!showCredentialsSection)}
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                >
+                  {showCredentialsSection ? 'Ocultar' : 'Editar / Configurar'}
+                </button>
+              </div>
             </div>
 
             {showCredentialsSection ? (

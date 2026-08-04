@@ -286,37 +286,87 @@ async function startServer() {
       const cleanGmailPass = rawGmailPass.replace(/\s+/g, '');
 
       try {
-        const transporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 465,
-          secure: true,
-          auth: {
-            user: gmailUser,
-            pass: cleanGmailPass
+        // Multi-tier Gmail SMTP connection handler (handles container network restrictions, 587 STARTTLS & 465 SSL)
+        let transporter: nodemailer.Transporter;
+
+        const optionsList = [
+          // Tier 1: Standard Nodemailer Gmail Service (uses pooled connections)
+          {
+            service: 'gmail',
+            auth: { user: gmailUser, pass: cleanGmailPass },
+            connectionTimeout: 8000,
+            greetingTimeout: 8000,
+            socketTimeout: 10000
           },
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          socketTimeout: 15000
-        });
+          // Tier 2: Port 587 with STARTTLS (commonly permitted in cloud environments)
+          {
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            requireTLS: true,
+            auth: { user: gmailUser, pass: cleanGmailPass },
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 8000,
+            greetingTimeout: 8000,
+            socketTimeout: 10000
+          },
+          // Tier 3: Port 465 direct SSL
+          {
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user: gmailUser, pass: cleanGmailPass },
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 8000,
+            greetingTimeout: 8000,
+            socketTimeout: 10000
+          }
+        ];
 
-        const mailOptions = {
-          from: `"TVDE Fleet Master" <${gmailUser}>`,
-          to: ['josreb@gmail.com', 'alexreb60@gmail.com'],
-          subject: `[TVDE Fleet Master] Resumo de Desempenho (${startDate} a ${endDate})`,
-          html: htmlContent
-        };
+        let lastErr: any = null;
+        let mailSent = false;
+        let sendResult: any = null;
 
-        await transporter.sendMail(mailOptions);
+        for (const opts of optionsList) {
+          try {
+            const tempTransporter = nodemailer.createTransport(opts);
+            sendResult = await tempTransporter.sendMail({
+              from: `"TVDE Fleet Master" <${gmailUser}>`,
+              to: ['josreb@gmail.com', 'alexreb60@gmail.com'],
+              subject: `[TVDE Fleet Master] Resumo de Desempenho (${startDate} a ${endDate})`,
+              html: htmlContent
+            });
+            mailSent = true;
+            transporter = tempTransporter;
+            break;
+          } catch (err: any) {
+            lastErr = err;
+            console.warn(`Tentativa SMTP com configuração (${opts.service || opts.port}) falhou:`, err?.message);
+            // If the error is 535 authentication invalid password, don't retry other ports (password is bad)
+            const errStr = String(err?.message || err || '');
+            if (errStr.includes('535') || errStr.includes('EAUTH') || errStr.includes('Invalid login')) {
+              break;
+            }
+          }
+        }
+
+        if (!mailSent) {
+          throw lastErr || new Error('Falha ao estabelecer ligação ao servidor Gmail.');
+        }
 
         return res.json({
           success: true,
           message: 'Resumo enviado com sucesso para josreb@gmail.com e alexreb60@gmail.com',
           recipients: ['josreb@gmail.com', 'alexreb60@gmail.com'],
-          period: { startDate, endDate }
+          period: { startDate, endDate },
+          info: sendResult?.messageId
         });
       } catch (mailErr: any) {
         console.error('Erro ao enviar e-mail via SMTP Gmail:', mailErr);
         const errString = String(mailErr?.message || mailErr || '');
+        const errCode = mailErr?.code ? ` [Código: ${mailErr.code}]` : '';
+        const errResponse = mailErr?.response ? ` [Resposta: ${mailErr.response}]` : '';
+
         if (
           errString.includes('535') ||
           errString.includes('EAUTH') ||
@@ -324,8 +374,8 @@ async function startServer() {
           errString.includes('Invalid login')
         ) {
           return res.status(401).json({
-            error: 'Palavra-passe ou utilizador rejeitado pela Google (Erro 535 / Autenticação).',
-            details: 'Verifique se a Palavra-passe de Aplicação de 16 letras foi gerada para a conta ' + gmailUser + ' em https://myaccount.google.com/apppasswords e se o e-mail do remetente está correto.'
+            error: 'Palavra-passe de Aplicação rejeitada pela Google (Erro 535).',
+            details: `A conta ${gmailUser} não aceitou a palavra-passe introduzida. Certifique-se de que utilizou a Palavra-passe de Aplicação de 16 letras gerada em https://myaccount.google.com/apppasswords (e não a sua palavra-passe habitual do email).`
           });
         }
         if (
@@ -334,19 +384,19 @@ async function startServer() {
           errString.includes('Application-specific password required')
         ) {
           return res.status(401).json({
-            error: 'Google exige Palavra-passe de Aplicação (Erro 534-5.7.9).',
-            details: 'A conta Gmail tem a Verificação em 2 Passos ativa. A palavra-passe normal do email é rejeitada pela Google. Gere uma Palavra-passe de Aplicação em https://myaccount.google.com/apppasswords.'
+            error: 'Google exige Palavra-passe de Aplicação (Erro 534).',
+            details: 'A sua conta Gmail tem a Verificação em 2 Passos ativa. A palavra-passe normal do email não é permitida pela Google. Gere uma Palavra-passe de Aplicação de 16 letras em https://myaccount.google.com/apppasswords.'
           });
         }
-        if (errString.includes('ETIMEDOUT') || errString.includes('ESOCKETTIMEDOUT')) {
+        if (errString.includes('ETIMEDOUT') || errString.includes('ESOCKETTIMEDOUT') || errString.includes('ECONNREFUSED')) {
           return res.status(504).json({
-            error: 'Tempo limite esgotado ao ligar ao servidor SMTP do Gmail.',
-            details: 'Não foi possível ligar ao smtp.gmail.com a tempo. Pode tentar novamente ou usar o botão "Abrir no E-mail" para enviar através do seu programa de e-mail.'
+            error: 'Não foi possível ligar ao servidor SMTP do Gmail.',
+            details: `A conexão ao smtp.gmail.com expirou por tempo limite.${errCode} Pode clicar em "Abrir no E-mail" para enviar através da sua aplicação de e-mail.`
           });
         }
         return res.status(500).json({
           error: 'Falha no envio de e-mail via SMTP Gmail.',
-          details: mailErr?.message || 'Erro de autenticação ou conexão ao servidor SMTP.'
+          details: `${errString}${errCode}${errResponse}`
         });
       }
     } catch (err: any) {
