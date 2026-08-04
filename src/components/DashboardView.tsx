@@ -109,7 +109,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm transition flex items-center space-x-1.5"
           >
             <Mail className="w-3.5 h-3.5" />
-            <span>ENVIAR RESUMO</span>
+            <span>Enviar Resumo por E-mail</span>
           </button>
           <button
             onClick={onOpenNewShiftModal}
