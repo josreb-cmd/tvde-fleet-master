@@ -484,39 +484,48 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <tr>
                 <th className="p-3">Data</th>
                 <th className="p-3">Motorista</th>
-                <th className="p-3">Viatura</th>
+                <th className="p-3 text-right">Combustível</th>
                 <th className="p-3 text-center">Viagens</th>
                 <th className="p-3 text-center">Quilómetros</th>
                 <th className="p-3 text-center">Horas</th>
-                <th className="p-3 text-right">Faturado (€)</th>
+                <th className="p-3 text-right">Valor Ganho</th>
+                <th className="p-3 text-right">Lucro</th>
                 <th className="p-3 text-center">Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {shiftLogs.slice(0, 5).map(log => (
-                <tr key={log.id} className="hover:bg-slate-50 transition">
-                  <td className="p-3 text-slate-600 font-medium">{log.date}</td>
-                  <td className="p-3 font-bold text-slate-900">{log.driverName}</td>
-                  <td className="p-3 text-slate-700 font-mono font-bold">{log.vehiclePlate}</td>
-                  <td className="p-3 text-center text-slate-700">{log.tripsCount}</td>
-                  <td className="p-3 text-center text-slate-700">{log.kilometers} km</td>
-                  <td className="p-3 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
-                  <td className="p-3 text-right font-bold text-slate-900">
-                    {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
-                  </td>
-                  <td className="p-3 text-center">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      log.status === 'verified'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : log.status === 'paid'
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}>
-                      {log.status === 'verified' ? 'Verificado' : log.status === 'paid' ? 'Pago' : 'Pendente'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {shiftLogs.slice(0, 5).map(log => {
+                const netProfit = log.grossEarnings - (log.fuelExpenseAmount || 0) - (log.rentalExpenseAmount || 0);
+                return (
+                  <tr key={log.id} className="hover:bg-slate-50 transition">
+                    <td className="p-3 text-slate-600 font-medium">{log.date}</td>
+                    <td className="p-3 font-bold text-slate-900">{log.driverName}</td>
+                    <td className="p-3 text-right font-medium text-slate-700">
+                      {(log.fuelExpenseAmount || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                    </td>
+                    <td className="p-3 text-center text-slate-700">{log.tripsCount}</td>
+                    <td className="p-3 text-center text-slate-700">{log.kilometers} km</td>
+                    <td className="p-3 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
+                    <td className="p-3 text-right font-bold text-slate-900">
+                      {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                    </td>
+                    <td className={`p-3 text-right font-bold ${netProfit < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                      {netProfit.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        log.status === 'verified'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : log.status === 'paid'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}>
+                        {log.status === 'verified' ? 'Verificado' : log.status === 'paid' ? 'Pago' : 'Pendente'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -56,20 +56,22 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
 
   // CSV Export Handler
   const handleExportCsv = () => {
-    const headers = ['Data', 'Motorista', 'Viatura', 'Viagens', 'Km', 'Horas', 'Faturação Total (€)', 'Uber (€)', 'Bolt (€)', 'Estado', 'Notas'];
-    const rows = filteredLogs.map(l => [
-      l.date,
-      `"${l.driverName}"`,
-      l.vehiclePlate,
-      l.tripsCount,
-      l.kilometers,
-      formatHoursToHHMM(l.hoursWorked),
-      l.grossEarnings,
-      l.uberEarnings || 0,
-      l.boltEarnings || 0,
-      l.status,
-      `"${l.notes || ''}"`
-    ]);
+    const headers = ['Data', 'Motorista', 'Combustível', 'Viagens', 'Km', 'Horas', 'Valor Ganho', 'Lucro', 'Estado', 'Notas'];
+    const rows = filteredLogs.map(l => {
+      const net = l.grossEarnings - (l.fuelExpenseAmount || 0) - (l.rentalExpenseAmount || 0);
+      return [
+        l.date,
+        `"${l.driverName}"`,
+        l.fuelExpenseAmount || 0,
+        l.tripsCount,
+        l.kilometers,
+        formatHoursToHHMM(l.hoursWorked),
+        l.grossEarnings,
+        net,
+        l.status,
+        `"${l.notes || ''}"`
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -203,12 +205,12 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
               <tr>
                 <th className="p-3.5">Data</th>
                 <th className="p-3.5">Motorista</th>
-                <th className="p-3.5">Viatura</th>
+                <th className="p-3.5 text-right">Combustível</th>
                 <th className="p-3.5 text-center">Nº Viagens</th>
                 <th className="p-3.5 text-center">Quilómetros</th>
                 <th className="p-3.5 text-center">Horas</th>
-                <th className="p-3.5 text-right">Ganho Total (€)</th>
-                <th className="p-3.5 text-right">Repartição (Uber / Bolt)</th>
+                <th className="p-3.5 text-right">Valor Ganho</th>
+                <th className="p-3.5 text-right">Lucro</th>
                 <th className="p-3.5 text-center">Estado</th>
                 <th className="p-3.5 text-right">Ações</th>
               </tr>
@@ -221,60 +223,64 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition">
-                    <td className="p-3.5 font-medium text-slate-600 whitespace-nowrap">{log.date}</td>
-                    <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.driverName}</td>
-                    <td className="p-3.5 font-mono font-bold text-slate-800 whitespace-nowrap">{log.vehiclePlate}</td>
-                    <td className="p-3.5 text-center font-semibold text-slate-700">{log.tripsCount}</td>
-                    <td className="p-3.5 text-center text-slate-700">{log.kilometers} km</td>
-                    <td className="p-3.5 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
-                    <td className="p-3.5 text-right font-bold text-slate-900">
-                      {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                    <td className="p-3.5 text-right text-slate-500 text-[11px]">
-                      <span className="text-emerald-600 font-semibold">{log.uberEarnings || 0}€ U</span> /{' '}
-                      <span className="text-blue-600 font-semibold">{log.boltEarnings || 0}€ B</span>
-                    </td>
-                    <td className="p-3.5 text-center">
-                      <select
-                        value={log.status}
-                        onChange={e => updateShiftLogStatus(log.id, e.target.value as any)}
-                        className={`text-[10px] font-bold px-2 py-1 rounded bg-slate-50 border cursor-pointer ${
-                          log.status === 'verified'
-                            ? 'text-emerald-700 border-emerald-300'
-                            : log.status === 'paid'
-                            ? 'text-blue-700 border-blue-300'
-                            : 'text-amber-700 border-amber-300'
-                        }`}
-                      >
-                        <option value="submitted">Pendente</option>
-                        <option value="verified">Verificado</option>
-                        <option value="paid">Pago</option>
-                      </select>
-                    </td>
-                    <td className="p-3.5 text-right flex items-center justify-end space-x-1">
-                      <button
-                        onClick={() => onEditShiftLog?.(log)}
-                        className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        title="Editar Registo"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm('Eliminar este registo de faturação?')) {
-                            deleteShiftLog(log.id);
-                          }
-                        }}
-                        className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredLogs.map(log => {
+                  const netProfit = log.grossEarnings - (log.fuelExpenseAmount || 0) - (log.rentalExpenseAmount || 0);
+                  return (
+                    <tr key={log.id} className="hover:bg-slate-50 transition">
+                      <td className="p-3.5 font-medium text-slate-600 whitespace-nowrap">{log.date}</td>
+                      <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.driverName}</td>
+                      <td className="p-3.5 text-right font-medium text-slate-700 whitespace-nowrap">
+                        {(log.fuelExpenseAmount || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                      <td className="p-3.5 text-center font-semibold text-slate-700">{log.tripsCount}</td>
+                      <td className="p-3.5 text-center text-slate-700">{log.kilometers} km</td>
+                      <td className="p-3.5 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
+                      <td className="p-3.5 text-right font-bold text-slate-900">
+                        {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                      <td className={`p-3.5 text-right font-bold ${netProfit < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {netProfit.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                      <td className="p-3.5 text-center">
+                        <select
+                          value={log.status}
+                          onChange={e => updateShiftLogStatus(log.id, e.target.value as any)}
+                          className={`text-[10px] font-bold px-2 py-1 rounded bg-slate-50 border cursor-pointer ${
+                            log.status === 'verified'
+                              ? 'text-emerald-700 border-emerald-300'
+                              : log.status === 'paid'
+                              ? 'text-blue-700 border-blue-300'
+                              : 'text-amber-700 border-amber-300'
+                          }`}
+                        >
+                          <option value="submitted">Pendente</option>
+                          <option value="verified">Verificado</option>
+                          <option value="paid">Pago</option>
+                        </select>
+                      </td>
+                      <td className="p-3.5 text-right flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => onEditShiftLog?.(log)}
+                          className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                          title="Editar Registo"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm('Eliminar este registo de faturação?')) {
+                              deleteShiftLog(log.id);
+                            }
+                          }}
+                          className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

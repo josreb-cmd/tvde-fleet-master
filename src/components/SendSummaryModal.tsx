@@ -38,6 +38,18 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
   const [showCredentialsSection, setShowCredentialsSection] = useState(() => !localStorage.getItem('tvde_gmail_app_pass'));
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     if (isOpen) {
       fetch('/api/smtp-status')
         .then((res) => res.json())
@@ -248,21 +260,30 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
-        <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
+        <div className="bg-slate-900 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between text-white shrink-0">
           <div className="flex items-center space-x-2.5">
             <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
               <Mail className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Enviar Resumo de Desempenho</h2>
-              <p className="text-xs text-slate-400">Envio direto de relatório por e-mail</p>
+              <h2 className="text-sm sm:text-base font-bold text-white">Enviar Resumo de Desempenho</h2>
+              <p className="text-[11px] sm:text-xs text-slate-400">Envio direto de relatório por e-mail</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition"
           >
@@ -270,7 +291,8 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        {/* Scrollable Body Content */}
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0 text-slate-800">
           {/* Status Alert if any */}
           {statusMessage && (
             <div
@@ -398,12 +420,12 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
 
           {/* Date Range Selection */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
               <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
                 <Calendar className="w-3.5 h-3.5 text-slate-500" />
                 <span>Período do Relatório</span>
               </label>
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1 flex-wrap gap-1">
                 <button
                   type="button"
                   onClick={handlePresetCurrentWeek}
@@ -428,7 +450,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <span className="text-[11px] font-medium text-slate-600 block mb-1">Data Início</span>
                 <input
@@ -554,22 +576,22 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-slate-50 px-6 py-3.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+        <div className="bg-slate-50 px-4 sm:px-6 py-3 sm:py-3.5 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={onClose}
             disabled={isSending}
-            className="px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 rounded-md transition disabled:opacity-50"
+            className="px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 rounded-md transition disabled:opacity-50 text-center order-2 sm:order-1"
           >
             Cancelar
           </button>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto order-1 sm:order-2">
             <button
               type="button"
               onClick={handleCopySummary}
               translate="no"
-              className="notranslate px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-md shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap"
+              className="notranslate flex-1 sm:flex-none justify-center px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-md shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> : <Copy className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
               <span>{copied ? 'Copiado!' : 'Copiar'}</span>
@@ -579,7 +601,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
               type="button"
               onClick={handleOpenMailClient}
               translate="no"
-              className="notranslate px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-md shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap"
+              className="notranslate flex-1 sm:flex-none justify-center px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-md shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap"
               title="Abre a sua aplicação/cliente de email padrão (Gmail, Mail, Outlook) com o resumo preenchido"
             >
               <ExternalLink className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -591,7 +613,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
               onClick={handleSendEmail}
               disabled={isSending}
               translate="no"
-              className="notranslate px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md shadow-sm transition flex items-center space-x-1.5 disabled:opacity-50 whitespace-nowrap"
+              className="notranslate w-full sm:w-auto justify-center px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md shadow-sm transition flex items-center space-x-1.5 disabled:opacity-50 whitespace-nowrap"
             >
               {isSending ? (
                 <>

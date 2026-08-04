@@ -386,12 +386,12 @@ export const DriverPortalView: React.FC<DriverPortalViewProps> = ({ onOpenNewShi
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
                 <th className="p-3">Data</th>
-                <th className="p-3">Viatura</th>
+                <th className="p-3 text-right">Combustível</th>
                 <th className="p-3 text-center">Viagens</th>
                 <th className="p-3 text-center">Km</th>
                 <th className="p-3 text-center">Horas</th>
-                <th className="p-3 text-right">Ganho (€)</th>
-                <th className="p-3 text-right">Custo Carga (€)</th>
+                <th className="p-3 text-right">Valor Ganho</th>
+                <th className="p-3 text-right">Lucro</th>
                 <th className="p-3 text-center">Estado</th>
               </tr>
             </thead>
@@ -403,34 +403,39 @@ export const DriverPortalView: React.FC<DriverPortalViewProps> = ({ onOpenNewShi
                   </td>
                 </tr>
               ) : (
-                driverShifts.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition">
-                    <td className="p-3 text-slate-600 font-medium">{log.date}</td>
-                    <td className="p-3 font-mono font-bold text-slate-800">{log.vehiclePlate}</td>
-                    <td className="p-3 text-center text-slate-700">{log.tripsCount}</td>
-                    <td className="p-3 text-center text-slate-700">{log.kilometers} km</td>
-                    <td className="p-3 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
-                    <td className="p-3 text-right font-bold text-slate-900">
-                      {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                    <td className="p-3 text-right text-red-600 font-medium">
-                      {log.fuelExpenseAmount ? `${log.fuelExpenseAmount.toFixed(2)} €` : '-'}
-                    </td>
-                    <td className="p-3 text-center">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          log.status === 'verified'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : log.status === 'paid'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}
-                      >
-                        {log.status === 'verified' ? 'Verificado' : log.status === 'paid' ? 'Pago' : 'Pendente'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                driverShifts.map(log => {
+                  const netProfit = log.grossEarnings - (log.fuelExpenseAmount || 0) - (log.rentalExpenseAmount || 0);
+                  return (
+                    <tr key={log.id} className="hover:bg-slate-50 transition">
+                      <td className="p-3 text-slate-600 font-medium">{log.date}</td>
+                      <td className="p-3 text-right font-medium text-slate-700">
+                        {(log.fuelExpenseAmount || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                      <td className="p-3 text-center text-slate-700">{log.tripsCount}</td>
+                      <td className="p-3 text-center text-slate-700">{log.kilometers} km</td>
+                      <td className="p-3 text-center text-slate-700 font-mono">{formatHoursToHHMM(log.hoursWorked)}</td>
+                      <td className="p-3 text-right font-bold text-slate-900">
+                        {log.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                      <td className={`p-3 text-right font-bold ${netProfit < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {netProfit.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            log.status === 'verified'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : log.status === 'paid'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}
+                        >
+                          {log.status === 'verified' ? 'Verificado' : log.status === 'paid' ? 'Pago' : 'Pendente'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

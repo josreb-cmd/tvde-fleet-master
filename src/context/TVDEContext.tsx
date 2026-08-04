@@ -221,13 +221,48 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
              d.id.startsWith('exp-rnd-monday-') ||
              d.id.startsWith('exp-nrg-') ||
              d.id.startsWith('exp-rnd-daily-') ||
-             d.id.startsWith('exp-fuel-shift-') ||
-             d.id.startsWith('exp-rnd-shift-') ||
              d.data().vehiclePlate === 'AA-42-TV'
       );
       if (testExpenses.length > 0) {
         const batch = writeBatch(db);
         testExpenses.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      } else if (snapshot.empty) {
+        const batch = writeBatch(db);
+        const seedExpenses: Expense[] = [];
+        INITIAL_SHIFT_LOGS.forEach(s => {
+          if (s.rentalExpenseAmount && s.rentalExpenseAmount > 0) {
+            seedExpenses.push({
+              id: `exp-rnd-shift-${s.id}`,
+              category: 'vehicle_rental',
+              title: `Renda de Viatura (${s.vehiclePlate})`,
+              amount: s.rentalExpenseAmount,
+              date: s.date,
+              vehicleId: s.vehicleId,
+              vehiclePlate: s.vehiclePlate,
+              driverId: s.driverId,
+              driverName: s.driverName,
+              description: `Sincronizado de Faturação Diária (${s.driverName})`
+            });
+          }
+          if (s.fuelExpenseAmount && s.fuelExpenseAmount > 0) {
+            seedExpenses.push({
+              id: `exp-fuel-shift-${s.id}`,
+              category: 'fuel_charging',
+              title: `Combustível / Energia (${s.vehiclePlate})`,
+              amount: s.fuelExpenseAmount,
+              date: s.date,
+              vehicleId: s.vehicleId,
+              vehiclePlate: s.vehiclePlate,
+              driverId: s.driverId,
+              driverName: s.driverName,
+              description: `Sincronizado de Faturação Diária (${s.driverName})`
+            });
+          }
+        });
+        seedExpenses.forEach(e => {
+          batch.set(doc(db, 'expenses', e.id), cleanObject(e));
+        });
         await batch.commit();
       } else {
         const loaded = snapshot.docs.map(doc => doc.data() as Expense);
