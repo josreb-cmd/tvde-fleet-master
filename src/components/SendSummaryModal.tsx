@@ -551,19 +551,21 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
             <button
               type="button"
               onClick={handleCopySummary}
-              className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-md shadow-xs transition flex items-center space-x-1.5"
+              translate="no"
+              className="notranslate px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-md shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> : <Copy className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
               <span>{copied ? 'Copiado!' : 'Copiar'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleOpenMailClient}
-              className="px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-md shadow-xs transition flex items-center space-x-1.5"
+              translate="no"
+              className="notranslate px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-md shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap"
               title="Abre a sua aplicação/cliente de email padrão (Gmail, Mail, Outlook) com o resumo preenchido"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
+              <ExternalLink className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
               <span>Abrir no E-mail</span>
             </button>
 
@@ -571,17 +573,18 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
               type="button"
               onClick={handleSendEmail}
               disabled={isSending}
-              className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md shadow-sm transition flex items-center space-x-1.5 disabled:opacity-50"
+              translate="no"
+              className="notranslate px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md shadow-sm transition flex items-center space-x-1.5 disabled:opacity-50 whitespace-nowrap"
             >
               {isSending ? (
                 <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
                   <span>A enviar...</span>
                 </>
               ) : (
                 <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Enviar por Email</span>
+                  <Send className="w-3.5 h-3.5 shrink-0" />
+                  <span>Enviar por E-mail</span>
                 </>
               )}
             </button>

@@ -106,10 +106,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsSendSummaryModalOpen(true)}
-            className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm transition flex items-center space-x-1.5"
+            translate="no"
+            className="notranslate px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm transition flex items-center space-x-1.5 whitespace-nowrap"
           >
-            <Mail className="w-3.5 h-3.5" />
-            <span>Enviar Resumo por E-mail</span>
+            <Mail className="w-3.5 h-3.5 shrink-0" />
+            <span className="notranslate">Enviar Resumo por E-mail</span>
           </button>
           <button
             onClick={onOpenNewShiftModal}
