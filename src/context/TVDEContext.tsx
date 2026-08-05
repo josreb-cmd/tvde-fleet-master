@@ -41,6 +41,8 @@ interface TVDEContextType {
   notifications: AppNotification[];
   selectedMonth: string; // YYYY-MM
   setSelectedMonth: (month: string) => void;
+  selectedPresetId: string | null;
+  setSelectedPresetId: (id: string | null) => void;
   isCloudSynced: boolean;
   
   // Actions
@@ -132,6 +134,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shiftLogs, setShiftLogs] = useState<DailyShiftLog[]>(INITIAL_SHIFT_LOGS);
   const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
   const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
 
   // Sign in anonymously to ensure Firestore auth token is present
@@ -845,6 +848,8 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notifications,
         selectedMonth,
         setSelectedMonth,
+        selectedPresetId,
+        setSelectedPresetId,
         isCloudSynced,
         addShiftLog,
         updateShiftLog,

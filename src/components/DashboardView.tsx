@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTVDE } from '../context/TVDEContext';
 import { formatHoursToHHMM } from '../utils/formatters';
 import { SendSummaryModal } from './SendSummaryModal';
+import { DEFAULT_PRESETS } from '../data/presetQueries';
 import {
   TrendingUp,
   TrendingDown,
@@ -16,7 +17,8 @@ import {
   Wrench,
   Award,
   Layers,
-  Mail
+  Mail,
+  Bookmark
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -53,7 +55,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     driverPerformanceList,
     notifications,
     shiftLogs,
-    selectedMonth
+    selectedMonth,
+    setSelectedPresetId
   } = useTVDE();
 
   const unreadNotifs = notifications.filter(n => !n.read);
@@ -247,6 +250,52 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {monthlyStats.earningsPerKm.toFixed(2)} €/km • {monthlyStats.earningsPerHour.toFixed(2)} €/h
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Preset Queries Quick Cards (Disponíveis em Telemóvel e Desktop) */}
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <Bookmark className="w-4 h-4 text-blue-600" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              Consultas Rápidas e Modelos Guardados
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-500 font-medium">
+            {DEFAULT_PRESETS.length} modelos disponíveis
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {DEFAULT_PRESETS.map(preset => (
+            <div
+              key={preset.id}
+              onClick={() => {
+                setSelectedPresetId(preset.id);
+                setActiveTab('custom-query');
+              }}
+              className="group relative p-3 bg-slate-50 hover:bg-blue-50/60 border border-slate-200 hover:border-blue-300 rounded-md cursor-pointer transition flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 group-hover:text-blue-700 line-clamp-1">
+                    {preset.name}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                  {preset.description}
+                </p>
+              </div>
+
+              <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-400">
+                <span className="capitalize font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                  {preset.groupBy === 'none' ? 'Detalhe' : `Agrupado: ${preset.groupBy}`}
+                </span>
+                <span className="font-semibold text-blue-600 group-hover:underline">Carregar →</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

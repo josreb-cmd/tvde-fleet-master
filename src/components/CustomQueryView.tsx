@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useTVDE } from '../context/TVDEContext';
 import { DailyShiftLog, Expense } from '../types';
 import { formatHoursToHHMM, parseHHMMToHours } from '../utils/formatters';
+import { SavedQueryPreset, DEFAULT_PRESETS } from '../data/presetQueries';
 import {
   Search,
   Filter,
@@ -42,92 +43,8 @@ import {
   Area
 } from 'recharts';
 
-interface SavedQueryPreset {
-  id: string;
-  name: string;
-  description: string;
-  dataSource: 'shifts' | 'expenses' | 'consolidated';
-  dateFilter: 'all' | 'this_month' | 'last_month' | 'last_30_days' | 'this_year' | 'custom';
-  startDate: string;
-  endDate: string;
-  driverId: string;
-  vehicleId: string;
-  platform: 'all' | 'uber' | 'bolt';
-  minAmount: number;
-  groupBy: 'none' | 'driver' | 'vehicle' | 'month' | 'dayOfWeek';
-  aggregation: 'sum' | 'avg' | 'max' | 'min';
-  visibleColumns: string[];
-}
-
-const DEFAULT_PRESETS: SavedQueryPreset[] = [
-  {
-    id: 'preset-efficiency',
-    name: 'Eficiência por Hora (€/h e hh:mm)',
-    description: 'Análise de horas trabalhadas em formato hh:mm e rendimento médio €/hora por motorista.',
-    dataSource: 'shifts',
-    dateFilter: 'all',
-    startDate: '',
-    endDate: '',
-    driverId: 'all',
-    vehicleId: 'all',
-    platform: 'all',
-    minAmount: 0,
-    groupBy: 'driver',
-    aggregation: 'sum',
-    visibleColumns: ['driverName', 'hoursWorked', 'grossEarnings', 'tripsCount', 'earningsPerHour', 'earningsPerKm']
-  },
-  {
-    id: 'preset-vehicles',
-    name: 'Rentabilidade por Viatura',
-    description: 'Faturação, combustível e lucro estimado agrupado por matrícula de viatura.',
-    dataSource: 'consolidated',
-    dateFilter: 'all',
-    startDate: '',
-    endDate: '',
-    driverId: 'all',
-    vehicleId: 'all',
-    platform: 'all',
-    minAmount: 0,
-    groupBy: 'vehicle',
-    aggregation: 'sum',
-    visibleColumns: ['vehiclePlate', 'grossEarnings', 'fuelExpenseAmount', 'rentalExpenseAmount', 'netProfit', 'kilometers']
-  },
-  {
-    id: 'preset-platforms',
-    name: 'Comparativo Uber vs Bolt',
-    description: 'Divisão de receitas entre plataformas de TVDE e total faturado.',
-    dataSource: 'shifts',
-    dateFilter: 'all',
-    startDate: '',
-    endDate: '',
-    driverId: 'all',
-    vehicleId: 'all',
-    platform: 'all',
-    minAmount: 0,
-    groupBy: 'none',
-    aggregation: 'sum',
-    visibleColumns: ['date', 'driverName', 'vehiclePlate', 'uberEarnings', 'boltEarnings', 'grossEarnings']
-  },
-  {
-    id: 'preset-monthly',
-    name: 'Resumo Consolidado Mensal',
-    description: 'Evolução mensal da faturação, horas em serviço e custos totais.',
-    dataSource: 'consolidated',
-    dateFilter: 'all',
-    startDate: '',
-    endDate: '',
-    driverId: 'all',
-    vehicleId: 'all',
-    platform: 'all',
-    minAmount: 0,
-    groupBy: 'month',
-    aggregation: 'sum',
-    visibleColumns: ['date', 'grossEarnings', 'hoursWorked', 'fuelExpenseAmount', 'rentalExpenseAmount', 'netProfit', 'tripsCount']
-  }
-];
-
 export const CustomQueryView: React.FC = () => {
-  const { shiftLogs, expenses, drivers, vehicles } = useTVDE();
+  const { shiftLogs, expenses, drivers, vehicles, selectedPresetId, setSelectedPresetId } = useTVDE();
 
   // Saved queries state
   const [savedQueries, setSavedQueries] = useState<SavedQueryPreset[]>(() => {
@@ -212,6 +129,17 @@ export const CustomQueryView: React.FC = () => {
     setVisibleColumns(preset.visibleColumns);
     setQueryName(preset.name);
   };
+
+  // Load preset if selected from external view (e.g. Dashboard on mobile)
+  useEffect(() => {
+    if (selectedPresetId) {
+      const targetPreset = savedQueries.find(q => q.id === selectedPresetId);
+      if (targetPreset) {
+        handleSelectPreset(targetPreset);
+      }
+      setSelectedPresetId(null);
+    }
+  }, [selectedPresetId, savedQueries]);
 
   // Save current query configuration
   const handleSaveQuery = () => {

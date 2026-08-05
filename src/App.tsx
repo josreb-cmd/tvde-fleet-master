@@ -12,6 +12,7 @@ import { DriversView } from './components/DriversView';
 import { NotificationsView } from './components/NotificationsView';
 import { ProfitabilityView } from './components/ProfitabilityView';
 import { CustomQueryView } from './components/CustomQueryView';
+import { MobileBottomNav } from './components/MobileBottomNav';
 
 // Modals
 import { ShiftModal } from './components/modals/ShiftModal';
@@ -100,7 +101,7 @@ function AppContent() {
           onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
         />
 
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 overflow-y-auto min-w-0">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-8 overflow-y-auto min-w-0">
           {activeTab === 'dashboard' && (
             <DashboardView
               onOpenNewShiftModal={handleNewShiftModal}
@@ -156,6 +157,13 @@ function AppContent() {
           {activeTab === 'notifications' && <NotificationsView />}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenAiAdvisor={() => setShowAiAdvisorModal(true)}
+      />
 
       {/* Global Modals */}
       <ShiftModal
