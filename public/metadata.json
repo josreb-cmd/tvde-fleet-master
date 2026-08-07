@@ -1,6 +1,0 @@
-{
-  "name": "TVDE Fleet Master - Gestão de Frota e Faturação",
-  "description": "Plataforma completa de gestão de frota TVDE em Portugal. Controlo de faturação de motoristas com somatório diário, viaturas, custos de combustível/carregamento, manutenção, seguros, notificações e gráficos comparativos de rentabilidade.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
