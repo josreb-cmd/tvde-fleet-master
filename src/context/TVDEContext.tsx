@@ -692,6 +692,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const totalExpenses = totalFuelCost + totalVehicleRentals + totalMaintenanceCost + totalInsuranceCost + totalIrsCost + totalIvaCost + totalOtherCost;
     const netProfit = totalGrossEarnings - totalExpenses;
+    const receiptIssuanceAmount = totalGrossEarnings - totalVehicleRentals;
 
     const earningsPerKm = totalKm > 0 ? totalGrossEarnings / totalKm : 0;
     const earningsPerHour = totalHours > 0 ? totalGrossEarnings / totalHours : 0;
@@ -725,7 +726,8 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalOtherCost,
       earningsPerKm,
       earningsPerHour,
-      netProfitMarginPct
+      netProfitMarginPct,
+      receiptIssuanceAmount
     };
   }, [selectedMonth, shiftLogs, expenses]);
 

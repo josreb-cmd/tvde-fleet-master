@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTVDE } from '../../context/TVDEContext';
 import {
   getAuthorizedUsers,
   addAuthorizedUser,
@@ -17,7 +18,9 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Search
+  Search,
+  RotateCcw,
+  Database
 } from 'lucide-react';
 
 interface UsersManagementModalProps {
@@ -30,6 +33,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
   onClose,
 }) => {
   const { user: currentUser, role: currentRole } = useAuth();
+  const { resetToDefaultData } = useTVDE();
 
   const [users, setUsers]               = useState<AuthorizedUser[]>([]);
   const [loading, setLoading]           = useState<boolean>(false);
@@ -390,6 +394,36 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
                 })}
               </div>
             )}
+          </div>
+
+          {/* Maintenance / Data Reset Section */}
+          <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center space-x-2 mb-2">
+              <Database className="w-4 h-4 text-amber-700" />
+              <h3 className="text-xs sm:text-sm font-bold text-amber-950">
+                Manutenção e Reposição de Dados
+              </h3>
+            </div>
+            <p className="text-xs text-amber-800 mb-3 leading-relaxed">
+              Caso necessite de repor a estrutura de dados inicial da frota (veículos, motoristas, turnos e despesas de demonstração), utilize o botão abaixo.
+            </p>
+            <button
+              onClick={() => {
+                if (
+                  confirm(
+                    'ATENÇÃO: Tem a certeza que deseja repor os dados padrão de demonstração da frota?\n\nIsto irá recarregar a lista de veículos, motoristas, turnos e despesas para o estado inicial.'
+                  )
+                ) {
+                  resetToDefaultData();
+                  setSuccessMsg('Dados padrão da frota repostos com sucesso!');
+                  setErrorMsg('');
+                }
+              }}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold flex items-center space-x-2 transition shadow-sm"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Repor Dados Padrão de Demonstração</span>
+            </button>
           </div>
         </div>
 

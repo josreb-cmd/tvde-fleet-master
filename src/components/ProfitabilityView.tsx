@@ -44,13 +44,21 @@ export const ProfitabilityView: React.FC = () => {
       </div>
 
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white border border-slate-200 rounded-md p-5 shadow-sm">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Faturação Operacional</span>
           <span className="text-2xl font-bold text-slate-900 mt-1 block">
             {monthlyStats.totalGrossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </span>
           <span className="text-[11px] text-slate-500 mt-1 block">{monthlyStats.totalTrips} viagens concluídas</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-md p-5 shadow-sm border-l-4 border-l-indigo-500">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Emissão Recibo</span>
+          <span className="text-2xl font-bold text-indigo-900 mt-1 block">
+            {monthlyStats.receiptIssuanceAmount.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+          </span>
+          <span className="text-[11px] text-indigo-600 font-medium mt-1 block">Faturação Bruta − Rendas</span>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-md p-5 shadow-sm">

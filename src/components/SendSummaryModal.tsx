@@ -24,6 +24,21 @@ function getCurrentWeekRange() {
   };
 }
 
+function getPreviousWeekRange() {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1) - 7;
+  const monday = new Date(now.setDate(diffToMonday));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+  return {
+    startDate: formatDate(monday),
+    endDate: formatDate(sunday)
+  };
+}
+
 export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onClose }) => {
   const { shiftLogs, expenses, drivers, vehicles } = useTVDE();
 
@@ -69,6 +84,10 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
   // Quick preset handlers
   const handlePresetCurrentWeek = () => {
     setDateRange(getCurrentWeekRange());
+  };
+
+  const handlePresetPreviousWeek = () => {
+    setDateRange(getPreviousWeekRange());
   };
 
   const handlePresetCurrentMonth = () => {
@@ -142,6 +161,7 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
     const rental = shiftRental + standaloneRental;
     const costs = energy + rental + standaloneOther;
     const profit = gross - costs;
+    const receiptIssuance = gross - rental;
     const km = filteredShifts.reduce((acc, s) => acc + s.kilometers, 0);
     const hours = filteredShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
 
@@ -153,6 +173,7 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
     return {
       gross,
       profit,
+      receiptIssuance,
       revenuePerHour,
       trips,
       avgTripsPerDay,
@@ -173,6 +194,7 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
 --------------------------------------------------
 • Turnos Registados: ${previewData.shiftCount}
 • Faturação Bruta: ${previewData.gross.toFixed(2)} € (${previewData.distinctDays} dias operacionais)
+• Emissão de Recibo (Faturação - Renda): ${previewData.receiptIssuance.toFixed(2)} €
 • Lucro Líquido: ${previewData.profit.toFixed(2)} €
 • Receita por Hora: ${previewData.revenuePerHour.toFixed(2)} €/h (${Math.floor(previewData.hours)}h${Math.round((previewData.hours % 1) * 60)}m)
 • Total Viagens: ${previewData.trips} (média ${previewData.avgTripsPerDay.toFixed(1)}/dia)
@@ -435,6 +457,13 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
                 </button>
                 <button
                   type="button"
+                  onClick={handlePresetPreviousWeek}
+                  className="px-2 py-1 text-[11px] font-medium rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                >
+                  Semana Anterior
+                </button>
+                <button
+                  type="button"
                   onClick={handlePresetCurrentMonth}
                   className="px-2 py-1 text-[11px] font-medium rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
                 >
@@ -483,15 +512,26 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-left">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-left">
               {/* Card 1: Faturação */}
               <div className="bg-slate-200/60 p-2.5 rounded-lg">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">FATURAÇÃO</span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">FATURAÇÃO BRUTA</span>
                 <span className="text-sm font-extrabold text-slate-900 block leading-none">
                   {previewData.gross.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium block mt-1">
                   {previewData.distinctDays} {previewData.distinctDays === 1 ? 'dia operacional' : 'dias operacionais'}
+                </span>
+              </div>
+
+              {/* Card: Emissão Recibo */}
+              <div className="bg-indigo-50/80 border border-indigo-200/60 p-2.5 rounded-lg">
+                <span className="text-[9px] font-bold text-indigo-800 uppercase tracking-wider block mb-0.5">EMISSÃO RECIBO</span>
+                <span className="text-sm font-extrabold text-indigo-900 block leading-none">
+                  {previewData.receiptIssuance.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                </span>
+                <span className="text-[10px] text-indigo-600 font-medium block mt-1">
+                  Faturação − Renda ({previewData.rental.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })})
                 </span>
               </div>
 

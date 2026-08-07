@@ -18,7 +18,8 @@ import {
   Award,
   Layers,
   Mail,
-  Bookmark
+  Bookmark,
+  FileText
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -162,7 +163,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       )}
 
       {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Total Faturado */}
         <div className="bg-white border border-slate-200 rounded-md p-5 shadow-sm relative overflow-hidden group hover:border-blue-300 transition">
           <div className="flex items-center justify-between">
@@ -179,6 +180,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
             <span>Uber vs Bolt vs Outros</span>
             <span className="text-blue-600 font-semibold">100% acumulado</span>
+          </div>
+        </div>
+
+        {/* Emissão Recibo = Faturação Total - Rendas */}
+        <div className="bg-white border border-slate-200 rounded-md p-5 shadow-sm relative overflow-hidden group hover:border-indigo-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Emissão Recibo</span>
+            <div className="p-2 rounded-md bg-indigo-50 text-indigo-600">
+              <FileText className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-indigo-900">
+              {monthlyStats.receiptIssuanceAmount.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Faturação − Rendas</span>
+            <span className="text-indigo-600 font-semibold">
+              - {monthlyStats.totalVehicleRentals.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+            </span>
           </div>
         </div>
 

@@ -52,7 +52,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     markAllNotificationsAsRead,
     selectedMonth,
     setSelectedMonth,
-    resetToDefaultData,
     isCloudSynced
   } = useTVDE();
 
@@ -355,19 +354,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Users className="w-4 h-4" />
               </button>
             )}
-
-            {/* Reset Data Button */}
-            <button
-              onClick={() => {
-                if (confirm('Deseja repor os dados de teste padrão da frota TVDE?')) {
-                  resetToDefaultData();
-                }
-              }}
-              className="p-2 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition"
-              title="Resetar Dados Padrão"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
 
             {/* Logout Button */}
             {(currentEmail || authUser) && (

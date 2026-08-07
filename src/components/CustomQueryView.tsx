@@ -65,7 +65,7 @@ export const CustomQueryView: React.FC = () => {
   // Query configuration states
   const [queryName, setQueryName] = useState<string>('');
   const [dataSource, setDataSource] = useState<'shifts' | 'expenses' | 'consolidated'>('shifts');
-  const [dateFilter, setDateFilter] = useState<'all' | 'this_month' | 'last_month' | 'last_30_days' | 'this_year' | 'custom'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'last_week' | 'last_7_days' | 'this_month' | 'last_month' | 'last_30_days' | 'this_year' | 'custom'>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [driverId, setDriverId] = useState<string>('all');
@@ -194,7 +194,29 @@ export const CustomQueryView: React.FC = () => {
     if (!dateStr) return true;
     const recordDate = new Date(dateStr);
     const now = new Date();
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
+    if (dateFilter === 'this_week') {
+      const day = now.getDay();
+      const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(now.setDate(diffToMonday));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
+    }
+    if (dateFilter === 'last_week') {
+      const day = now.getDay();
+      const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1) - 7;
+      const monday = new Date(now.setDate(diffToMonday));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
+    }
+    if (dateFilter === 'last_7_days') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      return dateStr >= formatDate(sevenDaysAgo) && dateStr <= formatDate(now);
+    }
     if (dateFilter === 'this_month') {
       const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       return dateStr.startsWith(currentYearMonth);
@@ -549,6 +571,9 @@ export const CustomQueryView: React.FC = () => {
     
     const dateLabels: Record<string, string> = {
       all: 'Todo o Histórico',
+      this_week: 'Esta Semana (Seg-Dom)',
+      last_week: 'Semana Anterior (Seg-Dom)',
+      last_7_days: 'Últimos 7 Dias',
       this_month: 'Este Mês',
       last_month: 'Mês Passado',
       last_30_days: 'Últimos 30 Dias',
@@ -934,11 +959,14 @@ export const CustomQueryView: React.FC = () => {
               className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600"
             >
               <option value="all">Todo o Histórico</option>
+              <option value="this_week">Esta Semana (Segunda a Domingo)</option>
+              <option value="last_week">Semana Anterior (Segunda a Domingo)</option>
+              <option value="last_7_days">Últimos 7 Dias</option>
               <option value="this_month">Este Mês</option>
               <option value="last_month">Mês Anterior</option>
               <option value="last_30_days">Últimos 30 Dias</option>
               <option value="this_year">Este Ano (2026)</option>
-              <option value="custom">Intervalo Personalizado</option>
+              <option value="custom">Intervalo Personalizado (Datas Livres)</option>
             </select>
           </div>
 

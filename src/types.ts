@@ -114,4 +114,5 @@ export interface MonthlyStats {
   earningsPerKm: number;
   earningsPerHour: number;
   netProfitMarginPct: number;
+  receiptIssuanceAmount: number; // Emissão Recibo = Faturação Total - Rendas
 }
