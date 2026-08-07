@@ -1,6 +1,5 @@
 import {
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
@@ -95,34 +94,14 @@ export async function getAuthorizedUserDoc(email: string): Promise<AuthorizedUse
 }
 
 /**
- * Inicia sessão com Google — tenta Popup primeiro, usa Redirect como fallback.
+ * Inicia sessão com Google via Redirect (compatível com Cloud Run e ambientes sem popup).
  */
 export async function signInWithGoogle(): Promise<User> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const email = result.user.email ?? '';
-    const userDoc = await getAuthorizedUserDoc(email);
-    if (!userDoc) {
-      await signOut(auth);
-      throw new Error(`Acesso não autorizado: ${email}. O seu email não está registado no sistema.`);
-    }
-    return result.user;
-  } catch (err: any) {
-    // Se popup bloqueado ou fechado, usa redirect
-    if (
-      err.code === 'auth/popup-blocked' ||
-      err.code === 'auth/popup-closed-by-user' ||
-      err.code === 'auth/cancelled-popup-request'
-    ) {
-      await signInWithRedirect(auth, provider);
-      // Após redirect, a página recarrega — o resultado é tratado em handleRedirectResult
-      throw new Error('redirect_initiated');
-    }
-    throw err;
-  }
+  await signInWithRedirect(auth, provider);
+  // Após redirect, a página recarrega — o resultado é tratado em handleRedirectResult
+  throw new Error('redirect_initiated');
 }
 
 /**
