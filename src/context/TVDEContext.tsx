@@ -8,7 +8,7 @@ import {
   onSnapshot,
   writeBatch
 } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
 import { parseHHMMToHours } from '../utils/formatters';
 import {
@@ -136,12 +136,23 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
+  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
 
-  // Sign in anonymously to ensure Firestore auth token is present
+  // Sign in anonymously if available, or proceed
   useEffect(() => {
-    signInAnonymously(auth).catch(err => {
-      console.warn("Firebase Auth notice:", err);
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setAuthUser(u);
+      } else {
+        try {
+          const cred = await signInAnonymously(auth);
+          setAuthUser(cred.user);
+        } catch (err) {
+          // Ignore if anonymous auth is disabled on project
+        }
+      }
     });
+    return () => unsub();
   }, []);
 
   // Real-time Firestore Sync for DRIVERS
@@ -281,6 +292,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Real-time Firestore Sync for NOTIFICATIONS
   useEffect(() => {
+    if (!authUser) return;
     const unsub = onSnapshot(collection(db, 'notifications'), async snapshot => {
       if (!snapshot.empty) {
         const batch = writeBatch(db);
@@ -295,7 +307,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Firestore notifications listener error:", err);
     });
     return () => unsub();
-  }, []);
+  }, [authUser]);
 
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);

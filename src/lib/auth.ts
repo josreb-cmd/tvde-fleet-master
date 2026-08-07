@@ -1,7 +1,7 @@
 import {
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
+  signInAnonymously,
   signOut,
   onAuthStateChanged,
   User,
@@ -94,37 +94,85 @@ export async function getAuthorizedUserDoc(email: string): Promise<AuthorizedUse
 }
 
 /**
- * Inicia sessão com Google via Redirect (compatível com Cloud Run e ambientes sem popup).
+ * Inicia sessão com Google Popup e valida se o utilizador está na coleção authorizedUsers.
  */
 export async function signInWithGoogle(): Promise<User> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  await signInWithRedirect(auth, provider);
-  // Após redirect, a página recarrega — o resultado é tratado em handleRedirectResult
-  throw new Error('redirect_initiated');
-}
-
-/**
- * Trata o resultado do redirect OAuth após o utilizador regressar à app.
- * Deve ser chamado no arranque da app (ex: AuthContext useEffect).
- */
-export async function handleRedirectResult(): Promise<User | null> {
   try {
-    const result = await getRedirectResult(auth);
-    if (!result) return null;
-
+    const result = await signInWithPopup(auth, provider);
     const email = result.user.email ?? '';
+
     const userDoc = await getAuthorizedUserDoc(email);
     if (!userDoc) {
       await signOut(auth);
       throw new Error(`Acesso não autorizado: ${email}. O seu email não está registado no sistema.`);
     }
+
     return result.user;
   } catch (err: any) {
-    if (err.message?.includes('não autorizado')) throw err;
-    console.error('Erro ao processar redirect result:', err);
-    return null;
+    if (err.code === 'auth/popup-closed-by-user') {
+      throw new Error('A janela do Google foi fechada ou bloqueada pelo iframe do navegador. Por favor clique em "Abrir num Novo Separador" para fazer login com a sua conta Google, ou use o "Modo Demonstração".');
+    }
+    if (err.code === 'auth/popup-blocked') {
+      throw new Error('O navegador bloqueou a janela pop-up do Google. Por favor abra a aplicação num novo separador ou permita pop-ups.');
+    }
+    if (err.code === 'auth/cancelled-popup-request') {
+      throw new Error('O pedido de login foi cancelado.');
+    }
+    throw err;
   }
+}
+
+export function createMockUser(email = 'josreb@gmail.com', displayName = 'José Rebelo (Gestor)'): User {
+  return {
+    uid: 'demo-' + email.replace(/[^a-zA-Z0-9]/g, '-'),
+    email,
+    displayName,
+    photoURL: null,
+    emailVerified: true,
+    isAnonymous: true,
+    metadata: {},
+    providerData: [],
+    refreshToken: 'demo-token',
+    tenantId: null,
+    delete: async () => {},
+    getIdToken: async () => 'demo-token',
+    getIdTokenResult: async () => ({} as any),
+    reload: async () => {},
+    toJSON: () => ({}),
+    phoneNumber: null,
+    providerId: 'demo',
+  } as unknown as User;
+}
+
+/**
+ * Inicia sessão em Modo Demonstração / Preview
+ */
+export async function signInAsDemo(role: 'gestor' | 'motorista' = 'gestor'): Promise<{ user: User; userData: AuthorizedUser }> {
+  let user: User | null = null;
+  try {
+    const cred = await signInAnonymously(auth);
+    user = cred.user;
+  } catch (err) {
+    console.warn("signInAnonymously não disponível, a usar utilizador mock de demonstração:", err);
+  }
+
+  const isGestor = role === 'gestor';
+  const email = isGestor ? 'josreb@gmail.com' : 'manuel.antunes@tvde.pt';
+  const name = isGestor ? 'José Rebelo (Gestor Demo)' : 'Manuel Antunes (Motorista Demo)';
+
+  if (!user) {
+    user = createMockUser(email, name);
+  }
+
+  const demoUserData: AuthorizedUser = {
+    id: email,
+    email: email,
+    name: name,
+    role: role,
+  };
+  return { user, userData: demoUserData };
 }
 
 /**
