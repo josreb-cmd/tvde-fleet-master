@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "drivers": {
+      "title": "Drivers",
+      "description": "TVDE driver profiles",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "tvdeLicenseNumber": { "type": "string" },
+        "tvdeLicenseExpiry": { "type": "string" },
+        "assignedVehicleId": { "type": "string" },
+        "commissionRate": { "type": "number" },
+        "iban": { "type": "string" },
+        "startDate": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["name", "email"]
+    },
+    "vehicles": {
+      "title": "Vehicles",
+      "description": "TVDE fleet vehicles",
+      "type": "object",
+      "properties": {
+        "licensePlate": { "type": "string" },
+        "fuelType": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "number" },
+        "currentKm": { "type": "number" },
+        "nextMaintenanceKm": { "type": "number" },
+        "insuranceExpiry": { "type": "string" },
+        "insuranceCompany": { "type": "string" },
+        "ipoExpiry": { "type": "string" },
+        "assignedDriverId": { "type": "string" },
+        "assignedDriverName": { "type": "string" },
+        "rentalFeePerWeek": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["licensePlate", "brand", "model"]
+    },
+    "shiftLogs": {
+      "title": "Daily Shift Logs",
+      "description": "Daily TVDE shift reports from drivers",
+      "type": "object",
+      "properties": {
+        "driverId": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "date": { "type": "string" },
+        "kilometers": { "type": "number" },
+        "hoursWorked": { "type": "number" },
+        "tripsCount": { "type": "number" },
+        "grossEarnings": { "type": "number" },
+        "netEarnings": { "type": "number" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" },
+        "fuelExpenseAmount": { "type": "number" },
+        "uberEarnings": { "type": "number" },
+        "boltEarnings": { "type": "number" }
+      },
+      "required": ["driverId", "date", "kilometers", "grossEarnings"]
+    },
+    "expenses": {
+      "title": "Expenses",
+      "description": "Fleet operation expenses and vehicle rentals",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["category", "title", "amount", "date"]
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "System alerts and notifications",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string" },
+        "read": { "type": "boolean" },
+        "priority": { "type": "string" },
+        "relatedVehicleId": { "type": "string" },
+        "relatedDriverId": { "type": "string" },
+        "actionRequired": { "type": "string" }
+      },
+      "required": ["title", "message", "date"]
+    }
+  }
+}
