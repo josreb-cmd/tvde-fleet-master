@@ -24,17 +24,13 @@ export function LoginScreen() {
         <div className="flex flex-col items-center gap-2">
           <span className="text-4xl">🚗</span>
           <h1 className="text-white text-2xl font-bold tracking-tight">TVDE Fleet Master</h1>
-          <p className="text-gray-400 text-sm text-center">
-            Acesso restrito a utilizadores autorizados
-          </p>
+          <p className="text-gray-400 text-sm text-center">Acesso restrito a utilizadores autorizados</p>
         </div>
-
         {error && (
           <div className="bg-red-900/40 border border-red-600 text-red-300 text-sm rounded-lg px-4 py-3 w-full text-center">
             {error}
           </div>
         )}
-
         <button
           onClick={handleSignIn}
           disabled={loading}

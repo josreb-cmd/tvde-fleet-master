@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTVDE } from '../context/TVDEContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Car,
   UserCheck,
@@ -13,29 +14,32 @@ import {
   Shield,
   Layers,
   Menu,
-  LogOut
+  LogOut,
+  Users
 } from 'lucide-react';
 
 interface NavbarProps {
+  userEmail?: string;
+  onSignOut?: () => void;
   onOpenAiAdvisor: () => void;
   onOpenNewShiftModal: () => void;
+  onOpenUsersModal?: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isMobileMenuOpen?: boolean;
   setIsMobileMenuOpen?: (open: boolean) => void;
-  userEmail: string;
-  onSignOut: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  userEmail,
+  onSignOut,
   onOpenAiAdvisor,
   onOpenNewShiftModal,
+  onOpenUsersModal,
   activeTab,
   setActiveTab,
   isMobileMenuOpen = false,
-  setIsMobileMenuOpen,
-  userEmail,
-  onSignOut
+  setIsMobileMenuOpen
 }) => {
   const {
     role,
@@ -51,6 +55,25 @@ export const Navbar: React.FC<NavbarProps> = ({
     resetToDefaultData,
     isCloudSynced
   } = useTVDE();
+
+  let authUser = null;
+  let authSignOut = async () => {};
+  try {
+    const auth = useAuth();
+    authUser = auth.user;
+    authSignOut = auth.signOut;
+  } catch (e) {
+    // optional auth context
+  }
+
+  const currentEmail = userEmail || authUser?.email || '';
+  const handleLogout = () => {
+    if (onSignOut) {
+      onSignOut();
+    } else {
+      authSignOut();
+    }
+  };
 
   const [showNotifPopover, setShowNotifPopover] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -68,6 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo & Mobile Menu Toggle */}
           <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Hamburger Button for Mobile */}
             <button
               onClick={() => setIsMobileMenuOpen && setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-md hover:bg-slate-100 text-slate-700 md:hidden transition border border-slate-200 focus:outline-none"
@@ -181,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Selecione o Perfil
                     </p>
                   </div>
-
+                  
                   <button
                     onClick={() => {
                       setRole('manager');
@@ -289,10 +313,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           }`}
                         >
                           <div className="mt-0.5">
-                            {n.type === 'maintenance'       && <AlertTriangle className="w-4 h-4 text-orange-500" />}
-                            {n.type === 'payment_pending'   && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                            {n.type === 'document_expiry'   && <Layers        className="w-4 h-4 text-blue-500" />}
-                            {n.type === 'performance_alert' && <Sparkles      className="w-4 h-4 text-emerald-500" />}
+                            {n.type === 'maintenance' && <AlertTriangle className="w-4 h-4 text-orange-500" />}
+                            {n.type === 'payment_pending' && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                            {n.type === 'document_expiry' && <Layers className="w-4 h-4 text-blue-500" />}
+                            {n.type === 'performance_alert' && <Sparkles className="w-4 h-4 text-emerald-500" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-slate-900 truncate">{n.title}</p>
@@ -321,6 +345,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
+            {/* Manage Users Button */}
+            {onOpenUsersModal && (
+              <button
+                onClick={onOpenUsersModal}
+                className="p-2 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition flex items-center space-x-1"
+                title="Gestão de Utilizadores Autorizados (Firestore)"
+              >
+                <Users className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Reset Data Button */}
             <button
               onClick={() => {
@@ -334,18 +369,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <RefreshCw className="w-4 h-4" />
             </button>
 
-            {/* ── Logout ──────────────────────────────────────────────────── */}
-            <button
-              onClick={onSignOut}
-              className="flex items-center space-x-1.5 p-2 rounded-md bg-slate-50 hover:bg-red-50 hover:border-red-200 text-slate-600 hover:text-red-600 border border-slate-200 transition"
-              title={`Terminar sessão (${userEmail})`}
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden lg:inline text-xs font-medium truncate max-w-[120px]">
-                {userEmail}
-              </span>
-            </button>
-            {/* ─────────────────────────────────────────────────────────────── */}
+            {/* Logout Button */}
+            {(currentEmail || authUser) && (
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-md bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition"
+                title={`Sair (${currentEmail})`}
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -14,7 +14,8 @@ import {
   FileText,
   Edit3,
   Landmark,
-  Receipt
+  Receipt,
+  Download
 } from 'lucide-react';
 
 interface ExpensesViewProps {
@@ -61,6 +62,28 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
   const totalIva = monthExpenses.filter(e => e.category === 'iva').reduce((a, e) => a + e.amount, 0);
   const totalAll = monthExpenses.reduce((a, e) => a + e.amount, 0);
 
+  const handleExportCsv = () => {
+    const headers = ['Data', 'Categoria', 'Titulo', 'Viatura', 'Motorista', 'Valor (EUR)', 'Nr Fatura'];
+    const rows = filteredExpenses.map(e => [
+      e.date,
+      categoryLabels[e.category]?.label || e.category,
+      `"${e.title.replace(/"/g, '""')}"`,
+      e.vehiclePlate || '-',
+      e.driverName || '-',
+      e.amount.toFixed(2).replace('.', ','),
+      e.invoiceNumber ? `"${e.invoiceNumber.replace(/"/g, '""')}"` : '-'
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `despesas_tvde_${selectedMonth}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -75,13 +98,23 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ onOpenNewExpenseModa
           </p>
         </div>
 
-        <button
-          onClick={onOpenNewExpenseModal}
-          className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-sm transition flex items-center space-x-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Registar Nova Despesa / Renda</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleExportCsv}
+            className="px-3 py-2 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-sm transition flex items-center space-x-1.5"
+            title="Exportar lista de despesas em formato CSV"
+          >
+            <Download className="w-4 h-4 text-slate-500" />
+            <span>Exportar CSV</span>
+          </button>
+          <button
+            onClick={onOpenNewExpenseModal}
+            className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-sm transition flex items-center space-x-1.5 whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Registar Nova Despesa / Renda</span>
+          </button>
+        </div>
       </div>
 
       {/* Category Totals Grid */}
