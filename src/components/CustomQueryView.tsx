@@ -28,7 +28,9 @@ import {
   HelpCircle,
   CheckCircle2,
   Table,
-  PieChart
+  PieChart,
+  X,
+  ExternalLink
 } from 'lucide-react';
 import {
   BarChart,
@@ -78,6 +80,7 @@ export const CustomQueryView: React.FC = () => {
   const [sortField, setSortField] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
+  const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
   const [activeTabVisual, setActiveTabVisual] = useState<'table' | 'chart'>('table');
 
   // Available column choices
@@ -449,6 +452,47 @@ export const CustomQueryView: React.FC = () => {
   const totalNetQuery = useMemo(() => processedResults.reduce((acc, r) => acc + r.netProfit, 0), [processedResults]);
   const avgPerHourQuery = totalHoursQuery > 0 ? totalGrossQuery / totalHoursQuery : 0;
 
+  // Calculate unique active shift days and period calendar days for temporal averages
+  const uniqueShiftDaysCount = useMemo(() => {
+    return new Set(filteredShifts.map(s => s.date)).size;
+  }, [filteredShifts]);
+
+  const periodCalendarDaysCount = useMemo(() => {
+    const now = new Date();
+    if (dateFilter === 'this_month') {
+      return now.getDate();
+    }
+    if (dateFilter === 'last_month') {
+      const prevMonthDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      return prevMonthDate.getDate();
+    }
+    if (dateFilter === 'last_30_days') {
+      return 30;
+    }
+    if (dateFilter === 'this_year') {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const diffTime = Math.abs(now.getTime() - startOfYear.getTime());
+      return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    }
+    if (dateFilter === 'custom' && startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.max(0, end.getTime() - start.getTime());
+      return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    }
+    if (filteredShifts.length > 0) {
+      const dates = filteredShifts.map(s => s.date).sort();
+      const minD = new Date(dates[0]);
+      const maxD = new Date(dates[dates.length - 1]);
+      const diffTime = Math.abs(maxD.getTime() - minD.getTime());
+      return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    }
+    return uniqueShiftDaysCount || 1;
+  }, [dateFilter, startDate, endDate, filteredShifts, uniqueShiftDaysCount]);
+
+  const avgHoursPerActiveDay = uniqueShiftDaysCount > 0 ? totalHoursQuery / uniqueShiftDaysCount : 0;
+  const avgHoursPerCalendarDay = periodCalendarDaysCount > 0 ? totalHoursQuery / periodCalendarDaysCount : 0;
+
   // Toggle Column Helper
   const toggleColumn = (colId: string) => {
     if (visibleColumns.includes(colId)) {
@@ -498,9 +542,238 @@ export const CustomQueryView: React.FC = () => {
     downloadAnchor.remove();
   };
 
+  // Generate Clean Printable HTML Document
+  const generatePrintableHtml = () => {
+    const printDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const columnsToPrint = ALL_SHIFT_COLUMNS.filter(c => visibleColumns.includes(c.id));
+    
+    const dateLabels: Record<string, string> = {
+      all: 'Todo o Histórico',
+      this_month: 'Este Mês',
+      last_month: 'Mês Passado',
+      last_30_days: 'Últimos 30 Dias',
+      this_year: 'Este Ano',
+      custom: 'Personalizado'
+    };
+
+    const filterLabels: string[] = [];
+    if (dateFilter !== 'all') filterLabels.push(`Período: ${dateLabels[dateFilter] || dateFilter}`);
+    if (driverId !== 'all') {
+      const d = drivers.find(drv => drv.id === driverId);
+      if (d) filterLabels.push(`Motorista: ${d.name}`);
+    }
+    if (vehicleId !== 'all') {
+      const v = vehicles.find(vh => vh.id === vehicleId);
+      if (v) filterLabels.push(`Viatura: ${v.plate}`);
+    }
+    if (platform !== 'all') filterLabels.push(`Plataforma: ${platform.toUpperCase()}`);
+
+    return `
+      <!DOCTYPE html>
+      <html lang="pt">
+        <head>
+          <meta charset="utf-8">
+          <title>Relatório TVDE - Consulta de Frota (${new Date().toISOString().split('T')[0]})</title>
+          <style>
+            @media print {
+              @page { size: A4 landscape; margin: 10mm; }
+              body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            }
+            * { box-sizing: border-box; }
+            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #0f172a; margin: 0; padding: 20px; background: #ffffff; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px; }
+            .title-box h1 { font-size: 20px; font-weight: 800; color: #1e293b; margin: 0 0 4px 0; }
+            .title-box p { font-size: 11px; color: #64748b; margin: 0; }
+            .meta-box { text-align: right; font-size: 10px; color: #475569; }
+            .filters-bar { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; font-size: 10px; color: #334155; }
+            .kpi-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-bottom: 20px; }
+            .kpi-card { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; background: #f8fafc; }
+            .kpi-title { font-size: 8px; font-weight: 700; text-transform: uppercase; color: #64748b; line-height: 1.2; margin-bottom: 4px; }
+            .kpi-value { font-size: 12px; font-weight: 800; color: #0f172a; }
+            .kpi-sub { font-size: 8px; color: #64748b; margin-top: 2px; }
+            table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 8px; }
+            th { background-color: #f1f5f9; color: #1e293b; font-weight: 700; text-transform: uppercase; font-size: 8px; padding: 6px 8px; text-align: left; border: 1px solid #cbd5e1; }
+            td { padding: 5px 8px; border: 1px solid #e2e8f0; color: #0f172a; white-space: nowrap; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .font-mono { font-family: monospace; font-weight: 600; }
+            .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #cbd5e1; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title-box">
+              <h1>Relatório de Frota TVDE</h1>
+              <p>Consulta Personalizada de Actividade e Rentabilidade</p>
+            </div>
+            <div class="meta-box">
+              <div><strong>Emitido em:</strong> ${printDate}</div>
+              <div><strong>Registos:</strong> ${processedResults.length} linhas</div>
+              <div><strong>Sistema:</strong> TVDE FleetMaster</div>
+            </div>
+          </div>
+
+          ${filterLabels.length > 0 ? `<div class="filters-bar"><strong>Filtros Activos:</strong> ${filterLabels.join(' | ')}</div>` : ''}
+
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-title">Faturação<br>Total</div>
+              <div class="kpi-value">${totalGrossQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Horas em<br>Serviço</div>
+              <div class="kpi-value font-mono">${formatHoursToHHMM(totalHoursQuery)}</div>
+              <div class="kpi-sub">(${totalHoursQuery.toFixed(1)}h dec.)</div>
+            </div>
+            <div class="kpi-card" style="background:#eff6ff; border-color:#93c5fd;">
+              <div class="kpi-title" style="color:#1d4ed8;">Média Horas<br>/ Dia</div>
+              <div class="kpi-value font-mono" style="color:#1e40af;">${formatHoursToHHMM(avgHoursPerActiveDay)}</div>
+              <div class="kpi-sub" style="color:#2563eb;">${avgHoursPerActiveDay.toFixed(1)}h/dia (${uniqueShiftDaysCount}d)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Rendimento<br>Médio</div>
+              <div class="kpi-value" style="color:#2563eb;">${avgPerHourQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}/h</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">N.º de<br>Viagens</div>
+              <div class="kpi-value">${totalTripsQuery}</div>
+              <div class="kpi-sub">${totalKmQuery} km</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Combustível<br>/ Carga</div>
+              <div class="kpi-value" style="color:#e11d48;">${totalFuelQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Renda<br>Viatura</div>
+              <div class="kpi-value" style="color:#b45309;">${totalRentalQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Lucro Líquido<br>Est.</div>
+              <div class="kpi-value" style="color:#059669;">${totalNetQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                ${columnsToPrint.map(col => `<th>${col.label}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${processedResults.map(item => `
+                <tr>
+                  ${columnsToPrint.map(col => {
+                    let val = '';
+                    if (col.id === 'date') val = item.date;
+                    else if (col.id === 'driverName') val = item.driverName || '-';
+                    else if (col.id === 'vehiclePlate') val = item.vehiclePlate || '-';
+                    else if (col.id === 'grossEarnings') val = item.grossEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+                    else if (col.id === 'uberEarnings') val = item.uberEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+                    else if (col.id === 'boltEarnings') val = item.boltEarnings.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+                    else if (col.id === 'hoursWorked') val = `<span class="font-mono">${item.hoursWorkedHHMM}</span>`;
+                    else if (col.id === 'kilometers') val = `${item.kilometers} km`;
+                    else if (col.id === 'tripsCount') val = `${item.tripsCount}`;
+                    else if (col.id === 'earningsPerHour') val = `${item.earningsPerHour.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}/h`;
+                    else if (col.id === 'earningsPerKm') val = `${item.earningsPerKm.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}/km`;
+                    else if (col.id === 'fuelExpenseAmount') val = item.fuelExpenseAmount.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+                    else if (col.id === 'rentalExpenseAmount') val = item.rentalExpenseAmount.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+                    else if (col.id === 'netProfit') val = `<strong style="color:${item.netProfit >= 0 ? '#059669' : '#e11d48'}">${item.netProfit.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</strong>`;
+                    return `<td>${val}</td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <span>TVDE FleetMaster - Gestão Profissional de Frotas</span>
+            <span>Documento impresso em ${printDate}</span>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  // Direct print via hidden iframe
+  const handlePrintInIframe = () => {
+    try {
+      const html = generatePrintableHtml();
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0px';
+      iframe.style.height = '0px';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch (err) {
+            console.error('Print iframe error:', err);
+            window.print();
+          } finally {
+            setTimeout(() => {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          }
+        }, 300);
+      } else {
+        window.print();
+      }
+    } catch (e) {
+      window.print();
+    }
+  };
+
+  // Open in New Window (Bypasses iframe sandbox print restrictions completely)
+  const handleOpenInNewTab = () => {
+    const html = generatePrintableHtml();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const win = window.open(blobUrl, '_blank');
+    if (win) {
+      win.focus();
+      setTimeout(() => {
+        try {
+          win.print();
+        } catch (e) {
+          console.error(e);
+        }
+      }, 500);
+    } else {
+      alert('O seu navegador bloqueou a nova janela. Por favor permita popups para este site.');
+    }
+  };
+
+  // Download Printable HTML file
+  const handleDownloadPrintableHtml = () => {
+    const html = generatePrintableHtml();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_tvde_${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Print Report
   const handlePrint = () => {
-    window.print();
+    setShowPrintModal(true);
   };
 
   return (
@@ -520,7 +793,7 @@ export const CustomQueryView: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           <button
             onClick={() => setShowSaveModal(true)}
             className="flex items-center space-x-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-sm transition"
@@ -550,7 +823,7 @@ export const CustomQueryView: React.FC = () => {
       </div>
 
       {/* Preset Queries Quick Cards */}
-      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm print:hidden">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <Bookmark className="w-4 h-4 text-blue-600" />
@@ -605,7 +878,7 @@ export const CustomQueryView: React.FC = () => {
       </div>
 
       {/* Main Builder Parameters Form */}
-      <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4 print:hidden">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center space-x-2">
             <Filter className="w-4 h-4 text-blue-600" />
@@ -828,59 +1101,88 @@ export const CustomQueryView: React.FC = () => {
       </div>
 
       {/* KPI Cards Summary for Active Query */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Faturação Total</span>
-          <p className="text-lg font-bold text-slate-900 mt-1">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+        <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            Faturação<br />Total
+          </span>
+          <p className="text-base sm:text-lg font-bold text-slate-900 my-1">
             {totalGrossQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </p>
-          <span className="text-[10px] text-emerald-600 font-semibold">da consulta ativa</span>
+          <span className="text-[10px] text-emerald-600 font-semibold truncate">da consulta ativa</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Horas em Serviço</span>
-          <p className="text-lg font-bold text-slate-900 mt-1 font-mono">
+        <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            Horas em<br />Serviço
+          </span>
+          <p className="text-base sm:text-lg font-bold text-slate-900 my-1 font-mono">
             {formatHoursToHHMM(totalHoursQuery)}
           </p>
-          <span className="text-[10px] text-slate-500 font-mono">({totalHoursQuery.toFixed(1)} h dec.)</span>
+          <span className="text-[10px] text-slate-500 font-mono truncate">({totalHoursQuery.toFixed(1)} h dec.)</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rendimento Médio</span>
-          <p className="text-lg font-bold text-blue-600 mt-1">
+        {/* New KPI Card: Média de Horas Trabalhadas por Período */}
+        <div className="bg-blue-50/40 p-3 sm:p-3.5 rounded-lg border border-blue-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-blue-700 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            Média Horas<br />/ Dia
+          </span>
+          <div>
+            <p className="text-base sm:text-lg font-bold text-blue-900 my-1 font-mono">
+              {formatHoursToHHMM(avgHoursPerActiveDay)} <span className="text-xs font-semibold text-blue-700 font-sans">/dia</span>
+            </p>
+          </div>
+          <span className="text-[10px] text-blue-600 font-medium truncate" title={`${uniqueShiftDaysCount} dias de trabalho em ${periodCalendarDaysCount} dias no período`}>
+            {avgHoursPerActiveDay > 0 ? `${avgHoursPerActiveDay.toFixed(1)}h em ${uniqueShiftDaysCount}d ativos` : '0h em 0d'}
+          </span>
+        </div>
+
+        <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            Rendimento<br />Médio
+          </span>
+          <p className="text-base sm:text-lg font-bold text-blue-600 my-1">
             {avgPerHourQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}/h
           </p>
-          <span className="text-[10px] text-slate-500">eficiência global</span>
+          <span className="text-[10px] text-slate-500 truncate">eficiência global</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">N.º de Viagens</span>
-          <p className="text-lg font-bold text-slate-900 mt-1">{totalTripsQuery}</p>
-          <span className="text-[10px] text-slate-500">{totalKmQuery} km total</span>
+        <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            N.º de<br />Viagens
+          </span>
+          <p className="text-base sm:text-lg font-bold text-slate-900 my-1">{totalTripsQuery}</p>
+          <span className="text-[10px] text-slate-500 truncate">{totalKmQuery} km total</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Combustível/Carga</span>
-          <p className="text-lg font-bold text-rose-600 mt-1">
+        <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            Combustível<br />/ Carga
+          </span>
+          <p className="text-base sm:text-lg font-bold text-rose-600 my-1">
             {totalFuelQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </p>
-          <span className="text-[10px] text-slate-500">custo acumulado</span>
+          <span className="text-[10px] text-slate-500 truncate">custo acumulado</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Renda Viatura</span>
-          <p className="text-lg font-bold text-amber-700 mt-1">
+        <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            Renda<br />Viatura
+          </span>
+          <p className="text-base sm:text-lg font-bold text-amber-700 my-1">
             {totalRentalQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </p>
-          <span className="text-[10px] text-slate-500">custo com rendas</span>
+          <span className="text-[10px] text-slate-500 truncate">custo com rendas</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Lucro Líquido Est.</span>
-          <p className="text-lg font-bold text-emerald-600 mt-1">
+        <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
+            Lucro Líquido<br />Est.
+          </span>
+          <p className="text-base sm:text-lg font-bold text-emerald-600 my-1">
             {totalNetQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
           </p>
-          <span className="text-[10px] text-emerald-600 font-semibold">
+          <span className="text-[10px] text-emerald-600 font-semibold truncate">
             {totalGrossQuery > 0 ? `${((totalNetQuery / totalGrossQuery) * 100).toFixed(1)}% margem` : '0%'}
           </span>
         </div>
@@ -1166,6 +1468,173 @@ export const CustomQueryView: React.FC = () => {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-md shadow-sm transition"
               >
                 Guardar Consulta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Preview & Action Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[92vh] border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Printer className="w-5 h-5 text-blue-400" />
+                <h3 className="text-sm font-bold tracking-wide">Impressão de Relatório TVDE</h3>
+              </div>
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-md transition"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Actions Bar */}
+            <div className="p-3 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="text-slate-600 font-medium">
+                Escolha o método de impressão preferido para o seu relatório:
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handlePrintInIframe}
+                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md shadow-sm transition flex items-center space-x-1.5"
+                  title="Diálogo de impressão padrão do navegador"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir Agora</span>
+                </button>
+
+                <button
+                  onClick={handleOpenInNewTab}
+                  className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-md shadow-sm transition flex items-center space-x-1.5"
+                  title="Abre numa nova aba livre de restrições para imprimir ou guardar em PDF"
+                >
+                  <ExternalLink className="w-4 h-4 text-blue-600" />
+                  <span>Abrir em Nova Aba / PDF</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadPrintableHtml}
+                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium rounded-md shadow-sm transition flex items-center space-x-1.5"
+                  title="Descarregar ficheiro de relatório pronto a imprimir"
+                >
+                  <Download className="w-4 h-4 text-slate-500" />
+                  <span>Guardar HTML</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Document Preview Sheet */}
+            <div className="p-4 sm:p-6 overflow-y-auto bg-slate-200/60 flex justify-center flex-1">
+              <div className="bg-white shadow-md border border-slate-300 rounded-sm p-6 sm:p-8 max-w-3xl w-full text-slate-900 text-xs space-y-5">
+                {/* Preview Header */}
+                <div className="flex items-start justify-between border-b-2 border-blue-600 pb-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Relatório de Frota TVDE</h2>
+                    <p className="text-xs text-slate-500">Consulta Personalizada de Actividade e Rentabilidade</p>
+                  </div>
+                  <div className="text-right text-[10px] text-slate-500">
+                    <div><strong>Emitido em:</strong> {new Date().toLocaleDateString('pt-PT')}</div>
+                    <div><strong>Registos:</strong> {processedResults.length} linhas</div>
+                    <div>TVDE FleetMaster</div>
+                  </div>
+                </div>
+
+                {/* KPI Preview Grid */}
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 text-[10px]">
+                  <div className="border border-slate-200 p-2 rounded bg-slate-50">
+                    <div className="text-[8px] font-bold text-slate-500 uppercase">Faturação</div>
+                    <div className="font-bold text-slate-900 mt-1">{totalGrossQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded bg-slate-50">
+                    <div className="text-[8px] font-bold text-slate-500 uppercase">Horas</div>
+                    <div className="font-bold font-mono mt-1">{formatHoursToHHMM(totalHoursQuery)}</div>
+                  </div>
+                  <div className="border border-blue-200 p-2 rounded bg-blue-50/50">
+                    <div className="text-[8px] font-bold text-blue-700 uppercase">Média h/dia</div>
+                    <div className="font-bold font-mono text-blue-900 mt-1">{formatHoursToHHMM(avgHoursPerActiveDay)}</div>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded bg-slate-50">
+                    <div className="text-[8px] font-bold text-slate-500 uppercase">Rend. h</div>
+                    <div className="font-bold text-blue-600 mt-1">{avgPerHourQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}/h</div>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded bg-slate-50">
+                    <div className="text-[8px] font-bold text-slate-500 uppercase">Viagens</div>
+                    <div className="font-bold text-slate-900 mt-1">{totalTripsQuery}</div>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded bg-slate-50">
+                    <div className="text-[8px] font-bold text-slate-500 uppercase">Combustível</div>
+                    <div className="font-bold text-rose-600 mt-1">{totalFuelQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded bg-slate-50">
+                    <div className="text-[8px] font-bold text-slate-500 uppercase">Renda</div>
+                    <div className="font-bold text-amber-700 mt-1">{totalRentalQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+                  </div>
+                  <div className="border border-slate-200 p-2 rounded bg-slate-50">
+                    <div className="text-[8px] font-bold text-slate-500 uppercase">Lucro Est.</div>
+                    <div className="font-bold text-emerald-600 mt-1">{totalNetQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
+                  </div>
+                </div>
+
+                {/* Table Preview */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <table className="w-full text-left text-[10px]">
+                    <thead className="bg-slate-100 font-bold border-b border-slate-200">
+                      <tr>
+                        {ALL_SHIFT_COLUMNS.filter(c => visibleColumns.includes(c.id)).map(col => (
+                          <th key={col.id} className="p-1.5 border-r last:border-0 border-slate-200 whitespace-nowrap">{col.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {processedResults.slice(0, 10).map((r, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          {visibleColumns.includes('date') && <td className="p-1.5 border-r border-slate-100 font-medium">{r.date}</td>}
+                          {visibleColumns.includes('driverName') && <td className="p-1.5 border-r border-slate-100">{r.driverName}</td>}
+                          {visibleColumns.includes('vehiclePlate') && <td className="p-1.5 border-r border-slate-100 font-mono">{r.vehiclePlate}</td>}
+                          {visibleColumns.includes('grossEarnings') && <td className="p-1.5 border-r border-slate-100 font-bold">{r.grossEarnings.toFixed(2)} €</td>}
+                          {visibleColumns.includes('uberEarnings') && <td className="p-1.5 border-r border-slate-100">{r.uberEarnings.toFixed(2)} €</td>}
+                          {visibleColumns.includes('boltEarnings') && <td className="p-1.5 border-r border-slate-100">{r.boltEarnings.toFixed(2)} €</td>}
+                          {visibleColumns.includes('hoursWorked') && <td className="p-1.5 border-r border-slate-100 font-mono font-bold">{r.hoursWorkedHHMM}</td>}
+                          {visibleColumns.includes('kilometers') && <td className="p-1.5 border-r border-slate-100">{r.kilometers} km</td>}
+                          {visibleColumns.includes('tripsCount') && <td className="p-1.5 border-r border-slate-100">{r.tripsCount}</td>}
+                          {visibleColumns.includes('earningsPerHour') && <td className="p-1.5 border-r border-slate-100 text-blue-700">{r.earningsPerHour.toFixed(2)} €/h</td>}
+                          {visibleColumns.includes('earningsPerKm') && <td className="p-1.5 border-r border-slate-100">{r.earningsPerKm.toFixed(2)} €/km</td>}
+                          {visibleColumns.includes('fuelExpenseAmount') && <td className="p-1.5 border-r border-slate-100 text-rose-600">{r.fuelExpenseAmount.toFixed(2)} €</td>}
+                          {visibleColumns.includes('rentalExpenseAmount') && <td className="p-1.5 border-r border-slate-100 text-amber-700">{r.rentalExpenseAmount.toFixed(2)} €</td>}
+                          {visibleColumns.includes('netProfit') && <td className="p-1.5 border-r border-slate-100 text-emerald-600 font-bold">{r.netProfit.toFixed(2)} €</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {processedResults.length > 10 && (
+                    <div className="p-2 bg-slate-50 text-center text-[9px] text-slate-500 border-t border-slate-200">
+                      + {processedResults.length - 10} linhas incluídas na impressão completa
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-400">
+                  <span>TVDE FleetMaster Document</span>
+                  <span>Página 1 de 1</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 bg-white border-t border-slate-200 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                Se a janela de impressão não abrir no seu navegador, clique em <strong>"Abrir em Nova Aba / PDF"</strong>.
+              </span>
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-md transition"
+              >
+                Fechar
               </button>
             </div>
           </div>

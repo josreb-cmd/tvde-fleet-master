@@ -12,6 +12,12 @@ import { generateSummaryEmailHtml } from './server/emailTemplate';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ── Utilizadores autorizados (fonte de verdade partilhada com o frontend) ──
+const AUTHORIZED_USERS = [
+  { email: 'josreb@gmail.com',    role: 'gestor', name: 'José Rebelo' },
+  { email: 'alexreb60@gmail.com', role: 'gestor', name: 'Alexandre'   },
+];
+
 async function fetchFirestoreCollections() {
   try {
     const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
@@ -31,9 +37,9 @@ async function fetchFirestoreCollections() {
 
     return {
       shiftLogs: shiftsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      expenses: expSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      drivers: drvSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-      vehicles: vehSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      expenses:  expSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      drivers:   drvSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      vehicles:  vehSnap.docs.map(d => ({ id: d.id, ...d.data() }))
     };
   } catch (err) {
     console.error('[Server Firestore Fetch Error]:', err);
@@ -53,25 +59,29 @@ async function startServer() {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
-    }
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
   });
 
-  // Health check endpoint
+  // Health check
   app.all('/api/health*', (_req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
-  // SMTP Status Check
+  // SMTP Status
   app.all('/api/smtp-status*', (_req, res) => {
     const hasEnvPass = Boolean(process.env.GMAIL_APP_PASSWORD);
     const user = process.env.GMAIL_USER || 'josreb@gmail.com';
     res.json({ configured: hasEnvPass, user });
   });
 
-  // Send Summary Email Endpoint Handler
+  // ── Gestão de utilizadores autorizados ───────────────────────────────────
+  app.get('/api/admin/users', (_req, res) => {
+    res.json({ users: AUTHORIZED_USERS });
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Send Summary Email
   const handleSendSummary = async (req: express.Request, res: express.Response) => {
     try {
       const { startDate, endDate } = req.body;
@@ -80,7 +90,7 @@ async function startServer() {
         return res.status(400).json({ error: 'Parâmetros startDate e endDate são obrigatórios.' });
       }
 
-      const gmailUser = (req.body.gmailUser || process.env.GMAIL_USER || 'josreb@gmail.com').trim();
+      const gmailUser    = (req.body.gmailUser || process.env.GMAIL_USER || 'josreb@gmail.com').trim();
       const rawGmailPass = req.body.gmailAppPassword || process.env.GMAIL_APP_PASSWORD;
 
       let { shiftLogs, expenses, drivers, vehicles } = req.body;
@@ -89,28 +99,26 @@ async function startServer() {
         const dbData = await fetchFirestoreCollections();
         if (dbData) {
           shiftLogs = shiftLogs || dbData.shiftLogs;
-          expenses = expenses || dbData.expenses;
-          drivers = drivers || dbData.drivers;
-          vehicles = vehicles || dbData.vehicles;
+          expenses  = expenses  || dbData.expenses;
+          drivers   = drivers   || dbData.drivers;
+          vehicles  = vehicles  || dbData.vehicles;
         }
       }
 
       shiftLogs = shiftLogs || [];
-      expenses = expenses || [];
-      drivers = drivers || [];
-      vehicles = vehicles || [];
+      expenses  = expenses  || [];
+      drivers   = drivers   || [];
+      vehicles  = vehicles  || [];
 
-      // Filter within range [startDate, endDate]
-      const filteredShifts = shiftLogs.filter((s: any) => s.date >= startDate && s.date <= endDate);
+      const filteredShifts   = shiftLogs.filter((s: any) => s.date >= startDate && s.date <= endDate);
       const filteredExpenses = expenses.filter((e: any) => e.date >= startDate && e.date <= endDate);
 
-      // Calculations
       const totalGross = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.grossEarnings) || 0), 0);
-      const totalKm = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.kilometers) || 0), 0);
-      const totalTrips = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.tripsCount) || 0), 0);
+      const totalKm    = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.kilometers)    || 0), 0);
+      const totalTrips = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.tripsCount)    || 0), 0);
 
-      const distinctDaysSet = new Set(filteredShifts.map((s: any) => s.date));
-      const operationalDays = distinctDaysSet.size || (filteredShifts.length > 0 ? 1 : 0);
+      const distinctDaysSet  = new Set(filteredShifts.map((s: any) => s.date));
+      const operationalDays  = distinctDaysSet.size || (filteredShifts.length > 0 ? 1 : 0);
 
       const parseHours = (val: any) => {
         if (typeof val === 'number') return val;
@@ -127,164 +135,87 @@ async function startServer() {
         if (!e) return false;
         if (e.id && (
           e.id.startsWith('exp-fuel-shift-') ||
-          e.id.startsWith('exp-rnd-shift-') ||
-          e.id.startsWith('exp-nrg-') ||
-          e.id.startsWith('exp-rnd-daily-') ||
+          e.id.startsWith('exp-rnd-shift-')  ||
+          e.id.startsWith('exp-nrg-')        ||
+          e.id.startsWith('exp-rnd-daily-')  ||
           e.id.startsWith('exp-rnd-monday-')
-        )) {
-          return true;
-        }
+        )) return true;
         if (e.description && (
-          e.description.includes('Custo diário de energia') ||
-          e.description.includes('Renda diária de viatura') ||
+          e.description.includes('Custo diário de energia')    ||
+          e.description.includes('Renda diária de viatura')    ||
           e.description.includes('Sincronizado de Faturação Diária')
-        )) {
-          return true;
-        }
+        )) return true;
         return false;
       };
 
-      const shiftFuel = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.fuelExpenseAmount) || 0), 0);
+      const shiftFuel   = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.fuelExpenseAmount)   || 0), 0);
       const shiftRental = filteredShifts.reduce((acc: number, s: any) => acc + (Number(s.rentalExpenseAmount) || 0), 0);
 
-      const standaloneFuel = filteredExpenses
-        .filter((e: any) => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e))
-        .reduce((acc: number, e: any) => acc + (Number(e.amount) || 0), 0);
+      const standaloneFuel   = filteredExpenses.filter((e: any) => e.category === 'fuel_charging'   && !isDuplicateShiftExpense(e)).reduce((acc: number, e: any) => acc + (Number(e.amount) || 0), 0);
+      const standaloneRental = filteredExpenses.filter((e: any) => e.category === 'vehicle_rental'  && !isDuplicateShiftExpense(e)).reduce((acc: number, e: any) => acc + (Number(e.amount) || 0), 0);
+      const standaloneOther  = filteredExpenses.filter((e: any) => e.category !== 'fuel_charging' && e.category !== 'vehicle_rental' && !isDuplicateShiftExpense(e)).reduce((acc: number, e: any) => acc + (Number(e.amount) || 0), 0);
 
-      const standaloneRental = filteredExpenses
-        .filter((e: any) => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e))
-        .reduce((acc: number, e: any) => acc + (Number(e.amount) || 0), 0);
-
-      const standaloneOther = filteredExpenses
-        .filter((e: any) => e.category !== 'fuel_charging' && e.category !== 'vehicle_rental' && !isDuplicateShiftExpense(e))
-        .reduce((acc: number, e: any) => acc + (Number(e.amount) || 0), 0);
-
-      const energyTotal = shiftFuel + standaloneFuel;
+      const energyTotal = shiftFuel   + standaloneFuel;
       const rentalTotal = shiftRental + standaloneRental;
-      const totalCosts = energyTotal + rentalTotal + standaloneOther;
+      const totalCosts  = energyTotal + rentalTotal + standaloneOther;
+      const netProfit   = totalGross - totalCosts;
+      const marginPct   = totalGross > 0 ? (netProfit / totalGross) * 100 : 0;
 
-      const netProfit = totalGross - totalCosts;
-      const marginPct = totalGross > 0 ? (netProfit / totalGross) * 100 : 0;
+      const revenuePerHour  = totalHours > 0        ? totalGross / totalHours        : 0;
+      const avgTripsPerDay  = operationalDays > 0   ? totalTrips / operationalDays   : 0;
+      const revenuePerTrip  = totalTrips > 0        ? totalGross / totalTrips        : 0;
 
-      const revenuePerHour = totalHours > 0 ? totalGross / totalHours : 0;
-      const avgTripsPerDay = operationalDays > 0 ? totalTrips / operationalDays : 0;
-      const revenuePerTrip = totalTrips > 0 ? totalGross / totalTrips : 0;
-
-      // Drivers Breakdown
       const driverMap = new Map<string, { name: string; gross: number; uber: number; bolt: number; trips: number; hours: number }>();
-
       filteredShifts.forEach((s: any) => {
         const dKey = s.driverId || s.driverName || 'Outro';
         const name = s.driverName || (drivers.find((d: any) => d.id === s.driverId)?.name) || dKey;
-
-        if (!driverMap.has(dKey)) {
-          driverMap.set(dKey, { name, gross: 0, uber: 0, bolt: 0, trips: 0, hours: 0 });
-        }
+        if (!driverMap.has(dKey)) driverMap.set(dKey, { name, gross: 0, uber: 0, bolt: 0, trips: 0, hours: 0 });
         const item = driverMap.get(dKey)!;
         item.gross += Number(s.grossEarnings) || 0;
-        item.uber += Number(s.uberEarnings) || 0;
-        item.bolt += Number(s.boltEarnings) || 0;
-        item.trips += Number(s.tripsCount) || 0;
+        item.uber  += Number(s.uberEarnings)  || 0;
+        item.bolt  += Number(s.boltEarnings)  || 0;
+        item.trips += Number(s.tripsCount)    || 0;
         item.hours += parseHours(s.hoursWorked);
       });
-
       const driverRows = Array.from(driverMap.values())
         .map(d => ({ ...d, perHour: d.hours > 0 ? d.gross / d.hours : 0 }))
         .sort((a, b) => b.gross - a.gross);
 
-      // Vehicles Breakdown
       const vehicleMap = new Map<string, { plate: string; model: string; fuel: number; rental: number; maintenance: number; insurance: number; other: number; total: number }>();
-
       vehicles.forEach((v: any) => {
         const key = v.id || v.licensePlate;
-        vehicleMap.set(key, {
-          plate: v.licensePlate || 'N/A',
-          model: `${v.brand || ''} ${v.model || ''}`.trim(),
-          fuel: 0,
-          rental: 0,
-          maintenance: 0,
-          insurance: 0,
-          other: 0,
-          total: 0
-        });
+        vehicleMap.set(key, { plate: v.licensePlate || 'N/A', model: `${v.brand || ''} ${v.model || ''}`.trim(), fuel: 0, rental: 0, maintenance: 0, insurance: 0, other: 0, total: 0 });
       });
-
       filteredShifts.forEach((s: any) => {
         const key = s.vehicleId || s.vehiclePlate;
         if (!key) return;
-        if (!vehicleMap.has(key)) {
-          vehicleMap.set(key, {
-            plate: s.vehiclePlate || key,
-            model: '',
-            fuel: 0,
-            rental: 0,
-            maintenance: 0,
-            insurance: 0,
-            other: 0,
-            total: 0
-          });
-        }
+        if (!vehicleMap.has(key)) vehicleMap.set(key, { plate: s.vehiclePlate || key, model: '', fuel: 0, rental: 0, maintenance: 0, insurance: 0, other: 0, total: 0 });
         const item = vehicleMap.get(key)!;
-        item.fuel += Number(s.fuelExpenseAmount) || 0;
+        item.fuel   += Number(s.fuelExpenseAmount)   || 0;
         item.rental += Number(s.rentalExpenseAmount) || 0;
       });
-
       const standaloneExpenses = filteredExpenses.filter((e: any) => !isDuplicateShiftExpense(e));
-
       standaloneExpenses.forEach((e: any) => {
         const key = e.vehicleId || e.vehiclePlate;
         if (!key) return;
-        if (!vehicleMap.has(key)) {
-          vehicleMap.set(key, {
-            plate: e.vehiclePlate || key,
-            model: '',
-            fuel: 0,
-            rental: 0,
-            maintenance: 0,
-            insurance: 0,
-            other: 0,
-            total: 0
-          });
-        }
+        if (!vehicleMap.has(key)) vehicleMap.set(key, { plate: e.vehiclePlate || key, model: '', fuel: 0, rental: 0, maintenance: 0, insurance: 0, other: 0, total: 0 });
         const item = vehicleMap.get(key)!;
         const amt = Number(e.amount) || 0;
         if (e.category === 'maintenance') item.maintenance += amt;
         else if (e.category === 'insurance') item.insurance += amt;
         else item.other += amt;
       });
-
       const vehicleRows = Array.from(vehicleMap.values())
         .map(v => ({ ...v, total: v.fuel + v.rental + v.maintenance + v.insurance + v.other }))
         .filter(v => v.total > 0 || filteredShifts.some((s: any) => s.vehicleId === v.plate || s.vehiclePlate === v.plate));
 
       const now = new Date();
-      const generatedAt = now.toLocaleString('pt-PT', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      const generatedAt = now.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
       const htmlContent = generateSummaryEmailHtml({
-        startDate,
-        endDate,
-        totalGross,
-        totalCosts,
-        netProfit,
-        marginPct,
-        operationalDays,
-        totalHours,
-        revenuePerHour,
-        totalTrips,
-        avgTripsPerDay,
-        revenuePerTrip,
-        totalKm,
-        energyTotal,
-        rentalTotal,
-        driverRows,
-        vehicleRows,
-        generatedAt
+        startDate, endDate, totalGross, totalCosts, netProfit, marginPct,
+        operationalDays, totalHours, revenuePerHour, totalTrips, avgTripsPerDay,
+        revenuePerTrip, totalKm, energyTotal, rentalTotal, driverRows, vehicleRows, generatedAt
       });
 
       if (!gmailUser || !rawGmailPass) {
@@ -297,154 +228,80 @@ async function startServer() {
       const cleanGmailPass = rawGmailPass.replace(/\s+/g, '');
 
       try {
-        // Multi-tier Gmail SMTP connection handler (handles container network restrictions, 587 STARTTLS & 465 SSL)
-        let transporter: nodemailer.Transporter;
-
         const optionsList = [
-          // Tier 1: Standard Nodemailer Gmail Service (uses pooled connections)
-          {
-            service: 'gmail',
-            auth: { user: gmailUser, pass: cleanGmailPass },
-            connectionTimeout: 8000,
-            greetingTimeout: 8000,
-            socketTimeout: 10000
-          },
-          // Tier 2: Port 587 with STARTTLS (commonly permitted in cloud environments)
-          {
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false,
-            requireTLS: true,
-            auth: { user: gmailUser, pass: cleanGmailPass },
-            tls: { rejectUnauthorized: false },
-            connectionTimeout: 8000,
-            greetingTimeout: 8000,
-            socketTimeout: 10000
-          },
-          // Tier 3: Port 465 direct SSL
-          {
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: { user: gmailUser, pass: cleanGmailPass },
-            tls: { rejectUnauthorized: false },
-            connectionTimeout: 8000,
-            greetingTimeout: 8000,
-            socketTimeout: 10000
-          }
+          { service: 'gmail', auth: { user: gmailUser, pass: cleanGmailPass }, connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000 },
+          { host: 'smtp.gmail.com', port: 587, secure: false, requireTLS: true, auth: { user: gmailUser, pass: cleanGmailPass }, tls: { rejectUnauthorized: false }, connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000 },
+          { host: 'smtp.gmail.com', port: 465, secure: true,  auth: { user: gmailUser, pass: cleanGmailPass }, tls: { rejectUnauthorized: false }, connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000 }
         ];
 
-        let lastErr: any = null;
-        let mailSent = false;
+        let lastErr: any  = null;
+        let mailSent      = false;
         let sendResult: any = null;
 
         for (const opts of optionsList) {
           try {
             const tempTransporter = nodemailer.createTransport(opts);
             sendResult = await tempTransporter.sendMail({
-              from: `"TVDE Fleet Master" <${gmailUser}>`,
-              to: ['josreb@gmail.com', 'alexreb60@gmail.com'],
+              from:    `"TVDE Fleet Master" <${gmailUser}>`,
+              to:      ['josreb@gmail.com', 'alexreb60@gmail.com'],
               subject: `[TVDE Fleet Master] Resumo de Desempenho (${startDate} a ${endDate})`,
-              html: htmlContent
+              html:    htmlContent
             });
             mailSent = true;
-            transporter = tempTransporter;
             break;
           } catch (err: any) {
             lastErr = err;
-            console.warn(`Tentativa SMTP com configuração (${opts.service || opts.port}) falhou:`, err?.message);
-            // If the error is 535 authentication invalid password, don't retry other ports (password is bad)
+            console.warn(`Tentativa SMTP (${(opts as any).service || (opts as any).port}) falhou:`, err?.message);
             const errStr = String(err?.message || err || '');
-            if (errStr.includes('535') || errStr.includes('EAUTH') || errStr.includes('Invalid login')) {
-              break;
-            }
+            if (errStr.includes('535') || errStr.includes('EAUTH') || errStr.includes('Invalid login')) break;
           }
         }
 
-        if (!mailSent) {
-          throw lastErr || new Error('Falha ao estabelecer ligação ao servidor Gmail.');
-        }
+        if (!mailSent) throw lastErr || new Error('Falha ao estabelecer ligação ao servidor Gmail.');
 
         return res.json({
-          success: true,
-          message: 'Resumo enviado com sucesso para josreb@gmail.com e alexreb60@gmail.com',
+          success:    true,
+          message:    'Resumo enviado com sucesso para josreb@gmail.com e alexreb60@gmail.com',
           recipients: ['josreb@gmail.com', 'alexreb60@gmail.com'],
-          period: { startDate, endDate },
-          info: sendResult?.messageId
+          period:     { startDate, endDate },
+          info:       sendResult?.messageId
         });
       } catch (mailErr: any) {
         console.error('Erro ao enviar e-mail via SMTP Gmail:', mailErr);
-        const errString = String(mailErr?.message || mailErr || '');
-        const errCode = mailErr?.code ? ` [Código: ${mailErr.code}]` : '';
-        const errResponse = mailErr?.response ? ` [Resposta: ${mailErr.response}]` : '';
+        const errString  = String(mailErr?.message || mailErr || '');
+        const errCode    = mailErr?.code     ? ` [Código: ${mailErr.code}]`         : '';
+        const errResponse = mailErr?.response ? ` [Resposta: ${mailErr.response}]`  : '';
 
-        if (
-          errString.includes('535') ||
-          errString.includes('EAUTH') ||
-          errString.includes('Username and Password not accepted') ||
-          errString.includes('Invalid login')
-        ) {
-          return res.status(401).json({
-            error: 'Palavra-passe de Aplicação rejeitada pela Google (Erro 535).',
-            details: `A conta ${gmailUser} não aceitou a palavra-passe introduzida. Certifique-se de que utilizou a Palavra-passe de Aplicação de 16 letras gerada em https://myaccount.google.com/apppasswords (e não a sua palavra-passe habitual do email).`
-          });
+        if (errString.includes('535') || errString.includes('EAUTH') || errString.includes('Username and Password not accepted') || errString.includes('Invalid login')) {
+          return res.status(401).json({ error: 'Palavra-passe de Aplicação rejeitada pela Google (Erro 535).', details: `A conta ${gmailUser} não aceitou a palavra-passe introduzida.` });
         }
-        if (
-          errString.includes('534') ||
-          errString.includes('InvalidSecondFactor') ||
-          errString.includes('Application-specific password required')
-        ) {
-          return res.status(401).json({
-            error: 'Google exige Palavra-passe de Aplicação (Erro 534).',
-            details: 'A sua conta Gmail tem a Verificação em 2 Passos ativa. A palavra-passe normal do email não é permitida pela Google. Gere uma Palavra-passe de Aplicação de 16 letras em https://myaccount.google.com/apppasswords.'
-          });
+        if (errString.includes('534') || errString.includes('InvalidSecondFactor') || errString.includes('Application-specific password required')) {
+          return res.status(401).json({ error: 'Google exige Palavra-passe de Aplicação (Erro 534).', details: 'Gere uma Palavra-passe de Aplicação em https://myaccount.google.com/apppasswords.' });
         }
         if (errString.includes('ETIMEDOUT') || errString.includes('ESOCKETTIMEDOUT') || errString.includes('ECONNREFUSED')) {
-          return res.status(504).json({
-            error: 'Não foi possível ligar ao servidor SMTP do Gmail.',
-            details: `A conexão ao smtp.gmail.com expirou por tempo limite.${errCode} Pode clicar em "Abrir no E-mail" para enviar através da sua aplicação de e-mail.`
-          });
+          return res.status(504).json({ error: 'Não foi possível ligar ao servidor SMTP do Gmail.', details: `A conexão ao smtp.gmail.com expirou.${errCode}` });
         }
-        return res.status(500).json({
-          error: 'Falha no envio de e-mail via SMTP Gmail.',
-          details: `${errString}${errCode}${errResponse}`
-        });
+        return res.status(500).json({ error: 'Falha no envio de e-mail via SMTP Gmail.', details: `${errString}${errCode}${errResponse}` });
       }
     } catch (err: any) {
       console.error('Erro ao processar resumo:', err);
-      return res.status(500).json({
-        error: 'Erro interno ao processar o resumo.',
-        details: err.message
-      });
+      return res.status(500).json({ error: 'Erro interno ao processar o resumo.', details: err.message });
     }
   };
 
-  app.all('/api/send-summary*', handleSendSummary);
+  app.all('/api/send-summary*',       handleSendSummary);
   app.all('/api/send-summary-email*', handleSendSummary);
 
-  // AI Insights Endpoint for TVDE Fleet Optimization
+  // AI Insights
   app.all('/api/ai/tvde-insights*', async (req, res) => {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        return res.status(400).json({
-          error: 'Chave de API do Gemini não configurada.',
-          suggestion: 'Por favor, configure a chave GEMINI_API_KEY no painel de segredos.'
-        });
-      }
+      if (!apiKey) return res.status(400).json({ error: 'Chave de API do Gemini não configurada.' });
 
       const { fleetSummary } = req.body;
-
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build'
-          }
-        }
-      });
+      const ai = new GoogleGenAI({ apiKey, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
       const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model:    'gemini-3.6-flash',
         contents: `És um consultor especialista em gestão de frotas TVDE (Uber/Bolt) em Portugal.
 Analisa os seguintes dados da empresa e fornece 3 a 4 recomendações práticas e concretas em Português de Portugal (pt-PT):
 - Faturação total recente, custos de combustível/carregamento, manutenção, seguros e rendas.
@@ -460,27 +317,14 @@ Responde num formato JSON válido com a seguinte estrutura:
 }`,
       });
 
-      const text = response.text || '';
-      // Attempt to parse JSON from AI response
+      const text      = response.text || '';
       const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
       let data;
       try {
         data = JSON.parse(cleanJson);
       } catch {
-        data = {
-          resumoExecutivo: text.slice(0, 200),
-          recomendacoes: [
-            {
-              titulo: "Otimização de Custos Elétricos",
-              descricao: text,
-              impactoEstimado: "+12% Rentabilidade",
-              categoria: "combustivel"
-            }
-          ],
-          pontoAtencaoCritico: "Monitore a relação entre nº de km e revisões preventivas dos veículos elétricos."
-        };
+        data = { resumoExecutivo: text.slice(0, 200), recomendacoes: [{ titulo: 'Otimização de Custos Elétricos', descricao: text, impactoEstimado: '+12% Rentabilidade', categoria: 'combustivel' }], pontoAtencaoCritico: 'Monitore a relação entre nº de km e revisões preventivas dos veículos elétricos.' };
       }
-
       return res.json(data);
     } catch (err: any) {
       console.error('Erro na chamada ao Gemini API:', err);
@@ -488,24 +332,19 @@ Responde num formato JSON válido com a seguinte estrutura:
     }
   });
 
-  // Catch-all for unmatched /api routes (prevents Vite 405 / HTML response on API calls)
+  // Catch-all /api/*
   app.all('/api/*', (req, res) => {
     res.status(404).json({ error: `Rota de API não encontrada: ${req.method} ${req.path}` });
   });
 
-  // Vite middleware setup for dev vs production static serving
+  // Vite / static
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
 
   app.listen(PORT, '0.0.0.0', () => {

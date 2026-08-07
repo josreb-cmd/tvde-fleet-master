@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Shield,
   Layers,
-  Menu
+  Menu,
+  LogOut
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -22,6 +23,8 @@ interface NavbarProps {
   setActiveTab: (tab: string) => void;
   isMobileMenuOpen?: boolean;
   setIsMobileMenuOpen?: (open: boolean) => void;
+  userEmail: string;
+  onSignOut: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -30,7 +33,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   isMobileMenuOpen = false,
-  setIsMobileMenuOpen
+  setIsMobileMenuOpen,
+  userEmail,
+  onSignOut
 }) => {
   const {
     role,
@@ -63,7 +68,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo & Mobile Menu Toggle */}
           <div className="flex items-center space-x-2 sm:space-x-3">
-            {/* Hamburger Button for Mobile */}
             <button
               onClick={() => setIsMobileMenuOpen && setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-md hover:bg-slate-100 text-slate-700 md:hidden transition border border-slate-200 focus:outline-none"
@@ -177,7 +181,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Selecione o Perfil
                     </p>
                   </div>
-                  
+
                   <button
                     onClick={() => {
                       setRole('manager');
@@ -285,10 +289,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           }`}
                         >
                           <div className="mt-0.5">
-                            {n.type === 'maintenance' && <AlertTriangle className="w-4 h-4 text-orange-500" />}
-                            {n.type === 'payment_pending' && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                            {n.type === 'document_expiry' && <Layers className="w-4 h-4 text-blue-500" />}
-                            {n.type === 'performance_alert' && <Sparkles className="w-4 h-4 text-emerald-500" />}
+                            {n.type === 'maintenance'       && <AlertTriangle className="w-4 h-4 text-orange-500" />}
+                            {n.type === 'payment_pending'   && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                            {n.type === 'document_expiry'   && <Layers        className="w-4 h-4 text-blue-500" />}
+                            {n.type === 'performance_alert' && <Sparkles      className="w-4 h-4 text-emerald-500" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-slate-900 truncate">{n.title}</p>
@@ -329,6 +333,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+
+            {/* ── Logout ──────────────────────────────────────────────────── */}
+            <button
+              onClick={onSignOut}
+              className="flex items-center space-x-1.5 p-2 rounded-md bg-slate-50 hover:bg-red-50 hover:border-red-200 text-slate-600 hover:text-red-600 border border-slate-200 transition"
+              title={`Terminar sessão (${userEmail})`}
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden lg:inline text-xs font-medium truncate max-w-[120px]">
+                {userEmail}
+              </span>
+            </button>
+            {/* ─────────────────────────────────────────────────────────────── */}
           </div>
         </div>
       </div>
