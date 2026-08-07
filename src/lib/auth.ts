@@ -1,6 +1,8 @@
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   User,
@@ -93,21 +95,57 @@ export async function getAuthorizedUserDoc(email: string): Promise<AuthorizedUse
 }
 
 /**
- * Inicia sessão com Google Popup e valida se o utilizador está na coleção authorizedUsers.
+ * Inicia sessão com Google — tenta Popup primeiro, usa Redirect como fallback.
  */
 export async function signInWithGoogle(): Promise<User> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  const result = await signInWithPopup(auth, provider);
-  const email = result.user.email ?? '';
 
-  const userDoc = await getAuthorizedUserDoc(email);
-  if (!userDoc) {
-    await signOut(auth);
-    throw new Error(`Acesso não autorizado: ${email}. O seu email não está registado no sistema.`);
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const email = result.user.email ?? '';
+    const userDoc = await getAuthorizedUserDoc(email);
+    if (!userDoc) {
+      await signOut(auth);
+      throw new Error(`Acesso não autorizado: ${email}. O seu email não está registado no sistema.`);
+    }
+    return result.user;
+  } catch (err: any) {
+    // Se popup bloqueado ou fechado, usa redirect
+    if (
+      err.code === 'auth/popup-blocked' ||
+      err.code === 'auth/popup-closed-by-user' ||
+      err.code === 'auth/cancelled-popup-request'
+    ) {
+      await signInWithRedirect(auth, provider);
+      // Após redirect, a página recarrega — o resultado é tratado em handleRedirectResult
+      throw new Error('redirect_initiated');
+    }
+    throw err;
   }
+}
 
-  return result.user;
+/**
+ * Trata o resultado do redirect OAuth após o utilizador regressar à app.
+ * Deve ser chamado no arranque da app (ex: AuthContext useEffect).
+ */
+export async function handleRedirectResult(): Promise<User | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    if (!result) return null;
+
+    const email = result.user.email ?? '';
+    const userDoc = await getAuthorizedUserDoc(email);
+    if (!userDoc) {
+      await signOut(auth);
+      throw new Error(`Acesso não autorizado: ${email}. O seu email não está registado no sistema.`);
+    }
+    return result.user;
+  } catch (err: any) {
+    if (err.message?.includes('não autorizado')) throw err;
+    console.error('Erro ao processar redirect result:', err);
+    return null;
+  }
 }
 
 /**

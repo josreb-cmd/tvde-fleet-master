@@ -4,6 +4,7 @@ import {
   onAuthChanged,
   getAuthorizedUserDoc,
   signInWithGoogle,
+  handleRedirectResult,
   logout,
   AuthorizedUser,
 } from '../lib/auth';
@@ -54,11 +55,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Trata o resultado do redirect OAuth (caso o popup tenha falhado)
+    handleRedirectResult()
+      .then((redirectUser) => {
+        if (redirectUser) {
+          fetchUserRoleAndDoc(redirectUser);
+        }
+      })
+      .catch((err) => {
+        console.error('Erro no redirect result:', err);
+      });
+
     const unsub = onAuthChanged(async (u) => {
       setLoading(true);
       await fetchUserRoleAndDoc(u);
       setLoading(false);
     });
+
     return unsub;
   }, [fetchUserRoleAndDoc]);
 
@@ -69,7 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async () => {
-    await signInWithGoogle();
+    try {
+      await signInWithGoogle();
+    } catch (err: any) {
+      // 'redirect_initiated' não é erro — a página vai recarregar
+      if (err.message !== 'redirect_initiated') throw err;
+    }
   };
 
   const signOut_ = async () => {
