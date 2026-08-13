@@ -9,7 +9,8 @@ interface SendSummaryModalProps {
 }
 
 // URL base da API — usa variável de ambiente em build, fallback para Cloud Run em produção estática
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://ais-pre-pyvhpmcfqhadg2oqzzoe4h-391670741439.europe-west2.run.app').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://europe-west2-gen-lang-client-0465939536.cloudfunctions.net').replace(/\/$/, '');
+const EMAIL_ENDPOINT = `${API_BASE}/enviarResumoFleetMaster`;
 
 // Helper to get current week (Monday to Sunday) YYYY-MM-DD
 function getCurrentWeekRange() {
@@ -69,7 +70,7 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (isOpen) {
-      fetch(`${API_BASE}/api/smtp-status`)
+      fetch(`${API_BASE}/api/smtp-status`).catch(() => ({ json: () => ({}) }))
         .then((res) => res.json())
         .then((data) => {
           if (data.configured) {
@@ -233,7 +234,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/send-summary`, {
+      const response = await fetch(EMAIL_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -241,8 +242,6 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
         body: JSON.stringify({
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
-          gmailUser: gmailUser.trim(),
-          gmailAppPassword: gmailAppPassword.trim(),
           shiftLogs,
           expenses,
           drivers,
