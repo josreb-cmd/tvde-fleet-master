@@ -69,7 +69,7 @@ function gerarDadosSimulados(weekOffset) {
 }
 
 // ─── Componente principal ──────────────────────────────────────────────────
-export default function KmRentabilidade() {
+export function KmRentabilidade() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [dadosDiarios, setDadosDiarios] = useState([]);
   const [loading, setLoading] = useState(true);
