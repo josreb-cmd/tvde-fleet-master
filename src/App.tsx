@@ -15,6 +15,7 @@ import { NotificationsView } from './components/NotificationsView';
 import { ProfitabilityView } from './components/ProfitabilityView';
 import { CustomQueryView } from './components/CustomQueryView';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { KmRentabilidade } from './components/KmRentabilidade';
 
 // Modals
 import { ShiftModal } from './components/modals/ShiftModal';
@@ -159,6 +160,8 @@ function AppContent() {
           )}
 
           {activeTab === 'profitability' && <ProfitabilityView />}
+
+          {activeTab === 'km-rentabilidade' && <KmRentabilidade />}
 
           {activeTab === 'custom-query' && <CustomQueryView />}
 
