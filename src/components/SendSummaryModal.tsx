@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Mail, Calendar, CheckCircle2, AlertCircle, X, Send, Users, Copy, ExternalLink, Check } from 'lucide-react';
+import { Mail, Calendar, CheckCircle2, AlertCircle, X, Send, Users, Car, TrendingUp, DollarSign, Copy, ExternalLink, Check } from 'lucide-react';
 import { useTVDE } from '../context/TVDEContext';
 import { parseHHMMToHours } from '../utils/formatters';
 
@@ -8,7 +8,7 @@ interface SendSummaryModalProps {
   onClose: () => void;
 }
 
-// URL da Cloud Function — endpoint permanente
+// Endpoint direto da Cloud Function — password gerida pelo Secret Manager do GCP
 const EMAIL_ENDPOINT = 'https://europe-west2-gen-lang-client-0465939536.cloudfunctions.net/enviarResumoFleetMaster';
 
 // Helper to get current week (Monday to Sunday) YYYY-MM-DD
@@ -325,14 +325,13 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
             </div>
           </div>
 
-          {/* SMTP Security Badge — replaces old credentials section */}
-          <div className="bg-emerald-50/70 border border-emerald-200 p-3 rounded-lg flex items-center space-x-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <div>
-              <span className="text-xs font-semibold text-emerald-800">Envio seguro via Google Cloud</span>
-              <p className="text-[11px] text-emerald-700 mt-0.5">
-                Credenciais protegidas pelo Secret Manager — sem passwords no browser.
-              </p>
+          {/* Cloud Function Status Badge */}
+          <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="text-xs font-semibold text-emerald-800">
+                Envio seguro via Cloud Function — credenciais protegidas no GCP Secret Manager
+              </span>
             </div>
           </div>
 
