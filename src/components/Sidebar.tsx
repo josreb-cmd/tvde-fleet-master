@@ -11,7 +11,8 @@ import {
   Sliders,
   Bell,
   Sparkles,
-  X
+  X,
+  Gauge
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -91,6 +92,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'profitability',
       label: 'Rentabilidade Mensal',
       icon: TrendingUp,
+      badge: null,
+      roles: ['manager']
+    },
+    {
+      id: 'km-rentabilidade',
+      label: 'Rentabilidade km',
+      icon: Gauge,
       badge: null,
       roles: ['manager']
     },
@@ -233,4 +241,3 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
-
