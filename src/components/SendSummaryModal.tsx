@@ -8,6 +8,9 @@ interface SendSummaryModalProps {
   onClose: () => void;
 }
 
+// URL base da API — usa variável de ambiente em build, fallback para Cloud Run em produção estática
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://ais-pre-pyvhpmcfqhadg2oqzzoe4h-391670741439.europe-west2.run.app').replace(/\/$/, '');
+
 // Helper to get current week (Monday to Sunday) YYYY-MM-DD
 function getCurrentWeekRange() {
   const now = new Date();
@@ -66,7 +69,7 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/smtp-status')
+      fetch(`${API_BASE}/api/smtp-status`)
         .then((res) => res.json())
         .then((data) => {
           if (data.configured) {
@@ -230,7 +233,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
     }
 
     try {
-      const response = await fetch('/api/send-summary', {
+      const response = await fetch(`${API_BASE}/api/send-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -501,7 +504,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
             </div>
           </div>
 
-          {/* Quick Preview Box (TVDE ProFlow Layout) */}
+          {/* Quick Preview Box */}
           <div className="p-3.5 rounded-xl bg-slate-100/70 border border-slate-200/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
