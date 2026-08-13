@@ -196,20 +196,25 @@ export const CustomQueryView: React.FC = () => {
     const now = new Date();
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
+    // ✅ CORRIGIDO: now nunca é mutado — cada cálculo usa new Date(now)
     if (dateFilter === 'this_week') {
       const day = now.getDay();
-      const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(now.setDate(diffToMonday));
+      const monday = new Date(now);
+      monday.setDate(monday.getDate() - day + (day === 0 ? -6 : 1));
+      monday.setHours(0, 0, 0, 0);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
       return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
     }
     if (dateFilter === 'last_week') {
       const day = now.getDay();
-      const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1) - 7;
-      const monday = new Date(now.setDate(diffToMonday));
+      const monday = new Date(now);
+      monday.setDate(monday.getDate() - day + (day === 0 ? -6 : 1) - 7);
+      monday.setHours(0, 0, 0, 0);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
       return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
     }
     if (dateFilter === 'last_7_days') {
