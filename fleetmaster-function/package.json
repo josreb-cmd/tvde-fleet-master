@@ -1,13 +1,16 @@
 {
-  "name": "tvde-fleet-master-functions",
+  "name": "enviar-resumo-fleet-master",
   "version": "1.0.0",
-  "description": "Cloud Function — TVDE Fleet Master email resumo",
+  "description": "Cloud Function para envio de resumo semanal TVDE Fleet Master",
   "main": "index.js",
-  "engines": {
-    "node": "20"
+  "scripts": {
+    "start": "npx @google-cloud/functions-framework --target=enviarResumoFleetMaster --port=8080"
   },
   "dependencies": {
-    "firebase-functions": "^6.0.0",
+    "@google-cloud/functions-framework": "^3.3.0",
     "nodemailer": "^6.9.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
