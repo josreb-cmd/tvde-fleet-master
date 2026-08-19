@@ -1,4 +1,7 @@
 // src/components/KmRentabilidade.tsx
+// Actualizado: 13 correcções aplicadas — bugs lógicos, runtime, performance, UX/a11y.
+// ────────────────────────────────────────────────────────────────────────────
+
 import React, { useState, useMemo } from "react";
 import {
   AreaChart,
@@ -26,14 +29,14 @@ import { useTVDE } from "../context/TVDEContext";
 // ─── Constantes do modelo de negócio ───────────────────────────────────────
 const RENDA_SEMANAL = 350;
 const KM_BASE = 2000;
-const TAXA_ADICIONAL = 0.25; // €/km acima dos 2.000 km
+const TAXA_ADICIONAL = 0.25; // €/km acima dos 2 000 km
+const MAX_WEEK_HISTORY = 52; // limite de navegação para o passado
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function getWeekBounds(offset = 0) {
   const now = new Date();
-  const day = now.getDay(); // 0=Dom, 1=Seg...
-  // Semana operacional: Seg → Dom
-  const diffToMonday = day === 0 ? -6 : 1 - day; // recua até à segunda-feira
+  const day = now.getDay(); // 0=Dom, 1=Seg…
+  const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = new Date(now);
   monday.setDate(now.getDate() + diffToMonday + offset * 7);
   monday.setHours(0, 0, 0, 0);
@@ -44,7 +47,6 @@ function getWeekBounds(offset = 0) {
 }
 
 function toDateStr(d: Date): string {
-  // YYYY-MM-DD em hora local (sem desvio UTC)
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -64,15 +66,28 @@ function formatEuro(v: number) {
   );
 }
 
-// Custo real da semana: renda efectivamente paga (dos shiftLogs) + sobretaxa + carregamentos
-function calcularCustoReal(kmTotal: number, rendaReal: number, custoCarregamentos = 0) {
+// Custo real: renda efectivamente paga + sobretaxa + carregamentos (Bug 1 original)
+function calcularCustoReal(
+  kmTotal: number,
+  rendaReal: number,
+  custoCarregamentos = 0
+) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
   const custoTotal = rendaReal + sobretaxa + custoCarregamentos;
   return { kmExtra, sobretaxa, custoTotal };
 }
 
-// Custo para tabela de sensibilidade: assume renda contratual fixa (350€/sem)
+// Versão inline só com o total — evita alocação de objecto no loop (Bug 11)
+function calcularCustoTotal(
+  km: number,
+  renda: number,
+  carregamento: number
+): number {
+  return renda + Math.max(0, km - KM_BASE) * TAXA_ADICIONAL + carregamento;
+}
+
+// Custo para tabela de sensibilidade: renda contratual fixa 350 €/sem
 function calcularCustoSemanal(kmTotal: number) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
@@ -80,28 +95,41 @@ function calcularCustoSemanal(kmTotal: number) {
   return { kmExtra, sobretaxa, custoTotal };
 }
 
-// Para a tabela de sensibilidade usamos receita estimada (0,35€/km — valor ilustrativo)
-// Nota: a receita real por km vem dos grossEarnings do Firestore e varia por turno
+// Receita / energia estimadas para a tabela de sensibilidade
 const RECEITA_ESTIMADA_POR_KM = 0.35;
-// Custo estimado de energia por km (ex: 6 kWh/100km × 0,22€/kWh ≈ 0,013€/km — ajustar conforme tarifário real)
 const ENERGIA_ESTIMADA_POR_KM = 0.013;
 
 function calcularMetricasTabela(kmTotal: number) {
-  const { kmExtra, sobretaxa, custoTotal: custoBase } = calcularCustoSemanal(kmTotal);
+  const {
+    kmExtra,
+    sobretaxa,
+    custoTotal: custoBase,
+  } = calcularCustoSemanal(kmTotal);
   const energiaEst = kmTotal * ENERGIA_ESTIMADA_POR_KM;
   const custoTotal = custoBase + energiaEst;
   const receita = kmTotal * RECEITA_ESTIMADA_POR_KM;
   const lucro = receita - custoTotal;
   const margem = receita > 0 ? (lucro / receita) * 100 : 0;
-  const custoPorKm = kmTotal > 0 ? custoTotal / kmTotal : RENDA_SEMANAL / KM_BASE;
-  return { kmExtra, sobretaxa, energiaEst, custoTotal, receita, lucro, margem, custoPorKm };
+  const custoPorKm =
+    kmTotal > 0 ? custoTotal / kmTotal : RENDA_SEMANAL / KM_BASE;
+  return {
+    kmExtra,
+    sobretaxa,
+    energiaEst,
+    custoTotal,
+    receita,
+    lucro,
+    margem,
+    custoPorKm,
+  };
 }
 
 const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 // ─── Componente principal ──────────────────────────────────────────────────
 export function KmRentabilidade() {
-  const { shiftLogs, expenses } = useTVDE();
+  // Bug 10: defaults defensivos caso o contexto devolva undefined
+  const { shiftLogs = [], expenses = [] } = useTVDE();
   const [weekOffset, setWeekOffset] = useState(0);
 
   const { monday, sunday } = useMemo(
@@ -110,29 +138,38 @@ export function KmRentabilidade() {
   );
   const isCurrentWeek = weekOffset === 0;
 
-  // Datas da semana em strings YYYY-MM-DD para comparação directa
+  // Bug 3 original: strings estáveis para dependência dos useMemo seguintes
   const mondayStr = useMemo(() => toDateStr(monday), [monday]);
   const sundayStr = useMemo(() => toDateStr(sunday), [sunday]);
 
-  // Filtrar shiftLogs da semana seleccionada e agrupar por dia da semana
+  // ── Dados diários ────────────────────────────────────────────────────────
   const dadosDiarios = useMemo(() => {
-    // Shifts dentro do intervalo da semana
-    const shiftsNaSemana = shiftLogs.filter(
+    const safeShifts = shiftLogs ?? [];
+    const safeExpenses = expenses ?? [];
+
+    const shiftsNaSemana = safeShifts.filter(
       (s) => s.date >= mondayStr && s.date <= sundayStr
     );
 
-    // Construir array de 7 dias (Seg→Dom) com km e receita reais
+    const [y, m, d] = mondayStr.split("-").map(Number);
+    const mondayLocal = new Date(y, m - 1, d);
+
     return DIAS_SEMANA.map((dia, i) => {
-      const diaDate = new Date(monday);
-      diaDate.setDate(monday.getDate() + i);
+      const diaDate = new Date(mondayLocal);
+      diaDate.setDate(mondayLocal.getDate() + i);
       const diaStr = toDateStr(diaDate);
 
       const shiftsNoDia = shiftsNaSemana.filter((s) => s.date === diaStr);
       const km = shiftsNoDia.reduce((acc, s) => acc + s.kilometers, 0);
-      const receita = shiftsNoDia.reduce((acc, s) => acc + s.grossEarnings, 0);
-      const renda = shiftsNoDia.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
-      // Carregamentos standalone (fuel_charging não ligado a turno)
-      const carregamentoStandalone = expenses
+      const receita = shiftsNoDia.reduce(
+        (acc, s) => acc + s.grossEarnings,
+        0
+      );
+      const renda = shiftsNoDia.reduce(
+        (acc, s) => acc + (s.rentalExpenseAmount || 0),
+        0
+      );
+      const carregamentoStandalone = safeExpenses
         .filter(
           (e) =>
             e.date === diaStr &&
@@ -140,14 +177,17 @@ export function KmRentabilidade() {
             !e.id.startsWith("exp-fuel-shift-")
         )
         .reduce((acc, e) => acc + e.amount, 0);
-      // Carregamentos registados nos turnos do dia
-      const fuelTurnos = shiftsNoDia.reduce((acc, s) => acc + (s.fuelExpenseAmount || 0), 0);
+      const fuelTurnos = shiftsNoDia.reduce(
+        (acc, s) => acc + (s.fuelExpenseAmount || 0),
+        0
+      );
       const carregamento = carregamentoStandalone + fuelTurnos;
 
       return { dia, km, receita, renda, carregamento };
     });
-  }, [shiftLogs, expenses, mondayStr, sundayStr, monday]);
+  }, [shiftLogs, expenses, mondayStr, sundayStr]);
 
+  // ── Totais semanais ──────────────────────────────────────────────────────
   const kmTotal = useMemo(
     () => dadosDiarios.reduce((s, d) => s + d.km, 0),
     [dadosDiarios]
@@ -172,10 +212,15 @@ export function KmRentabilidade() {
 
   const lucroReal = receitaTotal - custoTotal;
   const margemReal = receitaTotal > 0 ? (lucroReal / receitaTotal) * 100 : 0;
-  const custoPorKm = kmTotal > 0 ? custoTotal / kmTotal : rendaTotal > 0 ? rendaTotal / KM_BASE : RENDA_SEMANAL / KM_BASE;
+  const custoPorKm =
+    kmTotal > 0
+      ? custoTotal / kmTotal
+      : rendaTotal > 0
+        ? rendaTotal / KM_BASE
+        : RENDA_SEMANAL / KM_BASE;
   const receitaPorKm = kmTotal > 0 ? receitaTotal / kmTotal : 0;
 
-  // Dados acumulados para os gráficos
+  // ── Dados acumulados para gráficos (Bug 11: sem alocação de objecto) ─────
   const dadosAcumulados = useMemo(() => {
     let accKm = 0;
     let accReceita = 0;
@@ -186,7 +231,7 @@ export function KmRentabilidade() {
       accReceita += d.receita;
       accRenda += d.renda;
       accCarregamento += d.carregamento;
-      const { custoTotal: custoAcc } = calcularCustoReal(accKm, accRenda, accCarregamento);
+      const custoAcc = calcularCustoTotal(accKm, accRenda, accCarregamento);
       const lucroAcc = accReceita - custoAcc;
       const margemAcc = accReceita > 0 ? (lucroAcc / accReceita) * 100 : 0;
       return {
@@ -198,37 +243,59 @@ export function KmRentabilidade() {
     });
   }, [dadosDiarios]);
 
-  // Projecção para semana actual
+  // ── Dias decorridos — Bug 7: conta só dias com dados reais ───────────────
   const diasDecorridos = useMemo(() => {
     if (!isCurrentWeek) return 7;
-    const hoje = new Date();
-    const day = hoje.getDay();
-    // Seg=1→1, Ter=2→2, ..., Sáb=6→6, Dom=0→7
-    return day === 0 ? 7 : day;
-  }, [isCurrentWeek]);
+    const diasComDados = dadosDiarios.filter(
+      (d) => d.km > 0 || d.receita > 0
+    ).length;
+    return diasComDados === 0 ? 1 : diasComDados;
+  }, [isCurrentWeek, dadosDiarios]);
 
+  // ── Projecção — Bugs 1 orig + 8 + 12 ────────────────────────────────────
   const projecao = useMemo(() => {
-    if (!isCurrentWeek || diasDecorridos === 0 || kmTotal === 0) return null;
+    if (!isCurrentWeek || kmTotal === 0) return null;
+
     const kmPorDia = kmTotal / diasDecorridos;
     const receitaPorDia = receitaTotal / diasDecorridos;
+    const carregPorDia = carregamentoTotal / diasDecorridos;
+    const rendaPorDia = rendaTotal / diasDecorridos;
+
     const kmProjetado = Math.round(kmPorDia * 7);
     const receitaProjetada = receitaPorDia * 7;
-    const { custoTotal: custoProj } = calcularCustoSemanal(kmProjetado);
-    return {
+    const rendaProjetada = rendaPorDia * 7;
+    const carregProjetado = carregPorDia * 7;
+
+    const custoProj = calcularCustoTotal(
       kmProjetado,
-      lucro: receitaProjetada - custoProj,
-      kmFaltam: Math.ceil(
-        Math.max(0, KM_BASE - kmTotal) / Math.max(1, 7 - diasDecorridos)
-      ),
-    };
-  }, [kmTotal, receitaTotal, diasDecorridos, isCurrentWeek]);
+      rendaProjetada,
+      carregProjetado
+    );
+    const lucroProjetado = receitaProjetada - custoProj;
+
+    // Bug 8: dias restantes — null se já não há dias
+    const diasRestantes = 7 - diasDecorridos;
+    const kmFaltam =
+      diasRestantes <= 0
+        ? null
+        : Math.ceil(Math.max(0, KM_BASE - kmTotal) / diasRestantes);
+
+    return { kmProjetado, lucro: lucroProjetado, kmFaltam };
+  }, [
+    kmTotal,
+    receitaTotal,
+    rendaTotal,
+    carregamentoTotal,
+    diasDecorridos,
+    isCurrentWeek,
+  ]);
 
   const statusColor =
     kmTotal >= KM_BASE
       ? "#10b981"
       : kmTotal >= KM_BASE * 0.75
-      ? "#f59e0b"
-      : "#6366f1";
+        ? "#f59e0b"
+        : "#6366f1";
 
   const temDados = kmTotal > 0 || rendaTotal > 0;
   const apenasDesp = kmTotal === 0 && rendaTotal > 0;
@@ -240,17 +307,24 @@ export function KmRentabilidade() {
         <p className="text-xs font-mono tracking-widest text-indigo-400 uppercase mb-1">
           Análise de Rentabilidade
         </p>
-        <h1 className="text-3xl font-bold text-white">Quilómetros & Margem</h1>
+        <h1 className="text-3xl font-bold text-white">
+          Quilómetros &amp; Margem
+        </h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite · energia real incluída · semana Seg–Dom
+          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima
+          do limite · energia real incluída · semana Seg–Dom
         </p>
       </div>
 
-      {/* ── Seletor de semana ── */}
+      {/* ── Selector de semana — Bugs 6 + 13 ── */}
       <div className="flex items-center gap-3 mb-8 bg-gray-900 rounded-xl p-3 w-fit border border-gray-800">
         <button
-          onClick={() => setWeekOffset((o) => o - 1)}
-          className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-gray-300"
+          aria-label="Semana anterior"
+          onClick={() =>
+            setWeekOffset((o) => Math.max(-MAX_WEEK_HISTORY, o - 1))
+          }
+          disabled={weekOffset <= -MAX_WEEK_HISTORY}
+          className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft size={18} />
         </button>
@@ -258,7 +332,9 @@ export function KmRentabilidade() {
           <Calendar size={15} className="text-indigo-400" />
           <span className="text-sm font-medium">
             {isCurrentWeek ? (
-              <span className="text-indigo-300 font-semibold">Semana actual</span>
+              <span className="text-indigo-300 font-semibold">
+                Semana actual
+              </span>
             ) : (
               <span className="text-gray-300">
                 {formatDate(monday)} – {formatDate(sunday)}
@@ -267,6 +343,7 @@ export function KmRentabilidade() {
           </span>
         </div>
         <button
+          aria-label="Semana seguinte"
           onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
           disabled={isCurrentWeek}
           className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -311,7 +388,11 @@ export function KmRentabilidade() {
             <KpiCard
               label="Lucro líquido"
               value={formatEuro(lucroReal)}
-              sub={`Receita: ${formatEuro(receitaTotal)}${carregamentoTotal > 0 ? ` · Energia: ${formatEuro(carregamentoTotal)}` : ""}`}
+              sub={`Receita: ${formatEuro(receitaTotal)}${
+                carregamentoTotal > 0
+                  ? ` · Energia: ${formatEuro(carregamentoTotal)}`
+                  : ""
+              }`}
               accent={lucroReal >= 0 ? "#10b981" : "#ef4444"}
             />
             <KpiCard
@@ -322,7 +403,7 @@ export function KmRentabilidade() {
             />
           </div>
 
-          {/* ── Projecção (só semana actual com dados parciais) ── */}
+          {/* ── Projecção — Bugs 1 + 8 + 12 ── */}
           {isCurrentWeek && projecao && diasDecorridos < 7 && (
             <div className="bg-indigo-950 border border-indigo-800 rounded-xl p-4 mb-6 flex flex-wrap gap-6 items-center">
               <div>
@@ -338,11 +419,16 @@ export function KmRentabilidade() {
                 <p className="text-xs text-indigo-300 font-mono uppercase tracking-wider mb-1">
                   Lucro projetado
                 </p>
-                <p className="text-2xl font-bold text-emerald-300">
+                {/* Bug 12: cor condicional */}
+                <p
+                  className={`text-2xl font-bold ${
+                    projecao.lucro >= 0 ? "text-emerald-300" : "text-red-400"
+                  }`}
+                >
                   {formatEuro(projecao.lucro)}
                 </p>
                 <p className="text-xs text-indigo-400 mt-0.5">
-                  assume renda máx. 350€/sem
+                  baseado nos dados reais da semana
                 </p>
               </div>
               <div className="h-10 w-px bg-indigo-800 hidden md:block" />
@@ -350,15 +436,20 @@ export function KmRentabilidade() {
                 <p className="text-xs text-indigo-300 font-mono uppercase tracking-wider mb-1">
                   Km/dia necessários
                 </p>
+                {/* Bug 8: null se já não há dias restantes */}
                 <p className="text-2xl font-bold text-indigo-100">
-                  {projecao.kmFaltam} km
+                  {projecao.kmFaltam !== null ? `${projecao.kmFaltam} km` : "—"}
                 </p>
-                <p className="text-xs text-indigo-400">para atingir os 2.000 km</p>
+                <p className="text-xs text-indigo-400">
+                  {projecao.kmFaltam !== null
+                    ? "para atingir os 2.000 km"
+                    : "sem dias restantes"}
+                </p>
               </div>
             </div>
           )}
 
-          {/* ── Gráficos ── */}
+          {/* ── Gráficos — Bugs 4 + 5 originais ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Km acumulados */}
             <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
@@ -371,9 +462,23 @@ export function KmRentabilidade() {
                   margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="gradBase" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <linearGradient
+                      id="kmRent-gradBase"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor="#6366f1"
+                        stopOpacity={0.3}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#6366f1"
+                        stopOpacity={0}
+                      />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -395,10 +500,14 @@ export function KmRentabilidade() {
                       borderRadius: 8,
                       fontSize: 12,
                     }}
-                    formatter={(v: number) => [
-                      `${v.toLocaleString("pt-PT")} km`,
-                      "Total acumulado",
-                    ]}
+                    formatter={(v: number | string) => {
+                      const num =
+                        typeof v === "number" ? v : parseFloat(String(v));
+                      return [
+                        `${num.toLocaleString("pt-PT")} km`,
+                        "Total acumulado",
+                      ];
+                    }}
                   />
                   <ReferenceLine
                     y={KM_BASE}
@@ -416,7 +525,7 @@ export function KmRentabilidade() {
                     dataKey="km"
                     stroke="#6366f1"
                     strokeWidth={2}
-                    fill="url(#gradBase)"
+                    fill="url(#kmRent-gradBase)"
                     dot={false}
                   />
                 </AreaChart>
@@ -434,9 +543,23 @@ export function KmRentabilidade() {
                   margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="gradLucro" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <linearGradient
+                      id="kmRent-gradLucro"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor="#10b981"
+                        stopOpacity={0.3}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#10b981"
+                        stopOpacity={0}
+                      />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -459,14 +582,18 @@ export function KmRentabilidade() {
                       borderRadius: 8,
                       fontSize: 12,
                     }}
-                    formatter={(v: number) => [formatEuro(v), "Lucro acumulado"]}
+                    formatter={(v: number | string) => {
+                      const num =
+                        typeof v === "number" ? v : parseFloat(String(v));
+                      return [formatEuro(num), "Lucro acumulado"];
+                    }}
                   />
                   <Area
                     type="monotone"
                     dataKey="lucro"
                     stroke="#10b981"
                     strokeWidth={2}
-                    fill="url(#gradLucro)"
+                    fill="url(#kmRent-gradLucro)"
                     dot={false}
                   />
                 </AreaChart>
@@ -480,11 +607,14 @@ export function KmRentabilidade() {
               Km rodados e receita por dia
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Barras azuis = km (eixo esquerdo) · barras verdes = receita bruta (eixo direito)
+              Barras azuis = km (eixo esquerdo) · barras verdes = receita bruta
+              (eixo direito)
             </p>
             {apenasDesp ? (
               <div className="flex flex-col items-center justify-center h-32 rounded-lg border border-amber-800/40 bg-amber-950/20">
-                <p className="text-sm text-amber-400 font-medium">Dias de custo sem actividade registada</p>
+                <p className="text-sm text-amber-400 font-medium">
+                  Dias de custo sem actividade registada
+                </p>
                 <p className="text-xs text-amber-600 mt-1">
                   Renda paga: {formatEuro(rendaTotal)} · Km e receita: 0
                 </p>
@@ -504,7 +634,6 @@ export function KmRentabilidade() {
                     axisLine={false}
                     tickLine={false}
                   />
-                  {/* Eixo esquerdo — km */}
                   <YAxis
                     yAxisId="km"
                     orientation="left"
@@ -514,7 +643,6 @@ export function KmRentabilidade() {
                     tickFormatter={(v) => `${v} km`}
                     width={55}
                   />
-                  {/* Eixo direito — receita */}
                   <YAxis
                     yAxisId="receita"
                     orientation="right"
@@ -531,25 +659,51 @@ export function KmRentabilidade() {
                       borderRadius: 8,
                       fontSize: 12,
                     }}
-                    formatter={(v: number, name: string) => [
-                      name === "km" ? `${v} km` : formatEuro(v),
-                      name === "km" ? "Km rodados" : "Receita bruta",
-                    ]}
+                    formatter={(v: number | string, name: string) => {
+                      const num =
+                        typeof v === "number" ? v : parseFloat(String(v));
+                      return [
+                        name === "km" ? `${num} km` : formatEuro(num),
+                        name === "km" ? "Km rodados" : "Receita bruta",
+                      ];
+                    }}
                   />
                   <Legend
                     formatter={(value) =>
                       value === "km" ? "Km rodados" : "Receita bruta (€)"
                     }
-                    wrapperStyle={{ fontSize: 11, color: "#9ca3af", paddingTop: 8 }}
+                    wrapperStyle={{
+                      fontSize: 11,
+                      color: "#9ca3af",
+                      paddingTop: 8,
+                    }}
                   />
-                  <Bar yAxisId="km" dataKey="km" radius={[4, 4, 0, 0]} name="km" fill="#6366f1">
+                  <Bar
+                    yAxisId="km"
+                    dataKey="km"
+                    radius={[4, 4, 0, 0]}
+                    name="km"
+                    fill="#6366f1"
+                  >
                     {dadosDiarios.map((d, i) => (
-                      <Cell key={i} fill={d.km === 0 ? "#374151" : "#6366f1"} />
+                      <Cell
+                        key={i}
+                        fill={d.km === 0 ? "#374151" : "#6366f1"}
+                      />
                     ))}
                   </Bar>
-                  <Bar yAxisId="receita" dataKey="receita" radius={[4, 4, 0, 0]} name="receita" fill="#10b981">
+                  <Bar
+                    yAxisId="receita"
+                    dataKey="receita"
+                    radius={[4, 4, 0, 0]}
+                    name="receita"
+                    fill="#10b981"
+                  >
                     {dadosDiarios.map((d, i) => (
-                      <Cell key={i} fill={d.receita === 0 ? "#374151" : "#10b981"} />
+                      <Cell
+                        key={i}
+                        fill={d.receita === 0 ? "#374151" : "#10b981"}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -557,75 +711,121 @@ export function KmRentabilidade() {
             )}
           </div>
 
-          {/* ── Tabela de sensibilidade ── */}
+          {/* ── Tabela de sensibilidade — Bugs 2 + 6 + 9 ── */}
           <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
             <h2 className="text-sm font-semibold text-gray-300 mb-1">
               Tabela de sensibilidade — custo semanal por volume de km
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}€/km · energia estimada a {ENERGIA_ESTIMADA_POR_KM.toFixed(3)}€/km (valores ilustrativos — ajustar em constantes do ficheiro)
+              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}€/km ·
+              energia estimada a {ENERGIA_ESTIMADA_POR_KM.toFixed(3)}€/km
+              (valores ilustrativos — ajustar em constantes do ficheiro)
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-gray-800">
-                    <th className="pb-2 pr-4 font-medium text-gray-400">Km/semana</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-400">Km extra</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-400">Sobretaxa</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-400">Energia est.</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-400">Custo total</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-400">Rec. estimada</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-400">Margem est.</th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400">
+                      Km/semana
+                    </th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400">
+                      Km extra
+                    </th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400">
+                      Sobretaxa
+                    </th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400 hidden md:table-cell">
+                      Energia est.
+                    </th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400">
+                      Custo total
+                    </th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400 hidden md:table-cell">
+                      Rec. estimada
+                    </th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400">
+                      Lucro est.
+                    </th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400">
+                      Margem est.
+                    </th>
+                    <th className="pb-2 font-medium text-gray-400 hidden md:table-cell">
+                      Custo/km
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[1500, 1800, 2000, 2200, 2500, 2800, 3000, 3500].map((km) => {
-                    const m = calcularMetricasTabela(km);
-                    const isAtual = Math.abs(km - kmTotal) < 150;
-                    return (
-                      <tr
-                        key={km}
-                        className={`border-b border-gray-800/50 ${
-                          isAtual ? "bg-indigo-950/50" : ""
-                        }`}
-                      >
-                        <td className="py-2 pr-4 font-mono font-semibold text-white">
-                          {km.toLocaleString("pt-PT")}
-                          {isAtual && (
-                            <span className="ml-2 text-[10px] bg-indigo-700 text-indigo-200 px-1.5 py-0.5 rounded">
-                              actual
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-4 font-mono text-gray-300">
-                          {m.kmExtra > 0
-                            ? `+${m.kmExtra.toLocaleString("pt-PT")}`
-                            : "—"}
-                        </td>
-                        <td className="py-2 pr-4 font-mono text-amber-400">
-                          {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "—"}
-                        </td>
-                        <td className="py-2 pr-4 font-mono text-cyan-400">
-                          {formatEuro(m.energiaEst)}
-                        </td>
-                        <td className="py-2 pr-4 font-mono text-gray-300">
-                          {formatEuro(m.custoTotal)}
-                        </td>
-                        <td className="py-2 pr-4 font-mono text-gray-300">
-                          {formatEuro(m.receita)}
-                        </td>
-                        <td className="py-2 font-mono text-gray-300">
-                          {m.margem.toFixed(1)}%
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {[1500, 1800, 2000, 2200, 2500, 2800, 3000, 3500].map(
+                    (km) => {
+                      const m = calcularMetricasTabela(km);
+                      const isAtual = Math.abs(km - kmTotal) < 150;
+                      return (
+                        <tr
+                          key={km}
+                          className={`border-b border-gray-800/50 ${
+                            isAtual ? "bg-indigo-950/50" : ""
+                          }`}
+                        >
+                          <td className="py-2 pr-4 font-mono font-semibold text-white">
+                            {km.toLocaleString("pt-PT")}
+                            {isAtual && (
+                              <span className="ml-2 text-[10px] bg-indigo-700 text-indigo-200 px-1.5 py-0.5 rounded">
+                                actual
+                              </span>
+                            )}
+                            {/* Bug 9: alerta de divergência real vs estimado */}
+                            {isAtual &&
+                              Math.abs(m.lucro - lucroReal) > 50 && (
+                                <span
+                                  className="ml-1 text-[10px] bg-amber-800 text-amber-200 px-1.5 py-0.5 rounded cursor-help"
+                                  title={`Lucro real: ${formatEuro(lucroReal)} — diferença deve-se à receita/km real vs estimada`}
+                                >
+                                  ≠ real
+                                </span>
+                              )}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-gray-300">
+                            {m.kmExtra > 0
+                              ? `+${m.kmExtra.toLocaleString("pt-PT")}`
+                              : "—"}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-amber-400">
+                            {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "—"}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-cyan-400 hidden md:table-cell">
+                            {formatEuro(m.energiaEst)}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-gray-300">
+                            {formatEuro(m.custoTotal)}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-gray-300 hidden md:table-cell">
+                            {formatEuro(m.receita)}
+                          </td>
+                          <td
+                            className={`py-2 pr-4 font-mono ${
+                              m.lucro >= 0
+                                ? "text-emerald-400"
+                                : "text-red-400"
+                            }`}
+                          >
+                            {formatEuro(m.lucro)}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-gray-300">
+                            {m.margem.toFixed(1)}%
+                          </td>
+                          <td className="py-2 font-mono text-gray-300 hidden md:table-cell">
+                            {m.custoPorKm.toFixed(3)}€
+                          </td>
+                        </tr>
+                      );
+                    }
+                  )}
                 </tbody>
               </table>
             </div>
             <p className="text-xs text-gray-500 mt-3">
-              Acima dos 2.000 km cada km adicional custa mais 0,25€ — mas continua
-              rentável enquanto a receita por km superar esse valor.
+              Acima dos 2.000 km cada km adicional custa mais 0,25€ — mas
+              continua rentável enquanto a receita por km superar esse valor.
             </p>
           </div>
         </>
@@ -634,7 +834,7 @@ export function KmRentabilidade() {
   );
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────
+// ─── KPI Card ──────────────────────────────────────────────────────────────
 function KpiCard({
   label,
   value,
