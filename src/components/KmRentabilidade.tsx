@@ -32,14 +32,15 @@ const TAXA_ADICIONAL = 0.25; // €/km acima dos 2.000 km
 function getWeekBounds(offset = 0) {
   const now = new Date();
   const day = now.getDay(); // 0=Dom, 1=Seg...
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday + offset * 7);
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { monday, sunday };
+  // Semana operacional: Dom → Sáb
+  const diffToSunday = -day; // recua até ao domingo anterior (ou hoje se for domingo)
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() + diffToSunday + offset * 7);
+  sunday.setHours(0, 0, 0, 0);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+  saturday.setHours(23, 59, 59, 999);
+  return { monday: sunday, sunday: saturday };
 }
 
 function toDateStr(d: Date): string {
@@ -92,7 +93,7 @@ function calcularMetricasTabela(kmTotal: number) {
   return { kmExtra, sobretaxa, custoTotal, receita, lucro, margem, custoPorKm };
 }
 
-const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 // ─── Componente principal ──────────────────────────────────────────────────
 export function KmRentabilidade() {
@@ -179,8 +180,8 @@ export function KmRentabilidade() {
   const diasDecorridos = useMemo(() => {
     if (!isCurrentWeek) return 7;
     const hoje = new Date();
-    const day = hoje.getDay();
-    return day === 0 ? 7 : day;
+    // Dom=0 → dia 1, Sáb=6 → dia 7
+    return hoje.getDay() + 1;
   }, [isCurrentWeek]);
 
   const projecao = useMemo(() => {
@@ -206,7 +207,8 @@ export function KmRentabilidade() {
       ? "#f59e0b"
       : "#6366f1";
 
-  const temDados = kmTotal > 0;
+  const temDados = kmTotal > 0 || rendaTotal > 0;
+  const apenasDesp = kmTotal === 0 && rendaTotal > 0;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-4 md:p-8">
@@ -217,7 +219,7 @@ export function KmRentabilidade() {
         </p>
         <h1 className="text-3xl font-bold text-white">Quilómetros & Margem</h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite
+          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite · semana Dom–Sáb
         </p>
       </div>
 
@@ -457,70 +459,79 @@ export function KmRentabilidade() {
             <p className="text-xs text-gray-500 mb-4">
               Barras azuis = km (eixo esquerdo) · barras verdes = receita bruta (eixo direito)
             </p>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart
-                data={dadosDiarios}
-                margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
-                barCategoryGap="25%"
-                barGap={3}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis
-                  dataKey="dia"
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                {/* Eixo esquerdo — km */}
-                <YAxis
-                  yAxisId="km"
-                  orientation="left"
-                  tick={{ fontSize: 11, fill: "#818cf8" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `${v} km`}
-                  width={55}
-                />
-                {/* Eixo direito — receita */}
-                <YAxis
-                  yAxisId="receita"
-                  orientation="right"
-                  tick={{ fontSize: 11, fill: "#34d399" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `${v}€`}
-                  width={55}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#111827",
-                    border: "1px solid #374151",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number, name: string) => [
-                    name === "km" ? `${v} km` : formatEuro(v),
-                    name === "km" ? "Km rodados" : "Receita bruta",
-                  ]}
-                />
-                <Legend
-                  formatter={(value) =>
-                    value === "km" ? "Km rodados" : "Receita bruta (€)"
-                  }
-                  wrapperStyle={{ fontSize: 11, color: "#9ca3af", paddingTop: 8 }}
-                />
-                <Bar yAxisId="km" dataKey="km" radius={[4, 4, 0, 0]} name="km" fill="#6366f1">
-                  {dadosDiarios.map((d, i) => (
-                    <Cell key={i} fill={d.km === 0 ? "#374151" : "#6366f1"} />
-                  ))}
-                </Bar>
-                <Bar yAxisId="receita" dataKey="receita" radius={[4, 4, 0, 0]} name="receita" fill="#10b981">
-                  {dadosDiarios.map((d, i) => (
-                    <Cell key={i} fill={d.receita === 0 ? "#374151" : "#10b981"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {apenasDesp ? (
+              <div className="flex flex-col items-center justify-center h-32 rounded-lg border border-amber-800/40 bg-amber-950/20">
+                <p className="text-sm text-amber-400 font-medium">Dias de custo sem actividade registada</p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Renda paga: {formatEuro(rendaTotal)} · Km e receita: 0
+                </p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={dadosDiarios}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+                  barCategoryGap="25%"
+                  barGap={3}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <XAxis
+                    dataKey="dia"
+                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  {/* Eixo esquerdo — km */}
+                  <YAxis
+                    yAxisId="km"
+                    orientation="left"
+                    tick={{ fontSize: 11, fill: "#818cf8" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `${v} km`}
+                    width={55}
+                  />
+                  {/* Eixo direito — receita */}
+                  <YAxis
+                    yAxisId="receita"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: "#34d399" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `${v}€`}
+                    width={55}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "#111827",
+                      border: "1px solid #374151",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number, name: string) => [
+                      name === "km" ? `${v} km` : formatEuro(v),
+                      name === "km" ? "Km rodados" : "Receita bruta",
+                    ]}
+                  />
+                  <Legend
+                    formatter={(value) =>
+                      value === "km" ? "Km rodados" : "Receita bruta (€)"
+                    }
+                    wrapperStyle={{ fontSize: 11, color: "#9ca3af", paddingTop: 8 }}
+                  />
+                  <Bar yAxisId="km" dataKey="km" radius={[4, 4, 0, 0]} name="km" fill="#6366f1">
+                    {dadosDiarios.map((d, i) => (
+                      <Cell key={i} fill={d.km === 0 ? "#374151" : "#6366f1"} />
+                    ))}
+                  </Bar>
+                  <Bar yAxisId="receita" dataKey="receita" radius={[4, 4, 0, 0]} name="receita" fill="#10b981">
+                    {dadosDiarios.map((d, i) => (
+                      <Cell key={i} fill={d.receita === 0 ? "#374151" : "#10b981"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* ── Tabela de sensibilidade ── */}
