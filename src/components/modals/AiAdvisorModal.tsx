@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTVDE } from '../../context/TVDEContext';
+import { useTVDE } from '../../contexts/TVDEContext';
 import { X, Sparkles, AlertCircle, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 
 interface AiAdvisorModalProps {

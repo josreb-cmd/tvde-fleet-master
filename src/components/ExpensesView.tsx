@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTVDE } from '../context/TVDEContext';
+import { useTVDE } from '../contexts/TVDEContext';
 import { ExpenseCategory, Expense } from '../types';
 import {
   DollarSign,

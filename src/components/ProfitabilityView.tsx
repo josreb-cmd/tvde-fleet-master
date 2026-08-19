@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTVDE } from '../context/TVDEContext';
+import { useTVDE } from '../contexts/TVDEContext';
 import { formatHoursToHHMM } from '../utils/formatters';
 import {
   TrendingUp,

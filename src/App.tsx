@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
-import { TVDEProvider } from './context/TVDEContext';
+import { TVDEProvider } from './contexts/TVDEContext';
 import { DailyShiftLog, Expense } from './types';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -23,7 +23,7 @@ import { ExpenseModal } from './components/modals/ExpenseModal';
 import { VehicleModal } from './components/modals/VehicleModal';
 import { DriverModal } from './components/modals/DriverModal';
 import { AiAdvisorModal } from './components/modals/AiAdvisorModal';
-import { UsersManagementModal } from './components/UsersManagementModal';
+import { UsersManagementModal } from './components/modals/UsersManagementModal';
 
 function AppContent() {
   const { user, signOut } = useAuth();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTVDE } from '../../context/TVDEContext';
+import { useTVDE } from '../../contexts/TVDEContext';
 import { ExpenseCategory, Expense } from '../../types';
 import { X, DollarSign, Edit3 } from 'lucide-react';
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTVDE } from '../../context/TVDEContext';
+import { useTVDE } from '../../contexts/TVDEContext';
 import {
   getAuthorizedUsers,
   addAuthorizedUser,

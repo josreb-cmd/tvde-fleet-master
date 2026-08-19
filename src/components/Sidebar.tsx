@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useTVDE } from '../context/TVDEContext';
+import { useTVDE } from '../contexts/TVDEContext';
 import {
   LayoutDashboard,
   UserCheck,

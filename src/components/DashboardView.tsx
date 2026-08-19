@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useTVDE } from '../context/TVDEContext';
+import { useTVDE } from '../contexts/TVDEContext';
 import { formatHoursToHHMM } from '../utils/formatters';
-import { SendSummaryModal } from './SendSummaryModal';
+import { SendSummaryModal } from './modals/SendSummaryModal';
 import { DEFAULT_PRESETS } from '../data/presetQueries';
 import {
   TrendingUp,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTVDE } from '../../context/TVDEContext';
+import { useTVDE } from '../../contexts/TVDEContext';
 import { DailyShiftLog } from '../../types';
 import { X, Receipt, Edit3 } from 'lucide-react';
 import { formatHoursToHHMM, parseHHMMToHours } from '../../utils/formatters';

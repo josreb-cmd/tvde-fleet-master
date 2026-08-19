@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Mail, Calendar, CheckCircle2, AlertCircle, X, Send, Users, Car, TrendingUp, DollarSign, Copy, ExternalLink, Check } from 'lucide-react';
-import { useTVDE } from '../context/TVDEContext';
-import { parseHHMMToHours } from '../utils/formatters';
+import { useTVDE } from '../../contexts/TVDEContext';
+import { parseHHMMToHours } from '../../utils/formatters';
 
 interface SendSummaryModalProps {
   isOpen: boolean;

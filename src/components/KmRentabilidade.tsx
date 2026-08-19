@@ -1,7 +1,7 @@
-// src/components/KmRentabilidade.tsx
-// Actualizado: 13 correcções aplicadas — bugs lógicos, runtime, performance, UX/a11y.
-// Afinação: RECEITA_ESTIMADA_POR_KM=0.54 e ENERGIA_ESTIMADA_POR_KM=0.06 (dados reais)
-// ────────────────────────────────────────────────────────────────────────────
+﻿// src/components/KmRentabilidade.tsx
+// Actualizado: 13 correcÃ§Ãµes aplicadas â€” bugs lÃ³gicos, runtime, performance, UX/a11y.
+// AfinaÃ§Ã£o: RECEITA_ESTIMADA_POR_KM=0.54 e ENERGIA_ESTIMADA_POR_KM=0.06 (dados reais)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 import React, { useState, useMemo } from "react";
 import {
@@ -25,18 +25,16 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useTVDE } from "../context/TVDEContext";
+import { useTVDE } from "../contexts/TVDEContext";
+import { RENDA_SEMANAL, KM_BASE, TAXA_ADICIONAL, RECEITA_ESTIMADA_POR_KM, ENERGIA_ESTIMADA_POR_KM } from '../constants/fleet';
 
-// ─── Constantes do modelo de negócio ───────────────────────────────────────
-const RENDA_SEMANAL = 350;
-const KM_BASE = 2000;
-const TAXA_ADICIONAL = 0.25; // €/km acima dos 2 000 km
-const MAX_WEEK_HISTORY = 52; // limite de navegação para o passado
+// â”€â”€â”€ Constantes do modelo de negÃ³cio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const MAX_WEEK_HISTORY = 52; // limite de navegaÃ§Ã£o para o passado
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function getWeekBounds(offset = 0) {
   const now = new Date();
-  const day = now.getDay(); // 0=Dom, 1=Seg…
+  const day = now.getDay(); // 0=Dom, 1=Segâ€¦
   const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = new Date(now);
   monday.setDate(now.getDate() + diffToMonday + offset * 7);
@@ -63,7 +61,7 @@ function formatEuro(v: number) {
     v.toLocaleString("pt-PT", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }) + "€"
+    }) + "â‚¬"
   );
 }
 
@@ -79,7 +77,7 @@ function calcularCustoReal(
   return { kmExtra, sobretaxa, custoTotal };
 }
 
-// Versão inline só com o total — evita alocação de objecto no loop (Bug 11)
+// VersÃ£o inline sÃ³ com o total â€” evita alocaÃ§Ã£o de objecto no loop (Bug 11)
 function calcularCustoTotal(
   km: number,
   renda: number,
@@ -88,7 +86,7 @@ function calcularCustoTotal(
   return renda + Math.max(0, km - KM_BASE) * TAXA_ADICIONAL + carregamento;
 }
 
-// Custo para tabela de sensibilidade: renda contratual fixa 350 €/sem
+// Custo para tabela de sensibilidade: renda contratual fixa 350 â‚¬/sem
 function calcularCustoSemanal(kmTotal: number) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
@@ -97,8 +95,6 @@ function calcularCustoSemanal(kmTotal: number) {
 }
 
 // Receita / energia estimadas para a tabela de sensibilidade
-const RECEITA_ESTIMADA_POR_KM = 0.54;
-const ENERGIA_ESTIMADA_POR_KM = 0.06;
 
 function calcularMetricasTabela(kmTotal: number) {
   const {
@@ -125,9 +121,9 @@ function calcularMetricasTabela(kmTotal: number) {
   };
 }
 
-const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "SÃ¡b", "Dom"];
 
-// ─── Componente principal ──────────────────────────────────────────────────
+// â”€â”€â”€ Componente principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function KmRentabilidade() {
   // Bug 10: defaults defensivos caso o contexto devolva undefined
   const { shiftLogs = [], expenses = [] } = useTVDE();
@@ -139,11 +135,11 @@ export function KmRentabilidade() {
   );
   const isCurrentWeek = weekOffset === 0;
 
-  // Bug 3 original: strings estáveis para dependência dos useMemo seguintes
+  // Bug 3 original: strings estÃ¡veis para dependÃªncia dos useMemo seguintes
   const mondayStr = useMemo(() => toDateStr(monday), [monday]);
   const sundayStr = useMemo(() => toDateStr(sunday), [sunday]);
 
-  // ── Dados diários ────────────────────────────────────────────────────────
+  // â”€â”€ Dados diÃ¡rios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const dadosDiarios = useMemo(() => {
     const safeShifts = shiftLogs ?? [];
     const safeExpenses = expenses ?? [];
@@ -188,7 +184,7 @@ export function KmRentabilidade() {
     });
   }, [shiftLogs, expenses, mondayStr, sundayStr]);
 
-  // ── Totais semanais ──────────────────────────────────────────────────────
+  // â”€â”€ Totais semanais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const kmTotal = useMemo(
     () => dadosDiarios.reduce((s, d) => s + d.km, 0),
     [dadosDiarios]
@@ -221,7 +217,7 @@ export function KmRentabilidade() {
         : RENDA_SEMANAL / KM_BASE;
   const receitaPorKm = kmTotal > 0 ? receitaTotal / kmTotal : 0;
 
-  // ── Dados acumulados para gráficos (Bug 11: sem alocação de objecto) ─────
+  // â”€â”€ Dados acumulados para grÃ¡ficos (Bug 11: sem alocaÃ§Ã£o de objecto) â”€â”€â”€â”€â”€
   const dadosAcumulados = useMemo(() => {
     let accKm = 0;
     let accReceita = 0;
@@ -244,7 +240,7 @@ export function KmRentabilidade() {
     });
   }, [dadosDiarios]);
 
-  // ── Dias decorridos — Bug 7: conta só dias com dados reais ───────────────
+  // â”€â”€ Dias decorridos â€” Bug 7: conta sÃ³ dias com dados reais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const diasDecorridos = useMemo(() => {
     if (!isCurrentWeek) return 7;
     const diasComDados = dadosDiarios.filter(
@@ -253,7 +249,7 @@ export function KmRentabilidade() {
     return diasComDados === 0 ? 1 : diasComDados;
   }, [isCurrentWeek, dadosDiarios]);
 
-  // ── Projecção — Bugs 1 orig + 8 + 12 ────────────────────────────────────
+  // â”€â”€ ProjecÃ§Ã£o â€” Bugs 1 orig + 8 + 12 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const projecao = useMemo(() => {
     if (!isCurrentWeek || kmTotal === 0) return null;
 
@@ -274,7 +270,7 @@ export function KmRentabilidade() {
     );
     const lucroProjetado = receitaProjetada - custoProj;
 
-    // Bug 8: dias restantes — null se já não há dias
+    // Bug 8: dias restantes â€” null se jÃ¡ nÃ£o hÃ¡ dias
     const diasRestantes = 7 - diasDecorridos;
     const kmFaltam =
       diasRestantes <= 0
@@ -303,21 +299,21 @@ export function KmRentabilidade() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-4 md:p-8">
-      {/* ── Cabeçalho ── */}
+      {/* â”€â”€ CabeÃ§alho â”€â”€ */}
       <div className="mb-8">
         <p className="text-xs font-mono tracking-widest text-indigo-400 uppercase mb-1">
-          Análise de Rentabilidade
+          AnÃ¡lise de Rentabilidade
         </p>
         <h1 className="text-3xl font-bold text-white">
-          Quilómetros &amp; Margem
+          QuilÃ³metros &amp; Margem
         </h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima
-          do limite · energia real incluída · semana Seg–Dom
+          Modelo: renda 350â‚¬/sem Â· limiar 2.000 km Â· sobretaxa +0,25â‚¬/km acima
+          do limite Â· energia real incluÃ­da Â· semana Segâ€“Dom
         </p>
       </div>
 
-      {/* ── Selector de semana — Bugs 6 + 13 ── */}
+      {/* â”€â”€ Selector de semana â€” Bugs 6 + 13 â”€â”€ */}
       <div className="flex items-center gap-3 mb-8 bg-gray-900 rounded-xl p-3 w-fit border border-gray-800">
         <button
           aria-label="Semana anterior"
@@ -338,7 +334,7 @@ export function KmRentabilidade() {
               </span>
             ) : (
               <span className="text-gray-300">
-                {formatDate(monday)} – {formatDate(sunday)}
+                {formatDate(monday)} â€“ {formatDate(sunday)}
               </span>
             )}
           </span>
@@ -353,7 +349,7 @@ export function KmRentabilidade() {
         </button>
       </div>
 
-      {/* ── Sem dados ── */}
+      {/* â”€â”€ Sem dados â”€â”€ */}
       {!temDados ? (
         <div className="flex flex-col items-center justify-center h-64 text-gray-500">
           <AlertCircle size={40} className="mb-3 text-gray-700" />
@@ -361,7 +357,7 @@ export function KmRentabilidade() {
         </div>
       ) : (
         <>
-          {/* ── KPIs ── */}
+          {/* â”€â”€ KPIs â”€â”€ */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <KpiCard
               label="Total km"
@@ -387,11 +383,11 @@ export function KmRentabilidade() {
               accent={kmExtra > 0 ? "#10b981" : "#6366f1"}
             />
             <KpiCard
-              label="Lucro líquido"
+              label="Lucro lÃ­quido"
               value={formatEuro(lucroReal)}
               sub={`Receita: ${formatEuro(receitaTotal)}${
                 carregamentoTotal > 0
-                  ? ` · Energia: ${formatEuro(carregamentoTotal)}`
+                  ? ` Â· Energia: ${formatEuro(carregamentoTotal)}`
                   : ""
               }`}
               accent={lucroReal >= 0 ? "#10b981" : "#ef4444"}
@@ -399,17 +395,17 @@ export function KmRentabilidade() {
             <KpiCard
               label="Margem"
               value={`${margemReal.toFixed(1)}%`}
-              sub={`Custo/km: ${custoPorKm.toFixed(3)}€ · Rec/km: ${receitaPorKm.toFixed(3)}€`}
+              sub={`Custo/km: ${custoPorKm.toFixed(3)}â‚¬ Â· Rec/km: ${receitaPorKm.toFixed(3)}â‚¬`}
               accent={margemReal > 40 ? "#10b981" : "#f59e0b"}
             />
           </div>
 
-          {/* ── Projecção — Bugs 1 + 8 + 12 ── */}
+          {/* â”€â”€ ProjecÃ§Ã£o â€” Bugs 1 + 8 + 12 â”€â”€ */}
           {isCurrentWeek && projecao && diasDecorridos < 7 && (
             <div className="bg-indigo-950 border border-indigo-800 rounded-xl p-4 mb-6 flex flex-wrap gap-6 items-center">
               <div>
                 <p className="text-xs text-indigo-300 font-mono uppercase tracking-wider mb-1">
-                  Projecção ao fim da semana
+                  ProjecÃ§Ã£o ao fim da semana
                 </p>
                 <p className="text-2xl font-bold text-indigo-100">
                   ~{projecao.kmProjetado.toLocaleString("pt-PT")} km
@@ -435,11 +431,11 @@ export function KmRentabilidade() {
               <div className="h-10 w-px bg-indigo-800 hidden md:block" />
               <div>
                 <p className="text-xs text-indigo-300 font-mono uppercase tracking-wider mb-1">
-                  Km/dia necessários
+                  Km/dia necessÃ¡rios
                 </p>
-                {/* Bug 8: null se já não há dias restantes */}
+                {/* Bug 8: null se jÃ¡ nÃ£o hÃ¡ dias restantes */}
                 <p className="text-2xl font-bold text-indigo-100">
-                  {projecao.kmFaltam !== null ? `${projecao.kmFaltam} km` : "—"}
+                  {projecao.kmFaltam !== null ? `${projecao.kmFaltam} km` : "â€”"}
                 </p>
                 <p className="text-xs text-indigo-400">
                   {projecao.kmFaltam !== null
@@ -450,7 +446,7 @@ export function KmRentabilidade() {
             </div>
           )}
 
-          {/* ── Gráficos — Bugs 4 + 5 originais ── */}
+          {/* â”€â”€ GrÃ¡ficos â€” Bugs 4 + 5 originais â”€â”€ */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Km acumulados */}
             <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
@@ -574,7 +570,7 @@ export function KmRentabilidade() {
                     tick={{ fontSize: 11, fill: "#9ca3af" }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `${v}€`}
+                    tickFormatter={(v) => `${v}â‚¬`}
                   />
                   <Tooltip
                     contentStyle={{
@@ -602,13 +598,13 @@ export function KmRentabilidade() {
             </div>
           </div>
 
-          {/* ── Detalhe diário ── */}
+          {/* â”€â”€ Detalhe diÃ¡rio â”€â”€ */}
           <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
             <h2 className="text-sm font-semibold text-gray-300 mb-1">
               Km rodados e receita por dia
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Barras azuis = km (eixo esquerdo) · barras verdes = receita bruta
+              Barras azuis = km (eixo esquerdo) Â· barras verdes = receita bruta
               (eixo direito)
             </p>
             {apenasDesp ? (
@@ -617,7 +613,7 @@ export function KmRentabilidade() {
                   Dias de custo sem actividade registada
                 </p>
                 <p className="text-xs text-amber-600 mt-1">
-                  Renda paga: {formatEuro(rendaTotal)} · Km e receita: 0
+                  Renda paga: {formatEuro(rendaTotal)} Â· Km e receita: 0
                 </p>
               </div>
             ) : (
@@ -650,7 +646,7 @@ export function KmRentabilidade() {
                     tick={{ fontSize: 11, fill: "#34d399" }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `${v}€`}
+                    tickFormatter={(v) => `${v}â‚¬`}
                     width={55}
                   />
                   <Tooltip
@@ -671,7 +667,7 @@ export function KmRentabilidade() {
                   />
                   <Legend
                     formatter={(value) =>
-                      value === "km" ? "Km rodados" : "Receita bruta (€)"
+                      value === "km" ? "Km rodados" : "Receita bruta (â‚¬)"
                     }
                     wrapperStyle={{
                       fontSize: 11,
@@ -712,15 +708,15 @@ export function KmRentabilidade() {
             )}
           </div>
 
-          {/* ── Tabela de sensibilidade — Bugs 2 + 6 + 9 ── */}
+          {/* â”€â”€ Tabela de sensibilidade â€” Bugs 2 + 6 + 9 â”€â”€ */}
           <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
             <h2 className="text-sm font-semibold text-gray-300 mb-1">
-              Tabela de sensibilidade — custo semanal por volume de km
+              Tabela de sensibilidade â€” custo semanal por volume de km
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}€/km ·
-              energia estimada a {ENERGIA_ESTIMADA_POR_KM.toFixed(3)}€/km
-              (Tesla Model Y · carregamento a 0,41€/kWh · ~15 kWh/100km)
+              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}â‚¬/km Â·
+              energia estimada a {ENERGIA_ESTIMADA_POR_KM.toFixed(3)}â‚¬/km
+              (Tesla Model Y Â· carregamento a 0,41â‚¬/kWh Â· ~15 kWh/100km)
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -774,24 +770,24 @@ export function KmRentabilidade() {
                                 actual
                               </span>
                             )}
-                            {/* Bug 9: alerta de divergência real vs estimado */}
+                            {/* Bug 9: alerta de divergÃªncia real vs estimado */}
                             {isAtual &&
                               Math.abs(m.lucro - lucroReal) > 50 && (
                                 <span
                                   className="ml-1 text-[10px] bg-amber-800 text-amber-200 px-1.5 py-0.5 rounded cursor-help"
-                                  title={`Lucro real: ${formatEuro(lucroReal)} — diferença deve-se à receita/km real vs estimada`}
+                                  title={`Lucro real: ${formatEuro(lucroReal)} â€” diferenÃ§a deve-se Ã  receita/km real vs estimada`}
                                 >
-                                  ≠ real
+                                  â‰  real
                                 </span>
                               )}
                           </td>
                           <td className="py-2 pr-4 font-mono text-gray-300">
                             {m.kmExtra > 0
                               ? `+${m.kmExtra.toLocaleString("pt-PT")}`
-                              : "—"}
+                              : "â€”"}
                           </td>
                           <td className="py-2 pr-4 font-mono text-amber-400">
-                            {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "—"}
+                            {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "â€”"}
                           </td>
                           <td className="py-2 pr-4 font-mono text-cyan-400 hidden md:table-cell">
                             {formatEuro(m.energiaEst)}
@@ -815,7 +811,7 @@ export function KmRentabilidade() {
                             {m.margem.toFixed(1)}%
                           </td>
                           <td className="py-2 font-mono text-gray-300 hidden md:table-cell">
-                            {m.custoPorKm.toFixed(3)}€
+                            {m.custoPorKm.toFixed(3)}â‚¬
                           </td>
                         </tr>
                       );
@@ -825,8 +821,8 @@ export function KmRentabilidade() {
               </table>
             </div>
             <p className="text-xs text-gray-500 mt-3">
-              Acima dos 2.000 km cada km adicional custa mais 0,25€ — mas
-              continua rentável enquanto a receita por km superar esse valor.
+              Acima dos 2.000 km cada km adicional custa mais 0,25â‚¬ â€” mas
+              continua rentÃ¡vel enquanto a receita por km superar esse valor.
             </p>
           </div>
         </>
@@ -835,7 +831,7 @@ export function KmRentabilidade() {
   );
 }
 
-// ─── KPI Card ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ KPI Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function KpiCard({
   label,
   value,
@@ -865,3 +861,4 @@ function KpiCard({
     </div>
   );
 }
+
