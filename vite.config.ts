@@ -1,4 +1,4 @@
-import tailwindcss from '@tailwindcss/vite';
+﻿import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
@@ -36,6 +36,7 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           runtimeCaching: [
             {
               urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico|css|js)$/i,
@@ -61,12 +62,8 @@ export default defineConfig(() => {
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      // Proxy /api calls to Express server in local dev (evita CORS e 404 no Vite dev server)
       proxy: {
         '/api': {
           target: 'http://localhost:3000',
@@ -74,11 +71,27 @@ export default defineConfig(() => {
         },
       },
     },
-    // Expõe o URL do Cloud Run ao bundle para o fallback em produção estática (GitHub Pages)
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(
         process.env.VITE_API_URL || CLOUD_RUN_URL
       ),
+    },
+    build: {
+      chunkSizeWarningLimit: 700,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+  'vendor-firebase': [
+    'firebase/app',
+    'firebase/auth',
+    'firebase/firestore',
+    'firebase/storage',
+  ],
+  'vendor-charts':  ['recharts'],
+  'vendor-misc':    ['lucide-react'],
+},
+        },
+      },
     },
   };
 });
