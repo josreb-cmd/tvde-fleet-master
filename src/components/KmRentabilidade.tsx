@@ -64,11 +64,11 @@ function formatEuro(v: number) {
   );
 }
 
-// Custo real da semana: renda efectivamente paga (dos shiftLogs) + sobretaxa
-function calcularCustoReal(kmTotal: number, rendaReal: number) {
+// Custo real da semana: renda efectivamente paga (dos shiftLogs) + sobretaxa + carregamentos
+function calcularCustoReal(kmTotal: number, rendaReal: number, custoCarregamentos = 0) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
-  const custoTotal = rendaReal + sobretaxa;
+  const custoTotal = rendaReal + sobretaxa + custoCarregamentos;
   return { kmExtra, sobretaxa, custoTotal };
 }
 
@@ -83,21 +83,25 @@ function calcularCustoSemanal(kmTotal: number) {
 // Para a tabela de sensibilidade usamos receita estimada (0,35€/km — valor ilustrativo)
 // Nota: a receita real por km vem dos grossEarnings do Firestore e varia por turno
 const RECEITA_ESTIMADA_POR_KM = 0.35;
+// Custo estimado de energia por km (ex: 6 kWh/100km × 0,22€/kWh ≈ 0,013€/km — ajustar conforme tarifário real)
+const ENERGIA_ESTIMADA_POR_KM = 0.013;
 
 function calcularMetricasTabela(kmTotal: number) {
-  const { kmExtra, sobretaxa, custoTotal } = calcularCustoSemanal(kmTotal);
+  const { kmExtra, sobretaxa, custoTotal: custoBase } = calcularCustoSemanal(kmTotal);
+  const energiaEst = kmTotal * ENERGIA_ESTIMADA_POR_KM;
+  const custoTotal = custoBase + energiaEst;
   const receita = kmTotal * RECEITA_ESTIMADA_POR_KM;
   const lucro = receita - custoTotal;
   const margem = receita > 0 ? (lucro / receita) * 100 : 0;
   const custoPorKm = kmTotal > 0 ? custoTotal / kmTotal : RENDA_SEMANAL / KM_BASE;
-  return { kmExtra, sobretaxa, custoTotal, receita, lucro, margem, custoPorKm };
+  return { kmExtra, sobretaxa, energiaEst, custoTotal, receita, lucro, margem, custoPorKm };
 }
 
 const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 // ─── Componente principal ──────────────────────────────────────────────────
 export function KmRentabilidade() {
-  const { shiftLogs } = useTVDE();
+  const { shiftLogs, expenses } = useTVDE();
   const [weekOffset, setWeekOffset] = useState(0);
 
   const { monday, sunday } = useMemo(
@@ -127,10 +131,22 @@ export function KmRentabilidade() {
       const km = shiftsNoDia.reduce((acc, s) => acc + s.kilometers, 0);
       const receita = shiftsNoDia.reduce((acc, s) => acc + s.grossEarnings, 0);
       const renda = shiftsNoDia.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
+      // Carregamentos standalone (fuel_charging não ligado a turno)
+      const carregamentoStandalone = expenses
+        .filter(
+          (e) =>
+            e.date === diaStr &&
+            e.category === "fuel_charging" &&
+            !e.id.startsWith("exp-fuel-shift-")
+        )
+        .reduce((acc, e) => acc + e.amount, 0);
+      // Carregamentos registados nos turnos do dia
+      const fuelTurnos = shiftsNoDia.reduce((acc, s) => acc + (s.fuelExpenseAmount || 0), 0);
+      const carregamento = carregamentoStandalone + fuelTurnos;
 
-      return { dia, km, receita, renda };
+      return { dia, km, receita, renda, carregamento };
     });
-  }, [shiftLogs, mondayStr, sundayStr, monday]);
+  }, [shiftLogs, expenses, mondayStr, sundayStr, monday]);
 
   const kmTotal = useMemo(
     () => dadosDiarios.reduce((s, d) => s + d.km, 0),
@@ -144,10 +160,14 @@ export function KmRentabilidade() {
     () => dadosDiarios.reduce((s, d) => s + d.renda, 0),
     [dadosDiarios]
   );
+  const carregamentoTotal = useMemo(
+    () => dadosDiarios.reduce((s, d) => s + d.carregamento, 0),
+    [dadosDiarios]
+  );
 
   const { kmExtra, sobretaxa, custoTotal } = useMemo(
-    () => calcularCustoReal(kmTotal, rendaTotal),
-    [kmTotal, rendaTotal]
+    () => calcularCustoReal(kmTotal, rendaTotal, carregamentoTotal),
+    [kmTotal, rendaTotal, carregamentoTotal]
   );
 
   const lucroReal = receitaTotal - custoTotal;
@@ -160,11 +180,13 @@ export function KmRentabilidade() {
     let accKm = 0;
     let accReceita = 0;
     let accRenda = 0;
+    let accCarregamento = 0;
     return dadosDiarios.map((d) => {
       accKm += d.km;
       accReceita += d.receita;
       accRenda += d.renda;
-      const { custoTotal: custoAcc } = calcularCustoReal(accKm, accRenda);
+      accCarregamento += d.carregamento;
+      const { custoTotal: custoAcc } = calcularCustoReal(accKm, accRenda, accCarregamento);
       const lucroAcc = accReceita - custoAcc;
       const margemAcc = accReceita > 0 ? (lucroAcc / accReceita) * 100 : 0;
       return {
@@ -220,7 +242,7 @@ export function KmRentabilidade() {
         </p>
         <h1 className="text-3xl font-bold text-white">Quilómetros & Margem</h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite · semana Seg–Dom
+          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite · energia real incluída · semana Seg–Dom
         </p>
       </div>
 
@@ -289,7 +311,7 @@ export function KmRentabilidade() {
             <KpiCard
               label="Lucro líquido"
               value={formatEuro(lucroReal)}
-              sub={`Receita: ${formatEuro(receitaTotal)}`}
+              sub={`Receita: ${formatEuro(receitaTotal)}${carregamentoTotal > 0 ? ` · Energia: ${formatEuro(carregamentoTotal)}` : ""}`}
               accent={lucroReal >= 0 ? "#10b981" : "#ef4444"}
             />
             <KpiCard
@@ -541,7 +563,7 @@ export function KmRentabilidade() {
               Tabela de sensibilidade — custo semanal por volume de km
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}€/km (média ilustrativa — o valor real varia por turno)
+              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}€/km · energia estimada a {ENERGIA_ESTIMADA_POR_KM.toFixed(3)}€/km (valores ilustrativos — ajustar em constantes do ficheiro)
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -550,6 +572,7 @@ export function KmRentabilidade() {
                     <th className="pb-2 pr-4 font-medium text-gray-400">Km/semana</th>
                     <th className="pb-2 pr-4 font-medium text-gray-400">Km extra</th>
                     <th className="pb-2 pr-4 font-medium text-gray-400">Sobretaxa</th>
+                    <th className="pb-2 pr-4 font-medium text-gray-400">Energia est.</th>
                     <th className="pb-2 pr-4 font-medium text-gray-400">Custo total</th>
                     <th className="pb-2 pr-4 font-medium text-gray-400">Rec. estimada</th>
                     <th className="pb-2 pr-4 font-medium text-gray-400">Margem est.</th>
@@ -581,6 +604,9 @@ export function KmRentabilidade() {
                         </td>
                         <td className="py-2 pr-4 font-mono text-amber-400">
                           {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "—"}
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-cyan-400">
+                          {formatEuro(m.energiaEst)}
                         </td>
                         <td className="py-2 pr-4 font-mono text-gray-300">
                           {formatEuro(m.custoTotal)}
