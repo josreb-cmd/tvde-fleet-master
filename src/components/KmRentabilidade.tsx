@@ -1,5 +1,6 @@
 // src/components/KmRentabilidade.tsx
 // Actualizado: 13 correcções aplicadas — bugs lógicos, runtime, performance, UX/a11y.
+// Afinação: RECEITA_ESTIMADA_POR_KM=0.54 e ENERGIA_ESTIMADA_POR_KM=0.06 (dados reais)
 // ────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useMemo } from "react";
@@ -96,8 +97,8 @@ function calcularCustoSemanal(kmTotal: number) {
 }
 
 // Receita / energia estimadas para a tabela de sensibilidade
-const RECEITA_ESTIMADA_POR_KM = 0.35;
-const ENERGIA_ESTIMADA_POR_KM = 0.013;
+const RECEITA_ESTIMADA_POR_KM = 0.54;
+const ENERGIA_ESTIMADA_POR_KM = 0.06;
 
 function calcularMetricasTabela(kmTotal: number) {
   const {
@@ -719,7 +720,7 @@ export function KmRentabilidade() {
             <p className="text-xs text-gray-500 mb-4">
               Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}€/km ·
               energia estimada a {ENERGIA_ESTIMADA_POR_KM.toFixed(3)}€/km
-              (valores ilustrativos — ajustar em constantes do ficheiro)
+              (Tesla Model Y · carregamento a 0,41€/kWh · ~15 kWh/100km)
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
