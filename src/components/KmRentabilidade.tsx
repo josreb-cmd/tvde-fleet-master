@@ -63,7 +63,15 @@ function formatEuro(v: number) {
   );
 }
 
-// Custo semanal real: renda fixa + sobretaxa nos km acima do limite
+// Custo real da semana: renda efectivamente paga (dos shiftLogs) + sobretaxa
+function calcularCustoReal(kmTotal: number, rendaReal: number) {
+  const kmExtra = Math.max(0, kmTotal - KM_BASE);
+  const sobretaxa = kmExtra * TAXA_ADICIONAL;
+  const custoTotal = rendaReal + sobretaxa;
+  return { kmExtra, sobretaxa, custoTotal };
+}
+
+// Custo para tabela de sensibilidade: assume renda contratual fixa (350€/sem)
 function calcularCustoSemanal(kmTotal: number) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
@@ -117,8 +125,9 @@ export function KmRentabilidade() {
       const shiftsNoDia = shiftsNaSemana.filter((s) => s.date === diaStr);
       const km = shiftsNoDia.reduce((acc, s) => acc + s.kilometers, 0);
       const receita = shiftsNoDia.reduce((acc, s) => acc + s.grossEarnings, 0);
+      const renda = shiftsNoDia.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
 
-      return { dia, km, receita };
+      return { dia, km, receita, renda };
     });
   }, [shiftLogs, mondayStr, sundayStr, monday]);
 
@@ -130,25 +139,31 @@ export function KmRentabilidade() {
     () => dadosDiarios.reduce((s, d) => s + d.receita, 0),
     [dadosDiarios]
   );
+  const rendaTotal = useMemo(
+    () => dadosDiarios.reduce((s, d) => s + d.renda, 0),
+    [dadosDiarios]
+  );
 
   const { kmExtra, sobretaxa, custoTotal } = useMemo(
-    () => calcularCustoSemanal(kmTotal),
-    [kmTotal]
+    () => calcularCustoReal(kmTotal, rendaTotal),
+    [kmTotal, rendaTotal]
   );
 
   const lucroReal = receitaTotal - custoTotal;
   const margemReal = receitaTotal > 0 ? (lucroReal / receitaTotal) * 100 : 0;
-  const custoPorKm = kmTotal > 0 ? custoTotal / kmTotal : RENDA_SEMANAL / KM_BASE;
+  const custoPorKm = kmTotal > 0 ? custoTotal / kmTotal : rendaTotal > 0 ? rendaTotal / KM_BASE : RENDA_SEMANAL / KM_BASE;
   const receitaPorKm = kmTotal > 0 ? receitaTotal / kmTotal : 0;
 
   // Dados acumulados para os gráficos
   const dadosAcumulados = useMemo(() => {
     let accKm = 0;
     let accReceita = 0;
+    let accRenda = 0;
     return dadosDiarios.map((d) => {
       accKm += d.km;
       accReceita += d.receita;
-      const { custoTotal: custoAcc } = calcularCustoSemanal(accKm);
+      accRenda += d.renda;
+      const { custoTotal: custoAcc } = calcularCustoReal(accKm, accRenda);
       const lucroAcc = accReceita - custoAcc;
       const margemAcc = accReceita > 0 ? (lucroAcc / accReceita) * 100 : 0;
       return {
@@ -300,6 +315,9 @@ export function KmRentabilidade() {
                 </p>
                 <p className="text-2xl font-bold text-emerald-300">
                   {formatEuro(projecao.lucro)}
+                </p>
+                <p className="text-xs text-indigo-400 mt-0.5">
+                  assume renda máx. 350€/sem
                 </p>
               </div>
               <div className="h-10 w-px bg-indigo-800 hidden md:block" />
