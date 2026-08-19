@@ -509,12 +509,12 @@ export function KmRentabilidade() {
                   }
                   wrapperStyle={{ fontSize: 11, color: "#9ca3af", paddingTop: 8 }}
                 />
-                <Bar yAxisId="km" dataKey="km" radius={[4, 4, 0, 0]} name="km">
+                <Bar yAxisId="km" dataKey="km" radius={[4, 4, 0, 0]} name="km" fill="#6366f1">
                   {dadosDiarios.map((d, i) => (
                     <Cell key={i} fill={d.km === 0 ? "#374151" : "#6366f1"} />
                   ))}
                 </Bar>
-                <Bar yAxisId="receita" dataKey="receita" radius={[4, 4, 0, 0]} name="receita">
+                <Bar yAxisId="receita" dataKey="receita" radius={[4, 4, 0, 0]} name="receita" fill="#10b981">
                   {dadosDiarios.map((d, i) => (
                     <Cell key={i} fill={d.receita === 0 ? "#374151" : "#10b981"} />
                   ))}
