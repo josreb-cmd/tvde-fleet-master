@@ -1,5 +1,5 @@
 // src/components/KmRentabilidade.tsx
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -12,6 +12,7 @@ import {
   BarChart,
   Bar,
   Cell,
+  Legend,
 } from "recharts";
 import {
   AlertCircle,
@@ -20,7 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useTVDE } from "../contexts/TVDEContext";
+import { useTVDE } from "../context/TVDEContext";
 
 // ─── Constantes do modelo de negócio ───────────────────────────────────────
 const RENDA_SEMANAL = 350;
@@ -432,13 +433,18 @@ export function KmRentabilidade() {
 
           {/* ── Detalhe diário ── */}
           <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
-            <h2 className="text-sm font-semibold text-gray-300 mb-4">
-              Km por dia
+            <h2 className="text-sm font-semibold text-gray-300 mb-1">
+              Km rodados e receita por dia
             </h2>
-            <ResponsiveContainer width="100%" height={180}>
+            <p className="text-xs text-gray-500 mb-4">
+              Barras azuis = km (eixo esquerdo) · barras verdes = receita bruta (eixo direito)
+            </p>
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart
                 data={dadosDiarios}
-                margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+                margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
+                barCategoryGap="25%"
+                barGap={3}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                 <XAxis
@@ -447,10 +453,25 @@ export function KmRentabilidade() {
                   axisLine={false}
                   tickLine={false}
                 />
+                {/* Eixo esquerdo — km */}
                 <YAxis
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
+                  yAxisId="km"
+                  orientation="left"
+                  tick={{ fontSize: 11, fill: "#818cf8" }}
                   axisLine={false}
                   tickLine={false}
+                  tickFormatter={(v) => `${v} km`}
+                  width={55}
+                />
+                {/* Eixo direito — receita */}
+                <YAxis
+                  yAxisId="receita"
+                  orientation="right"
+                  tick={{ fontSize: 11, fill: "#34d399" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `${v}€`}
+                  width={55}
                 />
                 <Tooltip
                   contentStyle={{
@@ -461,12 +482,23 @@ export function KmRentabilidade() {
                   }}
                   formatter={(v: number, name: string) => [
                     name === "km" ? `${v} km` : formatEuro(v),
-                    name === "km" ? "Km rodados" : "Receita",
+                    name === "km" ? "Km rodados" : "Receita bruta",
                   ]}
                 />
-                <Bar dataKey="km" radius={[4, 4, 0, 0]}>
+                <Legend
+                  formatter={(value) =>
+                    value === "km" ? "Km rodados" : "Receita bruta (€)"
+                  }
+                  wrapperStyle={{ fontSize: 11, color: "#9ca3af", paddingTop: 8 }}
+                />
+                <Bar yAxisId="km" dataKey="km" radius={[4, 4, 0, 0]} name="km">
                   {dadosDiarios.map((d, i) => (
                     <Cell key={i} fill={d.km === 0 ? "#374151" : "#6366f1"} />
+                  ))}
+                </Bar>
+                <Bar yAxisId="receita" dataKey="receita" radius={[4, 4, 0, 0]} name="receita">
+                  {dadosDiarios.map((d, i) => (
+                    <Cell key={i} fill={d.receita === 0 ? "#374151" : "#10b981"} />
                   ))}
                 </Bar>
               </BarChart>

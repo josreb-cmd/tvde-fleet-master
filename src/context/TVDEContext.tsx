@@ -204,7 +204,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Firestore Sync for SHIFT LOGS
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'shiftLogs'), async snapshot => {
-      const hasOldData = snapshot.docs.some(d => d.data().driverName === 'João Silva' || (d.data().boltEarnings || 0) > 0 || d.data().vehiclePlate === 'AA-42-TV' || d.data().rentalExpenseAmount === undefined);
+      const hasOldData = snapshot.docs.some(d => d.data().driverName === 'João Silva' || (d.data().boltEarnings || 0) > 0 || d.data().vehiclePlate === 'AA-42-TV');
       if (snapshot.empty || hasOldData) {
         const batch = writeBatch(db);
         snapshot.docs.forEach(d => batch.delete(d.ref));
