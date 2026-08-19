@@ -32,15 +32,15 @@ const TAXA_ADICIONAL = 0.25; // €/km acima dos 2.000 km
 function getWeekBounds(offset = 0) {
   const now = new Date();
   const day = now.getDay(); // 0=Dom, 1=Seg...
-  // Semana operacional: Dom → Sáb
-  const diffToSunday = -day; // recua até ao domingo anterior (ou hoje se for domingo)
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() + diffToSunday + offset * 7);
-  sunday.setHours(0, 0, 0, 0);
-  const saturday = new Date(sunday);
-  saturday.setDate(sunday.getDate() + 6);
-  saturday.setHours(23, 59, 59, 999);
-  return { monday: sunday, sunday: saturday };
+  // Semana operacional: Seg → Dom
+  const diffToMonday = day === 0 ? -6 : 1 - day; // recua até à segunda-feira
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { monday, sunday };
 }
 
 function toDateStr(d: Date): string {
@@ -93,7 +93,7 @@ function calcularMetricasTabela(kmTotal: number) {
   return { kmExtra, sobretaxa, custoTotal, receita, lucro, margem, custoPorKm };
 }
 
-const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 // ─── Componente principal ──────────────────────────────────────────────────
 export function KmRentabilidade() {
@@ -180,8 +180,9 @@ export function KmRentabilidade() {
   const diasDecorridos = useMemo(() => {
     if (!isCurrentWeek) return 7;
     const hoje = new Date();
-    // Dom=0 → dia 1, Sáb=6 → dia 7
-    return hoje.getDay() + 1;
+    const day = hoje.getDay();
+    // Seg=1→1, Ter=2→2, ..., Sáb=6→6, Dom=0→7
+    return day === 0 ? 7 : day;
   }, [isCurrentWeek]);
 
   const projecao = useMemo(() => {
@@ -219,7 +220,7 @@ export function KmRentabilidade() {
         </p>
         <h1 className="text-3xl font-bold text-white">Quilómetros & Margem</h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite · semana Dom–Sáb
+          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite · semana Seg–Dom
         </p>
       </div>
 
