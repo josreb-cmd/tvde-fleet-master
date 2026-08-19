@@ -1,29 +1,40 @@
-import React, { useState } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import React, { useState, Suspense } from 'react';
+import { useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
 import { TVDEProvider } from './contexts/TVDEContext';
 import { DailyShiftLog, Expense } from './types';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
-import { DashboardView } from './components/DashboardView';
-import { DriverPortalView } from './components/DriverPortalView';
-import { ShiftLogsView } from './components/ShiftLogsView';
-import { ExpensesView } from './components/ExpensesView';
-import { FleetView } from './components/FleetView';
-import { DriversView } from './components/DriversView';
-import { NotificationsView } from './components/NotificationsView';
-import { ProfitabilityView } from './components/ProfitabilityView';
-import { CustomQueryView } from './components/CustomQueryView';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { KmRentabilidade } from './components/KmRentabilidade';
 
-// Modals
-import { ShiftModal } from './components/modals/ShiftModal';
-import { ExpenseModal } from './components/modals/ExpenseModal';
-import { VehicleModal } from './components/modals/VehicleModal';
-import { DriverModal } from './components/modals/DriverModal';
-import { AiAdvisorModal } from './components/modals/AiAdvisorModal';
-import { UsersManagementModal } from './components/modals/UsersManagementModal';
+// ── Lazy-loaded Views ────────────────────────────────────────────
+const DashboardView      = React.lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })));
+const DriverPortalView   = React.lazy(() => import('./components/DriverPortalView').then(m => ({ default: m.DriverPortalView })));
+const ShiftLogsView      = React.lazy(() => import('./components/ShiftLogsView').then(m => ({ default: m.ShiftLogsView })));
+const ExpensesView       = React.lazy(() => import('./components/ExpensesView').then(m => ({ default: m.ExpensesView })));
+const FleetView          = React.lazy(() => import('./components/FleetView').then(m => ({ default: m.FleetView })));
+const DriversView        = React.lazy(() => import('./components/DriversView').then(m => ({ default: m.DriversView })));
+const NotificationsView  = React.lazy(() => import('./components/NotificationsView').then(m => ({ default: m.NotificationsView })));
+const ProfitabilityView  = React.lazy(() => import('./components/ProfitabilityView').then(m => ({ default: m.ProfitabilityView })));
+const CustomQueryView    = React.lazy(() => import('./components/CustomQueryView').then(m => ({ default: m.CustomQueryView })));
+const KmRentabilidade    = React.lazy(() => import('./components/KmRentabilidade').then(m => ({ default: m.KmRentabilidade })));
+
+// ── Lazy-loaded Modals ──────────────────────────────────────────
+const ShiftModal           = React.lazy(() => import('./components/modals/ShiftModal').then(m => ({ default: m.ShiftModal })));
+const ExpenseModal         = React.lazy(() => import('./components/modals/ExpenseModal').then(m => ({ default: m.ExpenseModal })));
+const VehicleModal         = React.lazy(() => import('./components/modals/VehicleModal').then(m => ({ default: m.VehicleModal })));
+const DriverModal          = React.lazy(() => import('./components/modals/DriverModal').then(m => ({ default: m.DriverModal })));
+const AiAdvisorModal       = React.lazy(() => import('./components/modals/AiAdvisorModal').then(m => ({ default: m.AiAdvisorModal })));
+const UsersManagementModal = React.lazy(() => import('./components/modals/UsersManagementModal').then(m => ({ default: m.UsersManagementModal })));
+
+// ── Fallback spinner para Suspense ──────────────────────────────
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
 
 function AppContent() {
   const { user, signOut } = useAuth();
@@ -111,61 +122,63 @@ function AppContent() {
         />
 
         <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-8 overflow-y-auto min-w-0">
-          {activeTab === 'dashboard' && (
-            <DashboardView
-              onOpenNewShiftModal={handleNewShiftModal}
-              onOpenNewExpenseModal={handleNewExpenseModal}
-              setActiveTab={setActiveTab}
-            />
-          )}
+          <Suspense fallback={<LoadingFallback />}>
+            {activeTab === 'dashboard' && (
+              <DashboardView
+                onOpenNewShiftModal={handleNewShiftModal}
+                onOpenNewExpenseModal={handleNewExpenseModal}
+                setActiveTab={setActiveTab}
+              />
+            )}
 
-          {activeTab === 'driver-portal' && (
-            <DriverPortalView
-              onOpenNewShiftModal={handleNewShiftModal}
-            />
-          )}
+            {activeTab === 'driver-portal' && (
+              <DriverPortalView
+                onOpenNewShiftModal={handleNewShiftModal}
+              />
+            )}
 
-          {activeTab === 'shift-logs' && (
-            <ShiftLogsView
-              onOpenNewShiftModal={handleNewShiftModal}
-              onEditShiftLog={handleEditShiftLog}
-            />
-          )}
+            {activeTab === 'shift-logs' && (
+              <ShiftLogsView
+                onOpenNewShiftModal={handleNewShiftModal}
+                onEditShiftLog={handleEditShiftLog}
+              />
+            )}
 
-          {activeTab === 'expenses' && (
-            <ExpensesView
-              onOpenNewExpenseModal={handleNewExpenseModal}
-              onEditExpense={handleEditExpense}
-            />
-          )}
+            {activeTab === 'expenses' && (
+              <ExpensesView
+                onOpenNewExpenseModal={handleNewExpenseModal}
+                onEditExpense={handleEditExpense}
+              />
+            )}
 
-          {activeTab === 'fleet' && (
-            <FleetView
-              onOpenNewVehicleModal={() => {
-                setVehicleIdToEdit(null);
-                setShowVehicleModal(true);
-              }}
-              onEditVehicle={handleEditVehicle}
-            />
-          )}
+            {activeTab === 'fleet' && (
+              <FleetView
+                onOpenNewVehicleModal={() => {
+                  setVehicleIdToEdit(null);
+                  setShowVehicleModal(true);
+                }}
+                onEditVehicle={handleEditVehicle}
+              />
+            )}
 
-          {activeTab === 'drivers' && (
-            <DriversView
-              onOpenNewDriverModal={() => {
-                setDriverIdToEdit(null);
-                setShowDriverModal(true);
-              }}
-              onEditDriver={handleEditDriver}
-            />
-          )}
+            {activeTab === 'drivers' && (
+              <DriversView
+                onOpenNewDriverModal={() => {
+                  setDriverIdToEdit(null);
+                  setShowDriverModal(true);
+                }}
+                onEditDriver={handleEditDriver}
+              />
+            )}
 
-          {activeTab === 'profitability' && <ProfitabilityView />}
+            {activeTab === 'profitability' && <ProfitabilityView />}
 
-          {activeTab === 'km-rentabilidade' && <KmRentabilidade />}
+            {activeTab === 'km-rentabilidade' && <KmRentabilidade />}
 
-          {activeTab === 'custom-query' && <CustomQueryView />}
+            {activeTab === 'custom-query' && <CustomQueryView />}
 
-          {activeTab === 'notifications' && <NotificationsView />}
+            {activeTab === 'notifications' && <NotificationsView />}
+          </Suspense>
         </main>
       </div>
 
@@ -176,52 +189,66 @@ function AppContent() {
         onOpenAiAdvisor={() => setShowAiAdvisorModal(true)}
       />
 
-      {/* Global Modals */}
-      <ShiftModal
-        isOpen={showShiftModal}
-        onClose={() => {
-          setShowShiftModal(false);
-          setEditingShiftLog(null);
-        }}
-        initialData={editingShiftLog}
-      />
+      {/* Global Modals — cada um só carrega quando abre */}
+      <Suspense fallback={null}>
+        {showShiftModal && (
+          <ShiftModal
+            isOpen={showShiftModal}
+            onClose={() => {
+              setShowShiftModal(false);
+              setEditingShiftLog(null);
+            }}
+            initialData={editingShiftLog}
+          />
+        )}
 
-      <ExpenseModal
-        isOpen={showExpenseModal}
-        onClose={() => {
-          setShowExpenseModal(false);
-          setEditingExpense(null);
-        }}
-        initialData={editingExpense}
-      />
+        {showExpenseModal && (
+          <ExpenseModal
+            isOpen={showExpenseModal}
+            onClose={() => {
+              setShowExpenseModal(false);
+              setEditingExpense(null);
+            }}
+            initialData={editingExpense}
+          />
+        )}
 
-      <VehicleModal
-        isOpen={showVehicleModal}
-        onClose={() => {
-          setShowVehicleModal(false);
-          setVehicleIdToEdit(null);
-        }}
-        vehicleIdToEdit={vehicleIdToEdit}
-      />
+        {showVehicleModal && (
+          <VehicleModal
+            isOpen={showVehicleModal}
+            onClose={() => {
+              setShowVehicleModal(false);
+              setVehicleIdToEdit(null);
+            }}
+            vehicleIdToEdit={vehicleIdToEdit}
+          />
+        )}
 
-      <DriverModal
-        isOpen={showDriverModal}
-        onClose={() => {
-          setShowDriverModal(false);
-          setDriverIdToEdit(null);
-        }}
-        driverIdToEdit={driverIdToEdit}
-      />
+        {showDriverModal && (
+          <DriverModal
+            isOpen={showDriverModal}
+            onClose={() => {
+              setShowDriverModal(false);
+              setDriverIdToEdit(null);
+            }}
+            driverIdToEdit={driverIdToEdit}
+          />
+        )}
 
-      <AiAdvisorModal
-        isOpen={showAiAdvisorModal}
-        onClose={() => setShowAiAdvisorModal(false)}
-      />
+        {showAiAdvisorModal && (
+          <AiAdvisorModal
+            isOpen={showAiAdvisorModal}
+            onClose={() => setShowAiAdvisorModal(false)}
+          />
+        )}
 
-      <UsersManagementModal
-        isOpen={showUsersModal}
-        onClose={() => setShowUsersModal(false)}
-      />
+        {showUsersModal && (
+          <UsersManagementModal
+            isOpen={showUsersModal}
+            onClose={() => setShowUsersModal(false)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
