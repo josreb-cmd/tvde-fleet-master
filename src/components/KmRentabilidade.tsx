@@ -23,28 +23,28 @@ import {
 } from "lucide-react";
 import { useTVDE } from "../contexts/TVDEContext";
 
-// ─── Constantes do modelo de negócio ───────────────────────────────────────
+// \u2500\u2500\u2500 Constantes do modelo de neg\u00F3cio \u2500\u2500\u2500
 const RENDA_SEMANAL = 350;
 const KM_BASE = 2000;
-const TAXA_ADICIONAL = 0.25; // €/km acima dos 2.000 km
+const TAXA_ADICIONAL = 0.25; // \u20AC/km acima dos 2.000 km
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Helpers \u2500\u2500\u2500
 function getWeekBounds(offset = 0) {
   const now = new Date();
   const day = now.getDay(); // 0=Dom, 1=Seg...
-  // Semana operacional: Dom → Sáb
-  const diffToSunday = -day; // recua até ao domingo anterior (ou hoje se for domingo)
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() + diffToSunday + offset * 7);
-  sunday.setHours(0, 0, 0, 0);
-  const saturday = new Date(sunday);
-  saturday.setDate(sunday.getDate() + 6);
-  saturday.setHours(23, 59, 59, 999);
-  return { monday: sunday, sunday: saturday };
+  // Semana operacional: Seg \u2192 Dom
+  // Se hoje \u00E9 domingo (day=0), recuar 6 dias para a segunda anterior
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { monday, sunday };
 }
 
 function toDateStr(d: Date): string {
-  // YYYY-MM-DD em hora local (sem desvio UTC)
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -60,7 +60,7 @@ function formatEuro(v: number) {
     v.toLocaleString("pt-PT", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }) + "€"
+    }) + "\u20AC"
   );
 }
 
@@ -72,7 +72,7 @@ function calcularCustoReal(kmTotal: number, rendaReal: number) {
   return { kmExtra, sobretaxa, custoTotal };
 }
 
-// Custo para tabela de sensibilidade: assume renda contratual fixa (350€/sem)
+// Custo para tabela de sensibilidade: assume renda contratual fixa (350\u20AC/sem)
 function calcularCustoSemanal(kmTotal: number) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
@@ -80,8 +80,7 @@ function calcularCustoSemanal(kmTotal: number) {
   return { kmExtra, sobretaxa, custoTotal };
 }
 
-// Para a tabela de sensibilidade usamos receita estimada (0,35€/km — valor ilustrativo)
-// Nota: a receita real por km vem dos grossEarnings do Firestore e varia por turno
+// Para a tabela de sensibilidade usamos receita estimada (0,35\u20AC/km \u2014 valor ilustrativo)
 const RECEITA_ESTIMADA_POR_KM = 0.35;
 
 function calcularMetricasTabela(kmTotal: number) {
@@ -93,9 +92,9 @@ function calcularMetricasTabela(kmTotal: number) {
   return { kmExtra, sobretaxa, custoTotal, receita, lucro, margem, custoPorKm };
 }
 
-const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "S\u00E1b", "Dom"];
 
-// ─── Componente principal ──────────────────────────────────────────────────
+// \u2500\u2500\u2500 Componente principal \u2500\u2500\u2500
 export function KmRentabilidade() {
   const { shiftLogs } = useTVDE();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -106,18 +105,16 @@ export function KmRentabilidade() {
   );
   const isCurrentWeek = weekOffset === 0;
 
-  // Datas da semana em strings YYYY-MM-DD para comparação directa
   const mondayStr = useMemo(() => toDateStr(monday), [monday]);
   const sundayStr = useMemo(() => toDateStr(sunday), [sunday]);
 
   // Filtrar shiftLogs da semana seleccionada e agrupar por dia da semana
   const dadosDiarios = useMemo(() => {
-    // Shifts dentro do intervalo da semana
     const shiftsNaSemana = shiftLogs.filter(
       (s) => s.date >= mondayStr && s.date <= sundayStr
     );
 
-    // Construir array de 7 dias (Seg→Dom) com km e receita reais
+    // Construir array de 7 dias (Seg\u2192Dom) com km e receita reais
     return DIAS_SEMANA.map((dia, i) => {
       const diaDate = new Date(monday);
       diaDate.setDate(monday.getDate() + i);
@@ -162,7 +159,7 @@ export function KmRentabilidade() {
   );
   const rendimentoHorario = horasTotal > 0 ? lucroReal / horasTotal : 0;
 
-  // Dados acumulados para os gráficos
+  // Dados acumulados para os gr\u00E1ficos
   const dadosAcumulados = useMemo(() => {
     let accKm = 0;
     let accReceita = 0;
@@ -183,12 +180,13 @@ export function KmRentabilidade() {
     });
   }, [dadosDiarios]);
 
-  // Projecção para semana actual
+  // Projec\u00E7\u00E3o para semana actual
   const diasDecorridos = useMemo(() => {
     if (!isCurrentWeek) return 7;
     const hoje = new Date();
-    // Dom=0 → dia 1, Sáb=6 → dia 7
-    return hoje.getDay() + 1;
+    const day = hoje.getDay(); // 0=Dom, 1=Seg...
+    // Seg=1, Ter=2, ..., S\u00E1b=6, Dom=7
+    return day === 0 ? 7 : day;
   }, [isCurrentWeek]);
 
   const projecao = useMemo(() => {
@@ -219,18 +217,18 @@ export function KmRentabilidade() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-4 md:p-8">
-      {/* ── Cabeçalho ── */}
+      {/* \u2500\u2500 Cabe\u00E7alho \u2500\u2500 */}
       <div className="mb-8">
         <p className="text-xs font-mono tracking-widest text-indigo-400 uppercase mb-1">
-          Análise de Rentabilidade
+          An\u00E1lise de Rentabilidade
         </p>
-        <h1 className="text-3xl font-bold text-white">Quilómetros & Margem</h1>
+        <h1 className="text-3xl font-bold text-white">Quil\u00F3metros & Margem</h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km acima do limite · semana Dom–Sáb
+          Modelo: renda 350\u20AC/sem \u00B7 limiar 2.000 km \u00B7 sobretaxa +0,25\u20AC/km acima do limite \u00B7 semana Seg\u2013Dom
         </p>
       </div>
 
-      {/* ── Seletor de semana ── */}
+      {/* \u2500\u2500 Seletor de semana \u2500\u2500 */}
       <div className="flex items-center gap-3 mb-8 bg-gray-900 rounded-xl p-3 w-fit border border-gray-800">
         <button
           onClick={() => setWeekOffset((o) => o - 1)}
@@ -245,7 +243,7 @@ export function KmRentabilidade() {
               <span className="text-indigo-300 font-semibold">Semana actual</span>
             ) : (
               <span className="text-gray-300">
-                {formatDate(monday)} – {formatDate(sunday)}
+                {formatDate(monday)} \u2013 {formatDate(sunday)}
               </span>
             )}
           </span>
@@ -259,7 +257,7 @@ export function KmRentabilidade() {
         </button>
       </div>
 
-      {/* ── Sem dados ── */}
+      {/* \u2500\u2500 Sem dados \u2500\u2500 */}
       {!temDados ? (
         <div className="flex flex-col items-center justify-center h-64 text-gray-500">
           <AlertCircle size={40} className="mb-3 text-gray-700" />
@@ -267,7 +265,7 @@ export function KmRentabilidade() {
         </div>
       ) : (
         <>
-          {/* ── KPIs ── */}
+          {/* \u2500\u2500 KPIs \u2500\u2500 */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             <KpiCard
               label="Total km"
@@ -293,7 +291,7 @@ export function KmRentabilidade() {
               accent={kmExtra > 0 ? "#10b981" : "#6366f1"}
             />
             <KpiCard
-              label="Lucro líquido"
+              label="Lucro l\u00EDquido"
               value={formatEuro(lucroReal)}
               sub={`Receita: ${formatEuro(receitaTotal)}`}
               accent={lucroReal >= 0 ? "#10b981" : "#ef4444"}
@@ -301,7 +299,7 @@ export function KmRentabilidade() {
             <KpiCard
               label="Margem"
               value={`${margemReal.toFixed(1)}%`}
-              sub={`Custo/km: ${custoPorKm.toFixed(3)}€ · Rec/km: ${receitaPorKm.toFixed(3)}€`}
+              sub={`Custo/km: ${custoPorKm.toFixed(3)}\u20AC \u00B7 Rec/km: ${receitaPorKm.toFixed(3)}\u20AC`}
               accent={margemReal > 40 ? "#10b981" : "#f59e0b"}
             />
             <KpiCard
@@ -312,12 +310,12 @@ export function KmRentabilidade() {
             />
           </div>
 
-          {/* ── Projecção (só semana actual com dados parciais) ── */}
+          {/* \u2500\u2500 Projec\u00E7\u00E3o (s\u00F3 semana actual com dados parciais) \u2500\u2500 */}
           {isCurrentWeek && projecao && diasDecorridos < 7 && (
             <div className="bg-indigo-950 border border-indigo-800 rounded-xl p-4 mb-6 flex flex-wrap gap-6 items-center">
               <div>
                 <p className="text-xs text-indigo-300 font-mono uppercase tracking-wider mb-1">
-                  Projecção ao fim da semana
+                  Projec\u00E7\u00E3o ao fim da semana
                 </p>
                 <p className="text-2xl font-bold text-indigo-100">
                   ~{projecao.kmProjetado.toLocaleString("pt-PT")} km
@@ -332,13 +330,13 @@ export function KmRentabilidade() {
                   {formatEuro(projecao.lucro)}
                 </p>
                 <p className="text-xs text-indigo-400 mt-0.5">
-                  assume renda máx. 350€/sem
+                  assume renda m\u00E1x. 350\u20AC/sem
                 </p>
               </div>
               <div className="h-10 w-px bg-indigo-800 hidden md:block" />
               <div>
                 <p className="text-xs text-indigo-300 font-mono uppercase tracking-wider mb-1">
-                  Km/dia necessários
+                  Km/dia necess\u00E1rios
                 </p>
                 <p className="text-2xl font-bold text-indigo-100">
                   {projecao.kmFaltam} km
@@ -348,7 +346,7 @@ export function KmRentabilidade() {
             </div>
           )}
 
-          {/* ── Gráficos ── */}
+          {/* \u2500\u2500 Gr\u00E1ficos \u2500\u2500 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Km acumulados */}
             <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
@@ -440,7 +438,7 @@ export function KmRentabilidade() {
                     tick={{ fontSize: 11, fill: "#9ca3af" }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `${v}€`}
+                    tickFormatter={(v) => `${v}\u20AC`}
                   />
                   <Tooltip
                     contentStyle={{
@@ -464,19 +462,19 @@ export function KmRentabilidade() {
             </div>
           </div>
 
-          {/* ── Detalhe diário ── */}
+          {/* \u2500\u2500 Detalhe di\u00E1rio \u2500\u2500 */}
           <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
             <h2 className="text-sm font-semibold text-gray-300 mb-1">
               Km rodados e receita por dia
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Barras azuis = km (eixo esquerdo) · barras verdes = receita bruta (eixo direito)
+              Barras azuis = km (eixo esquerdo) \u00B7 barras verdes = receita bruta (eixo direito)
             </p>
             {apenasDesp ? (
               <div className="flex flex-col items-center justify-center h-32 rounded-lg border border-amber-800/40 bg-amber-950/20">
                 <p className="text-sm text-amber-400 font-medium">Dias de custo sem actividade registada</p>
                 <p className="text-xs text-amber-600 mt-1">
-                  Renda paga: {formatEuro(rendaTotal)} · Km e receita: 0
+                  Renda paga: {formatEuro(rendaTotal)} \u00B7 Km e receita: 0
                 </p>
               </div>
             ) : (
@@ -494,7 +492,7 @@ export function KmRentabilidade() {
                     axisLine={false}
                     tickLine={false}
                   />
-                  {/* Eixo esquerdo — km */}
+                  {/* Eixo esquerdo \u2014 km */}
                   <YAxis
                     yAxisId="km"
                     orientation="left"
@@ -504,14 +502,14 @@ export function KmRentabilidade() {
                     tickFormatter={(v) => `${v} km`}
                     width={55}
                   />
-                  {/* Eixo direito — receita */}
+                  {/* Eixo direito \u2014 receita */}
                   <YAxis
                     yAxisId="receita"
                     orientation="right"
                     tick={{ fontSize: 11, fill: "#34d399" }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `${v}€`}
+                    tickFormatter={(v) => `${v}\u20AC`}
                     width={55}
                   />
                   <Tooltip
@@ -528,7 +526,7 @@ export function KmRentabilidade() {
                   />
                   <Legend
                     formatter={(value) =>
-                      value === "km" ? "Km rodados" : "Receita bruta (€)"
+                      value === "km" ? "Km rodados" : "Receita bruta (\u20AC)"
                     }
                     wrapperStyle={{ fontSize: 11, color: "#9ca3af", paddingTop: 8 }}
                   />
@@ -547,13 +545,13 @@ export function KmRentabilidade() {
             )}
           </div>
 
-          {/* ── Tabela de sensibilidade ── */}
+          {/* \u2500\u2500 Tabela de sensibilidade \u2500\u2500 */}
           <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
             <h2 className="text-sm font-semibold text-gray-300 mb-1">
-              Tabela de sensibilidade — custo semanal por volume de km
+              Tabela de sensibilidade \u2014 custo semanal por volume de km
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}€/km (média ilustrativa — o valor real varia por turno)
+              Receita estimada a {RECEITA_ESTIMADA_POR_KM.toFixed(2)}\u20AC/km (m\u00E9dia ilustrativa \u2014 o valor real varia por turno)
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -589,10 +587,10 @@ export function KmRentabilidade() {
                         <td className="py-2 pr-4 font-mono text-gray-300">
                           {m.kmExtra > 0
                             ? `+${m.kmExtra.toLocaleString("pt-PT")}`
-                            : "—"}
+                            : "\u2014"}
                         </td>
                         <td className="py-2 pr-4 font-mono text-amber-400">
-                          {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "—"}
+                          {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "\u2014"}
                         </td>
                         <td className="py-2 pr-4 font-mono text-gray-300">
                           {formatEuro(m.custoTotal)}
@@ -610,8 +608,8 @@ export function KmRentabilidade() {
               </table>
             </div>
             <p className="text-xs text-gray-500 mt-3">
-              Acima dos 2.000 km cada km adicional custa mais 0,25€ — mas continua
-              rentável enquanto a receita por km superar esse valor.
+              Acima dos 2.000 km cada km adicional custa mais 0,25\u20AC \u2014 mas continua
+              rent\u00E1vel enquanto a receita por km superar esse valor.
             </p>
           </div>
         </>
@@ -620,7 +618,7 @@ export function KmRentabilidade() {
   );
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────
+// \u2500\u2500\u2500 KPI Card \u2500\u2500\u2500
 function KpiCard({
   label,
   value,
