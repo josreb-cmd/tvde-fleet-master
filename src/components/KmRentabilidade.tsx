@@ -21,7 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useTVDE } from "../context/TVDEContext";
+import { useTVDE } from "../contexts/TVDEContext";
 
 // ─── Constantes do modelo de negócio ───────────────────────────────────────
 const RENDA_SEMANAL = 350;
@@ -306,7 +306,7 @@ export function KmRentabilidade() {
             />
             <KpiCard
               label="Rendimento/hora"
-              value={horasTotal > 0 ? `${rendimentoHorario.toFixed(2)}€/h` : "—"}
+              value={horasTotal > 0 ? `${rendimentoHorario.toFixed(2)}\u20AC/h` : "\u2014"}
               sub={horasTotal > 0 ? `${horasTotal.toFixed(1)}h trabalhadas` : "Sem horas registadas"}
               accent={rendimentoHorario >= 10 ? "#10b981" : rendimentoHorario >= 0 ? "#f59e0b" : "#ef4444"}
             />
