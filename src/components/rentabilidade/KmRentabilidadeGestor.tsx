@@ -1,5 +1,5 @@
 // src/components/rentabilidade/KmRentabilidadeGestor.tsx
-// Vista Gestor — idêntica à UI V.2.5.0 (sem alterações visuais)
+// Vista Gestor — V.2.6.0 com sparklines de tendência 8 semanas
 import React from "react";
 import {
   AreaChart,
@@ -15,8 +15,8 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { AlertCircle, CheckCircle, Info } from "lucide-react";
-import type { KmRentabilidadeData } from "./types";
+import { AlertCircle, CheckCircle, Info, TrendingUp } from "lucide-react"; // 🆕 TrendingUp
+import type { KmRentabilidadeData, SparklineDataPoint } from "./types"; // 🆕 SparklineDataPoint
 import {
   KM_BASE,
   ENERGIA_POR_KM,
@@ -24,6 +24,33 @@ import {
   RECEITA_ESTIMADA_POR_KM,
   RENDA_SEMANAL,
 } from "./constants";
+import { SparklineChart, TrendBadge } from "./SparklineChart"; // 🆕 SPARKLINE
+
+// 🆕 SPARKLINE — Tipo para props de sparkline
+interface SparklineSeries {
+  km: SparklineDataPoint[];
+  lucro: SparklineDataPoint[];
+  margem: SparklineDataPoint[];
+  rendimentoHora: SparklineDataPoint[];
+  receitaPorKm: SparklineDataPoint[];
+}
+
+interface SparklineTendencia {
+  km: number | null;
+  receita: number | null;
+  lucroSoRenda: number | null;
+  lucroLiquido: number | null;
+  margem: number | null;
+  rendimentoHora: number | null;
+}
+
+// 🆕 SPARKLINE — Props extendidas
+interface GestorProps {
+  data: KmRentabilidadeData;
+  sparklineSeries?: SparklineSeries | null;
+  sparklineTendencia?: SparklineTendencia | null;
+  hasSparklineData?: boolean;
+}
 
 function formatEuro(v: number) {
   return (
@@ -34,17 +61,12 @@ function formatEuro(v: number) {
   );
 }
 
-function calcularMetricasTabela(kmTotal: number) {
-  const kmExtra = Math.max(0, kmTotal - KM_BASE);
-  const sobretaxa = kmExtra * TAXA_ADICIONAL;
-  const custoTotal = RENDA_SEMANAL + sobretaxa;
-  const receita = kmTotal * RECEITA_ESTIMADA_POR_KM;
-  const lucro = receita - custoTotal;
-  const margem = receita > 0 ? (lucro / receita) * 100 : 0;
-  return { kmExtra, sobretaxa, custoTotal, receita, lucro, margem };
-}
-
-export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
+export function KmRentabilidadeGestor({
+  data,
+  sparklineSeries,     // 🆕
+  sparklineTendencia,  // 🆕
+  hasSparklineData = false, // 🆕
+}: GestorProps) {
   const {
     kmTotal,
     kmExtra,
@@ -88,6 +110,22 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
               <AlertCircle size={16} className="text-amber-400" />
             )
           }
+          sparkline={                                        // 🆕
+            hasSparklineData && sparklineSeries ? (
+              <SparklineChart
+                data={sparklineSeries.km}
+                color="#6366f1"
+                refValue={KM_BASE}
+                refColor="#f59e0b"
+                showLastValue
+              />
+            ) : undefined
+          }
+          trend={                                            // 🆕
+            hasSparklineData && sparklineTendencia ? (
+              <TrendBadge value={sparklineTendencia.km} />
+            ) : undefined
+          }
         />
         <KpiCard
           label="Km extra"
@@ -108,17 +146,41 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
             borderLeftWidth: 3,
           }}
         >
-          <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
-            Lucro
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+              Lucro
+            </p>
+            {/* 🆕 SPARKLINE no card Lucro */}
+            {hasSparklineData && sparklineSeries && (
+              <SparklineChart
+                data={sparklineSeries.lucro}
+                color="#10b981"
+                color2="#f59e0b"
+                refValue={0}
+                refColor="#ef4444"
+                showLastValue
+              />
+            )}
+          </div>
           <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-gray-500">Só Renda</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Só Renda</span>
+              {/* 🆕 Trend badge */}
+              {hasSparklineData && sparklineTendencia && (
+                <TrendBadge value={sparklineTendencia.lucroSoRenda} />
+              )}
+            </div>
             <span className="text-xl font-bold text-green-400">
               {formatEuro(lucroSoRenda)}
             </span>
           </div>
           <div className="flex justify-between items-center mb-3">
-            <span className="text-xs text-gray-500">Líquido</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Líquido</span>
+              {hasSparklineData && sparklineTendencia && (
+                <TrendBadge value={sparklineTendencia.lucroLiquido} />
+              )}
+            </div>
             <span className="text-xl font-bold text-yellow-400">
               {formatEuro(lucroLiquido)}
             </span>
@@ -144,11 +206,29 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
             borderLeftColor: margemSoRenda > 40 ? "#10b981" : "#f59e0b",
           }}
         >
-          <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
-            Margem
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+              Margem
+            </p>
+            {/* 🆕 SPARKLINE */}
+            {hasSparklineData && sparklineSeries && (
+              <SparklineChart
+                data={sparklineSeries.margem}
+                color="#10b981"
+                color2="#f59e0b"
+                refValue={50}
+                refColor="#6366f1"
+                showLastValue
+              />
+            )}
+          </div>
           <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-gray-500">Só Renda</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Só Renda</span>
+              {hasSparklineData && sparklineTendencia && (
+                <TrendBadge value={sparklineTendencia.margem} suffix="pp" />
+              )}
+            </div>
             <span className="text-xl font-bold text-green-400">
               {margemSoRenda.toFixed(1)}%
             </span>
@@ -181,11 +261,29 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
                 : "#ef4444",
           }}
         >
-          <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
-            Rendimento/hora
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+              Rendimento/hora
+            </p>
+            {/* 🆕 SPARKLINE */}
+            {hasSparklineData && sparklineSeries && (
+              <SparklineChart
+                data={sparklineSeries.rendimentoHora}
+                color="#10b981"
+                color2="#f59e0b"
+                refValue={6.5}
+                refColor="#ef4444"
+                showLastValue
+              />
+            )}
+          </div>
           <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-gray-500">Só Renda</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Só Renda</span>
+              {hasSparklineData && sparklineTendencia && (
+                <TrendBadge value={sparklineTendencia.rendimentoHora} />
+              )}
+            </div>
             <span className="text-xl font-bold text-green-400">
               {horasTotal > 0
                 ? `${rendimentoHoraSoRenda.toFixed(2)}€/h`
@@ -213,7 +311,7 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
           </div>
         </div>
 
-        {/* Card INFO */}
+        {/* Card INFO — atualizado com legenda sparkline */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Info size={14} className="text-indigo-400" />
@@ -234,6 +332,35 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
                 Custo = Renda + Sobretaxa + Energia
               </p>
             </div>
+            {/* 🆕 Legenda sparklines */}
+            {hasSparklineData && (
+              <div className="border-t border-gray-700 pt-2">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <TrendingUp size={12} className="text-indigo-400" />
+                  <span className="text-indigo-300 font-semibold">
+                    Sparklines
+                  </span>
+                </div>
+                <p className="text-gray-500 mt-0.5">
+                  Mini-gráficos com tendência das últimas 8 semanas.
+                  Tracejado = referência (2000km, 50% margem, 6.5€/h SMN).
+                </p>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-0.5 bg-emerald-500 rounded" />
+                    <span className="text-gray-500">Só Renda</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-0.5 bg-amber-500 rounded" />
+                    <span className="text-gray-500">c/ Energia</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="text-emerald-400 text-[10px]">▲▼</span>
+                    <span className="text-gray-500">vs semana ant.</span>
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="border-t border-gray-700 pt-2 space-y-1 text-gray-500">
               <p>⚡ Energia: {ENERGIA_POR_KM.toFixed(2)}€/km</p>
               <p>📍 Base: {KM_BASE.toLocaleString("pt-PT")} km</p>
@@ -346,7 +473,7 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Lucro acumulado */}
+        {/* Lucro acumulado — dual line */}
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <h2 className="text-sm font-semibold text-gray-300 mb-4">
             Lucro acumulado na semana
@@ -360,6 +487,10 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
                 <linearGradient id="gradLucro" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradLucroLiq" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -382,7 +513,22 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
                   borderRadius: 8,
                   fontSize: 12,
                 }}
-                formatter={(v: number) => [formatEuro(v), "Lucro acumulado"]}
+                formatter={(v: number, name: string) => [
+                  formatEuro(v),
+                  name === "lucroSoRenda" ? "Só Renda" : "Líquido",
+                ]}
+              />
+              <ReferenceLine
+                y={0}
+                stroke="#ef4444"
+                strokeDasharray="3 3"
+                strokeWidth={1}
+                label={{
+                  value: "break-even",
+                  fill: "#ef4444",
+                  fontSize: 9,
+                  position: "insideTopLeft",
+                }}
               />
               <Area
                 type="monotone"
@@ -391,7 +537,17 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
                 strokeWidth={2}
                 fill="url(#gradLucro)"
                 dot={false}
-                name="Só Renda"
+                name="lucroSoRenda"
+              />
+              <Area
+                type="monotone"
+                dataKey="lucroLiquido"
+                stroke="#f59e0b"
+                strokeWidth={1.5}
+                fill="url(#gradLucroLiq)"
+                dot={false}
+                name="lucroLiquido"
+                strokeDasharray="4 2"
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -587,19 +743,23 @@ export function KmRentabilidadeGestor({ data }: { data: KmRentabilidadeData }) {
   );
 }
 
-// ——— KPI Card (reutilizado) ———
+// ——— KPI Card (atualizado com slots de sparkline e trend) ———
 function KpiCard({
   label,
   value,
   sub,
   accent,
   icon,
+  sparkline,  // 🆕
+  trend,      // 🆕
 }: {
   label: string;
   value: string;
   sub: string;
   accent: string;
   icon?: React.ReactNode;
+  sparkline?: React.ReactNode;  // 🆕
+  trend?: React.ReactNode;      // 🆕
 }) {
   return (
     <div
@@ -610,9 +770,17 @@ function KpiCard({
         <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
           {label}
         </p>
-        {icon}
+        <div className="flex items-center gap-2">
+          {/* 🆕 Sparkline ao lado do ícone */}
+          {sparkline}
+          {icon}
+        </div>
       </div>
-      <p className="text-2xl font-bold text-white mb-0.5">{value}</p>
+      <div className="flex items-center gap-2 mb-0.5">
+        <p className="text-2xl font-bold text-white">{value}</p>
+        {/* 🆕 Trend badge ao lado do valor */}
+        {trend}
+      </div>
       <p className="text-xs text-gray-500">{sub}</p>
     </div>
   );

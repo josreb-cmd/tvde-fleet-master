@@ -1,4 +1,8 @@
-// src/components/rentabilidade/useKmRentabilidade.ts
+// =============================================================================
+// useKmRentabilidade.ts — Hook principal do módulo Rentabilidade km
+// TVDE Fleet Master V.2.6.1
+// hoursWorked = number (decimal). Ex: 8.75 = 8h45min
+// =============================================================================
 import { useState, useMemo } from "react";
 import { useTVDE } from "../../contexts/TVDEContext";
 import {
@@ -16,9 +20,12 @@ import type {
   Projecao,
   SensibilidadeRow,
   KmRentabilidadeData,
+  DiaDestaque,
+  RankingDia,
 } from "./types";
 
 // ——— Helpers ———
+
 function getWeekBounds(offset = 0) {
   const now = new Date();
   const day = now.getDay();
@@ -39,6 +46,10 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Custos usando renda REAL (soma dos rentalExpenseAmount).
+ * Perspetiva contratual: rendaReal + sobretaxa.
+ */
 function calcularCustoReal(kmTotal: number, rendaReal: number) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
@@ -46,6 +57,10 @@ function calcularCustoReal(kmTotal: number, rendaReal: number) {
   return { kmExtra, sobretaxa, custoTotal };
 }
 
+/**
+ * Custos usando RENDA_SEMANAL fixa (350€).
+ * Usado na tabela de sensibilidade e projeção.
+ */
 function calcularCustoSemanal(kmTotal: number) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
   const sobretaxa = kmExtra * TAXA_ADICIONAL;
@@ -54,10 +69,12 @@ function calcularCustoSemanal(kmTotal: number) {
 }
 
 // ——— Hook principal ———
+
 export function useKmRentabilidade(): KmRentabilidadeData {
   const { shiftLogs } = useTVDE();
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // ——— Limites da semana selecionada ———
   const { monday, sunday } = useMemo(
     () => getWeekBounds(weekOffset),
     [weekOffset]
@@ -66,13 +83,19 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   const mondayStr = useMemo(() => toDateStr(monday), [monday]);
   const sundayStr = useMemo(() => toDateStr(sunday), [sunday]);
 
-  // ——— Dados da semana anterior (para variação %) ———
+  // ——— Limites da semana anterior (para variação %) ———
   const { monday: mondayAnterior, sunday: sundayAnterior } = useMemo(
     () => getWeekBounds(weekOffset - 1),
     [weekOffset]
   );
-  const mondayAnteriorStr = useMemo(() => toDateStr(mondayAnterior), [mondayAnterior]);
-  const sundayAnteriorStr = useMemo(() => toDateStr(sundayAnterior), [sundayAnterior]);
+  const mondayAnteriorStr = useMemo(
+    () => toDateStr(mondayAnterior),
+    [mondayAnterior]
+  );
+  const sundayAnteriorStr = useMemo(
+    () => toDateStr(sundayAnterior),
+    [sundayAnterior]
+  );
 
   // ——— Agrupar shiftLogs por dia da semana (Seg→Dom) ———
   const dadosDiarios: DiaData[] = useMemo(() => {
@@ -84,16 +107,22 @@ export function useKmRentabilidade(): KmRentabilidadeData {
       diaDate.setDate(monday.getDate() + i);
       const diaStr = toDateStr(diaDate);
       const shiftsNoDia = shiftsNaSemana.filter((s) => s.date === diaStr);
-      const km = shiftsNoDia.reduce((acc, s) => acc + s.kilometers, 0);
-      const receita = shiftsNoDia.reduce((acc, s) => acc + s.grossEarnings, 0);
+
+      const km = shiftsNoDia.reduce((acc, s) => acc + (s.kilometers || 0), 0);
+      const receita = shiftsNoDia.reduce(
+        (acc, s) => acc + (s.grossEarnings || 0),
+        0
+      );
       const renda = shiftsNoDia.reduce(
         (acc, s) => acc + (s.rentalExpenseAmount || 0),
         0
       );
+      // hoursWorked é number decimal (ex: 8.75 = 8h45min)
       const horas = shiftsNoDia.reduce(
-        (acc, s) => acc + (s.hoursWorked || 0),
+        (acc, s) => acc + (typeof s.hoursWorked === "number" ? s.hoursWorked : 0),
         0
       );
+
       return { dia, km, receita, renda, horas };
     });
   }, [shiftLogs, mondayStr, sundayStr, monday]);
@@ -136,7 +165,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     horasTotal > 0 ? lucroSoRenda / horasTotal : 0;
 
   // ——— Métricas "Líquido" ———
-  const lucroLiquido = receitaTotal - rendaTotal - sobretaxa - custoEnergia;
+  const lucroLiquido = receitaTotal - custoTotal - custoEnergia;
   const margemLiquida =
     receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
   const rendimentoHoraLiquido =
@@ -147,22 +176,27 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     kmTotal > 0
       ? custoTotal / kmTotal
       : rendaTotal > 0
-      ? rendaTotal / KM_BASE
-      : RENDA_SEMANAL / KM_BASE;
+        ? rendaTotal / KM_BASE
+        : RENDA_SEMANAL / KM_BASE;
   const receitaPorKm = kmTotal > 0 ? receitaTotal / kmTotal : 0;
 
   // ——— Métricas do MOTORISTA ———
   const lucroLiquidoPorDia =
     diasTrabalhados > 0 ? lucroLiquido / diasTrabalhados : 0;
-  const custoFixoPorDia = diasTrabalhados > 0 ? custoComEnergia / diasTrabalhados : 0;
+  const custoFixoPorDia =
+    diasTrabalhados > 0 ? custoComEnergia / diasTrabalhados : 0;
   const eurosPorDezFaturados =
     receitaTotal > 0
       ? parseFloat(((lucroLiquido / receitaTotal) * 10).toFixed(2))
       : 0;
 
   // Melhor e pior dia (por receita)
-  const diasComActividade = dadosDiarios.filter((d) => d.receita > 0);
-  const melhorDia = useMemo(() => {
+  const diasComActividade = useMemo(
+    () => dadosDiarios.filter((d) => d.receita > 0),
+    [dadosDiarios]
+  );
+
+  const melhorDia: DiaDestaque | null = useMemo(() => {
     if (diasComActividade.length === 0) return null;
     const best = diasComActividade.reduce((a, b) =>
       b.receita > a.receita ? b : a
@@ -170,7 +204,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     return { dia: best.dia, valor: best.receita };
   }, [diasComActividade]);
 
-  const piorDia = useMemo(() => {
+  const piorDia: DiaDestaque | null = useMemo(() => {
     if (diasComActividade.length === 0) return null;
     const worst = diasComActividade.reduce((a, b) =>
       b.receita < a.receita ? b : a
@@ -182,11 +216,11 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   const KM_DIA_TARGET = Math.ceil(KM_BASE / 7); // 286
   const diasAcimaTarget = useMemo(
     () => dadosDiarios.filter((d) => d.km >= KM_DIA_TARGET).length,
-    [dadosDiarios]
+    [dadosDiarios, KM_DIA_TARGET]
   );
 
-  // Ranking de dias por eficiência
-  const rankingDias = useMemo(() => {
+  // Ranking de dias por eficiência (€/hora)
+  const rankingDias: RankingDia[] = useMemo(() => {
     return diasComActividade
       .map((d) => ({
         dia: d.dia,
@@ -195,7 +229,10 @@ export function useKmRentabilidade(): KmRentabilidadeData {
         lucroLiquido:
           d.receita -
           d.renda -
-          Math.max(0, d.km > KM_BASE / 7 ? (d.km - KM_BASE / 7) * TAXA_ADICIONAL : 0) -
+          Math.max(
+            0,
+            d.km > KM_BASE / 7 ? (d.km - KM_BASE / 7) * TAXA_ADICIONAL : 0
+          ) -
           d.km * ENERGIA_POR_KM,
       }))
       .sort((a, b) => b.receitaPorHora - a.receitaPorHora);
@@ -220,7 +257,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   // Progresso semanal (% dos 2000 km)
   const progressoSemanal = Math.min(100, (kmTotal / KM_BASE) * 100);
 
-  // Dias decorridos
+  // Dias decorridos na semana
   const diasDecorridos = useMemo(() => {
     if (!isCurrentWeek) return 7;
     const hoje = new Date();
@@ -231,9 +268,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   // Km/dia necessários para atingir 2000
   const diasRestantes = Math.max(1, 7 - diasDecorridos);
   const kmPorDiaNecessarios =
-    kmTotal < KM_BASE
-      ? Math.ceil((KM_BASE - kmTotal) / diasRestantes)
-      : 0;
+    kmTotal < KM_BASE ? Math.ceil((KM_BASE - kmTotal) / diasRestantes) : 0;
 
   // ——— Dados acumulados (dual-line: Só Renda + Líquido) ———
   const dadosAcumulados: DiaAcumulado[] = useMemo(() => {
@@ -266,7 +301,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     return idx >= 0 ? dadosAcumulados[idx].dia : null;
   }, [dadosAcumulados]);
 
-  // ——— Projeção (semana atual) ———
+  // ——— Projeção (apenas semana atual, com dados) ———
   const projecao: Projecao | null = useMemo(() => {
     if (!isCurrentWeek || diasDecorridos === 0 || kmTotal === 0) return null;
     const kmPorDia = kmTotal / diasDecorridos;
@@ -317,13 +352,15 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     kmTotal >= KM_BASE
       ? CORES.verde
       : kmTotal >= KM_BASE * 0.75
-      ? CORES.amarelo
-      : CORES.indigo;
+        ? CORES.amarelo
+        : CORES.indigo;
 
   const temDados = kmTotal > 0 || rendaTotal > 0;
   const apenasDesp = kmTotal === 0 && rendaTotal > 0;
 
+  // ——— Return ———
   return {
+    // Totais
     kmTotal,
     kmExtra,
     diasTrabalhados,
@@ -334,14 +371,22 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     custoTotal,
     custoEnergia,
     custoComEnergia,
+
+    // Dupla perspetiva — Só Renda
     lucroSoRenda,
     margemSoRenda,
     rendimentoHoraSoRenda,
+
+    // Dupla perspetiva — Líquido
     lucroLiquido,
     margemLiquida,
     rendimentoHoraLiquido,
+
+    // Comuns
     custoPorKm,
     receitaPorKm,
+
+    // Motorista
     lucroLiquidoPorDia,
     custoFixoPorDia,
     eurosPorDezFaturados,
@@ -351,10 +396,14 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     diasAcimaTarget,
     breakEvenDia,
     rankingDias,
+
+    // Dados
     dadosDiarios,
     dadosAcumulados,
     projecao,
     tabelaSensibilidade,
+
+    // Estado e navegação
     progressoSemanal,
     kmPorDiaNecessarios,
     statusColor,

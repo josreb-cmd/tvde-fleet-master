@@ -1,5 +1,5 @@
 // src/components/KmRentabilidade.tsx
-// Orquestrador: toggle Gestor/Motorista + seletor de semana
+// Orquestrador: toggle Gestor/Motorista + seletor de semana + sparklines
 import React, { useState } from "react";
 import {
   Calendar,
@@ -10,6 +10,7 @@ import {
   Car,
 } from "lucide-react";
 import { useKmRentabilidade } from "./rentabilidade/useKmRentabilidade";
+import { useWeeklySparklines } from "./rentabilidade/useWeeklySparklines"; // 🆕
 import { KmRentabilidadeGestor } from "./rentabilidade/KmRentabilidadeGestor";
 import { KmRentabilidadeMotorista } from "./rentabilidade/KmRentabilidadeMotorista";
 
@@ -22,6 +23,7 @@ function formatDate(d: Date) {
 export function KmRentabilidade() {
   const [view, setView] = useState<ViewMode>("gestor");
   const data = useKmRentabilidade();
+  const { series, tendencia, hasData: hasSparklineData } = useWeeklySparklines(8, data.weekOffset); // 🆕
 
   const {
     monday,
@@ -119,7 +121,12 @@ export function KmRentabilidade() {
           </p>
         </div>
       ) : view === "gestor" ? (
-        <KmRentabilidadeGestor data={data} />
+        <KmRentabilidadeGestor
+          data={data}
+          sparklineSeries={hasSparklineData ? series : null}       // 🆕
+          sparklineTendencia={hasSparklineData ? tendencia : null} // 🆕
+          hasSparklineData={hasSparklineData}                      // 🆕
+        />
       ) : (
         <KmRentabilidadeMotorista data={data} />
       )}

@@ -1,116 +1,176 @@
-// src/components/rentabilidade/types.ts
+import type React from 'react';
+// =============================================================================
+// types.ts — Tipos do módulo Rentabilidade km
+// TVDE Fleet Master V.2.6.1
+// Alinhado com useKmRentabilidade.ts e useWeeklySparklines.ts
+// =============================================================================
+
+// ---------- Dados diários (calculados a partir de DailyShiftLog) ----------
 
 export interface DiaData {
-  dia: string;
+  dia: string;                // "Seg", "Ter", etc.
   km: number;
   receita: number;
-  renda: number;
-  horas: number;
+  renda: number;              // rentalExpenseAmount diário
+  horas: number;              // decimal — 8.75 = 8h45min
 }
 
 export interface DiaAcumulado {
-  dia: string;
-  km: number;
-  lucroSoRenda: number;
-  lucroLiquido: number;
-  margem: number;
+  dia: string;                // "Seg", "Ter", etc.
+  km: number;                 // km acumulados
+  lucroSoRenda: number;       // acumulado
+  lucroLiquido: number;       // acumulado
+  margem: number;             // % acumulada (Só Renda)
 }
+
+// ---------- Projeção mid-week ----------
 
 export interface Projecao {
   kmProjetado: number;
-  lucro: number;
-  kmFaltam: number;
+  lucro: number;              // lucro projetado (Só Renda)
+  kmFaltam: number;           // km/dia necessários para atingir KM_BASE
 }
 
-export interface DiaResumo {
-  dia: string;
-  valor: number;
-}
+// ---------- Tabela de sensibilidade ----------
 
 export interface SensibilidadeRow {
   km: number;
   kmExtra: number;
   sobretaxa: number;
-  custoTotal: number;
+  custoTotal: number;         // Renda + Sobretaxa
   receita: number;
-  lucro: number;
-  margem: number;
+  lucro: number;              // Só Renda
+  margem: number;             // % Só Renda
   custoPorKm: number;
-  // Dupla perspetiva — c/ Energia
   custoComEnergia: number;
   lucroLiquido: number;
-  margemLiquida: number;
+  margemLiquida: number;      // %
 }
 
+// ---------- Ranking / Melhor-Pior dia ----------
+
+export interface DiaDestaque {
+  dia: string;
+  valor: number;
+}
+
+export interface RankingDia {
+  dia: string;
+  receitaPorKm: number;
+  receitaPorHora: number;
+  lucroLiquido: number;
+}
+
+// ---------- Output completo do hook useKmRentabilidade ----------
+
 export interface KmRentabilidadeData {
-  // ——— Dados base ———
+  // Totais da semana
   kmTotal: number;
   kmExtra: number;
   diasTrabalhados: number;
   horasTotal: number;
   receitaTotal: number;
-  rendaTotal: number;
-
-  // ——— Custos ———
+  rendaTotal: number;         // soma real de rentalExpenseAmount
   sobretaxa: number;
-  custoTotal: number;            // Renda + Sobretaxa
+  custoTotal: number;         // rendaTotal + sobretaxa
   custoEnergia: number;
-  custoComEnergia: number;       // Renda + Sobretaxa + Energia
+  custoComEnergia: number;    // custoTotal + custoEnergia
 
-  // ——— Métricas calculadas — Só Renda ———
+  // Métricas dupla perspetiva — Só Renda
   lucroSoRenda: number;
-  margemSoRenda: number;
+  margemSoRenda: number;      // %
   rendimentoHoraSoRenda: number;
 
-  // ——— Métricas calculadas — Líquido ———
+  // Métricas dupla perspetiva — Líquido
   lucroLiquido: number;
-  margemLiquida: number;
+  margemLiquida: number;      // %
   rendimentoHoraLiquido: number;
 
-  // ——— Métricas comuns ———
+  // Métricas comuns
   custoPorKm: number;
   receitaPorKm: number;
 
-  // ——— Métricas do MOTORISTA ———
+  // Métricas do MOTORISTA
   lucroLiquidoPorDia: number;
   custoFixoPorDia: number;
-  eurosPorDezFaturados: number;  // "De cada 10€, ficas com X€"
-  melhorDia: DiaResumo | null;
-  piorDia: DiaResumo | null;
-  variacaoVsSemanaAnterior: number | null;
-  diasAcimaTarget: number;      // streak: dias com km >= 286
-  breakEvenDia: string | null;   // dia da semana em que lucro passa a positivo
+  eurosPorDezFaturados: number;
+  melhorDia: DiaDestaque | null;
+  piorDia: DiaDestaque | null;
+  variacaoVsSemanaAnterior: number | null;  // % vs semana anterior
+  diasAcimaTarget: number;    // dias com km >= 286
+  breakEvenDia: string | null;
+  rankingDias: RankingDia[];
 
-  // ——— Rankings por dia (para o motorista) ———
-  rankingDias: Array<{
-    dia: string;
-    receitaPorKm: number;
-    receitaPorHora: number;
-    lucroLiquido: number;
-  }>;
-
-  // ——— Dados de gráficos ———
+  // Dados diários e acumulados
   dadosDiarios: DiaData[];
   dadosAcumulados: DiaAcumulado[];
-  projecao: Projecao | null;
 
-  // ——— Tabela sensibilidade ———
+  // Projeção e sensibilidade
+  projecao: Projecao | null;
   tabelaSensibilidade: SensibilidadeRow[];
 
-  // ——— Progresso visual (motorista) ———
-  progressoSemanal: number;       // 0–100%
-  kmPorDiaNecessarios: number;    // km/dia restantes para atingir 2000
-
-  // ——— Estado ———
+  // Estado e navegação
+  progressoSemanal: number;   // 0-100
+  kmPorDiaNecessarios: number;
   statusColor: string;
   temDados: boolean;
-  apenasDesp: boolean;
+  apenasDesp: boolean;        // só despesas, sem km
   isCurrentWeek: boolean;
   diasDecorridos: number;
-
-  // ——— Navegação de semana ———
   monday: Date;
   sunday: Date;
   weekOffset: number;
   setWeekOffset: React.Dispatch<React.SetStateAction<number>>;
+}
+
+// ---------- Sparklines (tendência multi-semana) ----------
+
+export interface WeeklySnapshot {
+  weekLabel: string;          // "dd/mm" da segunda-feira
+  monday: Date;               // objecto Date da segunda-feira
+  kmTotal: number;
+  receitaTotal: number;
+  rendaTotal: number;
+  horasTotal: number;
+  diasTrabalhados: number;
+  kmExtra: number;
+  sobretaxa: number;
+  custoTotal: number;
+  custoEnergia: number;
+  lucroSoRenda: number;
+  lucroLiquido: number;
+  margemSoRenda: number;
+  margemLiquida: number;
+  rendimentoHoraSoRenda: number;
+  rendimentoHoraLiquido: number;
+  receitaPorKm: number;
+  custoPorKm: number;
+}
+
+export interface SparklineDataPoint {
+  label: string;              // "dd/mm"
+  value: number;              // linha primária (Só Renda)
+  value2?: number;            // linha secundária (Líquido)
+}
+
+export interface SparklineTendencia {
+  km: number | null;
+  receita: number | null;
+  lucroSoRenda: number | null;
+  lucroLiquido: number | null;
+  margem: number | null;
+  rendimentoHora: number | null;
+}
+
+// Mantido para retrocompatibilidade com SparklineChart.tsx
+export interface SparklineConfig {
+  data: SparklineDataPoint[];
+  referenceLine?: number;
+  referenceLabel?: string;
+  colorPrimary?: string;      // default: verde (#10b981)
+  colorSecondary?: string;    // default: amarelo (#f59e0b)
+  trend: {
+    variation: number;
+    direction: 'up' | 'down' | 'stable';
+  };
 }
