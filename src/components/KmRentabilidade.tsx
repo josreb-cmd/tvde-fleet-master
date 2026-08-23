@@ -20,6 +20,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import { useTVDE } from "../contexts/TVDEContext";
 
@@ -27,12 +28,13 @@ import { useTVDE } from "../contexts/TVDEContext";
 const RENDA_SEMANAL = 350;
 const KM_BASE = 2000;
 const TAXA_ADICIONAL = 0.25; // €/km acima dos 2.000 km
+const ENERGIA_POR_KM = 0.06; // €/km custo energético (Tesla Model Y)
 
 // ——— Helpers ———
 function getWeekBounds(offset = 0) {
   const now = new Date();
   const day = now.getDay(); // 0=Dom, 1=Seg...
-  // Semana operacional: Seg \u2192 Dom
+  // Semana operacional: Seg → Dom
   // Se hoje é domingo (day=0), recuar 6 dias para a segunda anterior
   const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = new Date(now);
@@ -114,7 +116,7 @@ export function KmRentabilidade() {
       (s) => s.date >= mondayStr && s.date <= sundayStr
     );
 
-    // Construir array de 7 dias (Seg\u2192Dom) com km e receita reais
+    // Construir array de 7 dias (Seg→Dom) com km e receita reais
     return DIAS_SEMANA.map((dia, i) => {
       const diaDate = new Date(monday);
       diaDate.setDate(monday.getDate() + i);
@@ -148,6 +150,7 @@ export function KmRentabilidade() {
     [kmTotal, rendaTotal]
   );
 
+  // ── Métricas "Só Renda" ──
   const lucroReal = receitaTotal - custoTotal;
   const margemReal = receitaTotal > 0 ? (lucroReal / receitaTotal) * 100 : 0;
   const custoPorKm = kmTotal > 0 ? custoTotal / kmTotal : rendaTotal > 0 ? rendaTotal / KM_BASE : RENDA_SEMANAL / KM_BASE;
@@ -158,6 +161,17 @@ export function KmRentabilidade() {
     [dadosDiarios]
   );
   const rendimentoHorario = horasTotal > 0 ? lucroReal / horasTotal : 0;
+
+  // ── Métricas "c/ Energia" ──
+  const custoEnergia = kmTotal * ENERGIA_POR_KM;
+  const custoComEnergia = custoTotal + custoEnergia;
+  const lucroComEnergia = receitaTotal - custoComEnergia;
+  const margemComEnergia = receitaTotal > 0
+    ? (lucroComEnergia / receitaTotal) * 100
+    : 0;
+  const rendimentoComEnergia = horasTotal > 0
+    ? lucroComEnergia / horasTotal
+    : 0;
 
   // Dados acumulados para os gráficos
   const dadosAcumulados = useMemo(() => {
@@ -265,8 +279,8 @@ export function KmRentabilidade() {
         </div>
       ) : (
         <>
-          {/* —— KPIs —— */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          {/* —— KPIs (linha 1: 3 cards) —— */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
             <KpiCard
               label="Total km"
               value={`${kmTotal.toLocaleString("pt-PT")} km`}
@@ -291,23 +305,99 @@ export function KmRentabilidade() {
               accent={kmExtra > 0 ? "#10b981" : "#6366f1"}
             />
             <KpiCard
-              label="Lucro líquido"
+              label="Lucro (Só Renda)"
               value={formatEuro(lucroReal)}
-              sub={`Receita: ${formatEuro(receitaTotal)}`}
+              sub={`Receita: ${formatEuro(receitaTotal)} · Custo: ${formatEuro(custoTotal)}`}
               accent={lucroReal >= 0 ? "#10b981" : "#ef4444"}
             />
-            <KpiCard
-              label="Margem"
-              value={`${margemReal.toFixed(1)}%`}
-              sub={`Custo/km: ${custoPorKm.toFixed(3)}€ · Rec/km: ${receitaPorKm.toFixed(3)}€`}
-              accent={margemReal > 40 ? "#10b981" : "#f59e0b"}
-            />
-            <KpiCard
-              label="Rendimento/hora"
-              value={horasTotal > 0 ? `${rendimentoHorario.toFixed(2)}€/h` : "—"}
-              sub={horasTotal > 0 ? `${horasTotal.toFixed(1)}h trabalhadas` : "Sem horas registadas"}
-              accent={rendimentoHorario >= 10 ? "#10b981" : rendimentoHorario >= 0 ? "#f59e0b" : "#ef4444"}
-            />
+          </div>
+
+          {/* —— KPIs (linha 2: Margem + Rendimento/hora + Info) —— */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            {/* Card MARGEM — duas realidades */}
+            <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 border-l-[3px]"
+              style={{ borderLeftColor: margemReal > 40 ? "#10b981" : "#f59e0b" }}
+            >
+              <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
+                Margem
+              </p>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-500">Só Renda</span>
+                <span className="text-xl font-bold text-green-400">
+                  {margemReal.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-xs text-gray-500">c/ Energia</span>
+                <span className="text-xl font-bold text-yellow-400">
+                  {margemComEnergia.toFixed(1)}%
+                </span>
+              </div>
+              <div className="border-t border-gray-700 pt-2 flex justify-between items-center">
+                <span className="text-xs text-gray-500">
+                  ⚡ Energia: {formatEuro(custoEnergia)}
+                </span>
+                <span className="text-xs text-gray-600">
+                  Renda/km: {custoPorKm.toFixed(3)}€
+                </span>
+              </div>
+            </div>
+
+            {/* Card RENDIMENTO/HORA — duas realidades */}
+            <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 border-l-[3px]"
+              style={{ borderLeftColor: rendimentoHorario >= 10 ? "#10b981" : rendimentoHorario >= 0 ? "#f59e0b" : "#ef4444" }}
+            >
+              <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
+                Rendimento/hora
+              </p>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-500">Só Renda</span>
+                <span className="text-xl font-bold text-green-400">
+                  {horasTotal > 0 ? `${rendimentoHorario.toFixed(2)}€/h` : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-xs text-gray-500">c/ Energia</span>
+                <span className="text-xl font-bold text-yellow-400">
+                  {horasTotal > 0 ? `${rendimentoComEnergia.toFixed(2)}€/h` : "—"}
+                </span>
+              </div>
+              <div className="border-t border-gray-700 pt-2 flex justify-between items-center">
+                <span className="text-xs text-gray-500">
+                  🕐 {horasTotal > 0 ? `${horasTotal.toFixed(1)}h trabalhadas` : "Sem horas registadas"}
+                </span>
+                <span className="text-xs text-gray-600">
+                  Rec/km: {receitaPorKm.toFixed(3)}€
+                </span>
+              </div>
+            </div>
+
+            {/* Card INFO — legenda explicativa */}
+            <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 border-l-[3px] border-l-indigo-500">
+              <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Info size={14} className="text-indigo-400" />
+                Como ler
+              </p>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-green-400 font-semibold">Só Renda</span>
+                  <p className="text-gray-500 mt-0.5">
+                    Custo = Renda + Sobretaxa
+                  </p>
+                </div>
+                <div>
+                  <span className="text-yellow-400 font-semibold">c/ Energia</span>
+                  <p className="text-gray-500 mt-0.5">
+                    Custo = Renda + Sobretaxa + Energia
+                  </p>
+                </div>
+                <div className="border-t border-gray-700 pt-2 space-y-1 text-gray-500">
+                  <p>⚡ Energia: {ENERGIA_POR_KM.toFixed(2)}€/km</p>
+                  <p>📍 Base: {KM_BASE.toLocaleString("pt-PT")} km</p>
+                  <p>💰 Sobretaxa: {TAXA_ADICIONAL.toFixed(2)}€/km</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* —— Projecção (só semana actual com dados parciais) —— */}
