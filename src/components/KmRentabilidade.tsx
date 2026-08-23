@@ -173,6 +173,9 @@ export function KmRentabilidade() {
     ? lucroComEnergia / horasTotal
     : 0;
 
+  // ✅ NOVO — Lucro Líquido (Receita − Renda − Sobretaxa − Energia)
+  const lucroLiquido = receitaTotal - rendaTotal - sobretaxa - custoEnergia;
+
   // Dados acumulados para os gráficos
   const dadosAcumulados = useMemo(() => {
     let accKm = 0;
@@ -304,12 +307,39 @@ export function KmRentabilidade() {
               }
               accent={kmExtra > 0 ? "#10b981" : "#6366f1"}
             />
-            <KpiCard
-              label="Lucro (Só Renda)"
-              value={formatEuro(lucroReal)}
-              sub={`Receita: ${formatEuro(receitaTotal)} · Custo: ${formatEuro(custoTotal)}`}
-              accent={lucroReal >= 0 ? "#10b981" : "#ef4444"}
-            />
+
+            {/* ✅ ALTERADO — Card Lucro com dupla linha (Só Renda + Líquido) */}
+            <div
+              className="bg-gray-900 rounded-xl p-4 border border-gray-800 relative overflow-hidden col-span-2 md:col-span-1"
+              style={{
+                borderLeftColor: lucroLiquido >= 0 ? "#10b981" : "#ef4444",
+                borderLeftWidth: 3,
+              }}
+            >
+              <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
+                Lucro
+              </p>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-500">Só Renda</span>
+                <span className="text-xl font-bold text-green-400">
+                  {formatEuro(lucroReal)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-xs text-gray-500">Líquido</span>
+                <span className="text-xl font-bold text-yellow-400">
+                  {formatEuro(lucroLiquido)}
+                </span>
+              </div>
+              <div className="border-t border-gray-700 pt-2 space-y-0.5">
+                <p className="text-xs text-gray-500">
+                  Receita: {formatEuro(receitaTotal)}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Renda: {formatEuro(rendaTotal)} · Sobretaxa: {formatEuro(sobretaxa)} · Energia: {formatEuro(custoEnergia)}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* —— KPIs (linha 2: Margem + Rendimento/hora + Info) —— */}
@@ -333,12 +363,13 @@ export function KmRentabilidade() {
                   {margemComEnergia.toFixed(1)}%
                 </span>
               </div>
+              {/* ✅ ALTERADO — "Renda/km" → "Custo/km" com (Renda+Sobretaxa)÷km */}
               <div className="border-t border-gray-700 pt-2 flex justify-between items-center">
                 <span className="text-xs text-gray-500">
                   ⚡ Energia: {formatEuro(custoEnergia)}
                 </span>
                 <span className="text-xs text-gray-600">
-                  Renda/km: {custoPorKm.toFixed(3)}€
+                  Custo/km: {custoPorKm.toFixed(3)}€
                 </span>
               </div>
             </div>
@@ -386,7 +417,7 @@ export function KmRentabilidade() {
                   </p>
                 </div>
                 <div>
-                  <span className="text-yellow-400 font-semibold">c/ Energia</span>
+                  <span className="text-yellow-400 font-semibold">Líquido / c/ Energia</span>
                   <p className="text-gray-500 mt-0.5">
                     Custo = Renda + Sobretaxa + Energia
                   </p>
