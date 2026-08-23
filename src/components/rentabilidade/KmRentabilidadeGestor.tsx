@@ -1,5 +1,5 @@
 // src/components/rentabilidade/KmRentabilidadeGestor.tsx
-// Vista Gestor — V.2.6.0 com sparklines de tendência 8 semanas
+// Vista Gestor — V.2.7.0 com TrendBadge normalizado (por dia, p.p., dead band)
 import React from "react";
 import {
   AreaChart,
@@ -15,8 +15,12 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { AlertCircle, CheckCircle, Info, TrendingUp } from "lucide-react"; // 🆕 TrendingUp
-import type { KmRentabilidadeData, SparklineDataPoint } from "./types"; // 🆕 SparklineDataPoint
+import { AlertCircle, CheckCircle, Info, TrendingUp } from "lucide-react";
+import type {
+  KmRentabilidadeData,
+  SparklineDataPoint,
+  SparklineTendencia,       // 🆕 V.2.7.0 — importado do types.ts (com TrendValue)
+} from "./types";
 import {
   KM_BASE,
   ENERGIA_POR_KM,
@@ -24,9 +28,10 @@ import {
   RECEITA_ESTIMADA_POR_KM,
   RENDA_SEMANAL,
 } from "./constants";
-import { SparklineChart, TrendBadge } from "./SparklineChart"; // 🆕 SPARKLINE
+import { SparklineChart, TrendBadge } from "./SparklineChart";
 
-// 🆕 SPARKLINE — Tipo para props de sparkline
+// ——— Tipos de props ———
+
 interface SparklineSeries {
   km: SparklineDataPoint[];
   lucro: SparklineDataPoint[];
@@ -35,22 +40,17 @@ interface SparklineSeries {
   receitaPorKm: SparklineDataPoint[];
 }
 
-interface SparklineTendencia {
-  km: number | null;
-  receita: number | null;
-  lucroSoRenda: number | null;
-  lucroLiquido: number | null;
-  margem: number | null;
-  rendimentoHora: number | null;
-}
+// 🆕 V.2.7.0 — Removida a interface SparklineTendencia local (duplicada).
+//    Agora usa a importada de ./types com campos TrendValue + diasAtual/diasAnterior/isPartial.
 
-// 🆕 SPARKLINE — Props extendidas
 interface GestorProps {
   data: KmRentabilidadeData;
   sparklineSeries?: SparklineSeries | null;
-  sparklineTendencia?: SparklineTendencia | null;
+  sparklineTendencia?: SparklineTendencia | null;  // 🆕 tipo atualizado
   hasSparklineData?: boolean;
 }
+
+// ——— Helpers ———
 
 function formatEuro(v: number) {
   return (
@@ -61,11 +61,15 @@ function formatEuro(v: number) {
   );
 }
 
+// =============================================================================
+// Componente principal
+// =============================================================================
+
 export function KmRentabilidadeGestor({
   data,
-  sparklineSeries,     // 🆕
-  sparklineTendencia,  // 🆕
-  hasSparklineData = false, // 🆕
+  sparklineSeries,
+  sparklineTendencia,
+  hasSparklineData = false,
 }: GestorProps) {
   const {
     kmTotal,
@@ -94,6 +98,10 @@ export function KmRentabilidadeGestor({
     tabelaSensibilidade,
   } = data;
 
+  // 🆕 V.2.7.0 — Extrair metadata de parcialidade (usada em todos os TrendBadge)
+  const tIsPartial = sparklineTendencia?.isPartial ?? false;
+  const tDiasAtual = sparklineTendencia?.diasAtual ?? 0;
+
   return (
     <>
       {/* —— KPIs (linha 1: 3 cards) —— */}
@@ -110,7 +118,7 @@ export function KmRentabilidadeGestor({
               <AlertCircle size={16} className="text-amber-400" />
             )
           }
-          sparkline={                                        // 🆕
+          sparkline={
             hasSparklineData && sparklineSeries ? (
               <SparklineChart
                 data={sparklineSeries.km}
@@ -121,9 +129,14 @@ export function KmRentabilidadeGestor({
               />
             ) : undefined
           }
-          trend={                                            // 🆕
+          trend={
+            // 🆕 V.2.7.0 — TrendBadge normalizado
             hasSparklineData && sparklineTendencia ? (
-              <TrendBadge value={sparklineTendencia.km} />
+              <TrendBadge
+                trend={sparklineTendencia.km}
+                isPartial={tIsPartial}
+                diasAtual={tDiasAtual}
+              />
             ) : undefined
           }
         />
@@ -150,7 +163,6 @@ export function KmRentabilidadeGestor({
             <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
               Lucro
             </p>
-            {/* 🆕 SPARKLINE no card Lucro */}
             {hasSparklineData && sparklineSeries && (
               <SparklineChart
                 data={sparklineSeries.lucro}
@@ -165,9 +177,13 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Só Renda</span>
-              {/* 🆕 Trend badge */}
+              {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
               {hasSparklineData && sparklineTendencia && (
-                <TrendBadge value={sparklineTendencia.lucroSoRenda} />
+                <TrendBadge
+                  trend={sparklineTendencia.lucroSoRenda}
+                  isPartial={tIsPartial}
+                  diasAtual={tDiasAtual}
+                />
               )}
             </div>
             <span className="text-xl font-bold text-green-400">
@@ -177,8 +193,13 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Líquido</span>
+              {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
               {hasSparklineData && sparklineTendencia && (
-                <TrendBadge value={sparklineTendencia.lucroLiquido} />
+                <TrendBadge
+                  trend={sparklineTendencia.lucroLiquido}
+                  isPartial={tIsPartial}
+                  diasAtual={tDiasAtual}
+                />
               )}
             </div>
             <span className="text-xl font-bold text-yellow-400">
@@ -210,7 +231,6 @@ export function KmRentabilidadeGestor({
             <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
               Margem
             </p>
-            {/* 🆕 SPARKLINE */}
             {hasSparklineData && sparklineSeries && (
               <SparklineChart
                 data={sparklineSeries.margem}
@@ -225,8 +245,13 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Só Renda</span>
+              {/* 🆕 V.2.7.0 — Margem usa ppDiff (p.p.) — sufixo automático */}
               {hasSparklineData && sparklineTendencia && (
-                <TrendBadge value={sparklineTendencia.margem} suffix="pp" />
+                <TrendBadge
+                  trend={sparklineTendencia.margem}
+                  isPartial={tIsPartial}
+                  diasAtual={tDiasAtual}
+                />
               )}
             </div>
             <span className="text-xl font-bold text-green-400">
@@ -257,15 +282,14 @@ export function KmRentabilidadeGestor({
               rendimentoHoraSoRenda >= 10
                 ? "#10b981"
                 : rendimentoHoraSoRenda >= 0
-                ? "#f59e0b"
-                : "#ef4444",
+                  ? "#f59e0b"
+                  : "#ef4444",
           }}
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
               Rendimento/hora
             </p>
-            {/* 🆕 SPARKLINE */}
             {hasSparklineData && sparklineSeries && (
               <SparklineChart
                 data={sparklineSeries.rendimentoHora}
@@ -280,8 +304,13 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Só Renda</span>
+              {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
               {hasSparklineData && sparklineTendencia && (
-                <TrendBadge value={sparklineTendencia.rendimentoHora} />
+                <TrendBadge
+                  trend={sparklineTendencia.rendimentoHora}
+                  isPartial={tIsPartial}
+                  diasAtual={tDiasAtual}
+                />
               )}
             </div>
             <span className="text-xl font-bold text-green-400">
@@ -311,7 +340,7 @@ export function KmRentabilidadeGestor({
           </div>
         </div>
 
-        {/* Card INFO — atualizado com legenda sparkline */}
+        {/* Card INFO — 🆕 V.2.7.0 legenda atualizada para TrendBadge normalizado */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Info size={14} className="text-indigo-400" />
@@ -332,32 +361,54 @@ export function KmRentabilidadeGestor({
                 Custo = Renda + Sobretaxa + Energia
               </p>
             </div>
-            {/* 🆕 Legenda sparklines */}
+            {/* 🆕 V.2.7.0 — Legenda sparklines + TrendBadge normalizado */}
             {hasSparklineData && (
               <div className="border-t border-gray-700 pt-2">
                 <div className="flex items-center gap-1.5 mb-1">
                   <TrendingUp size={12} className="text-indigo-400" />
                   <span className="text-indigo-300 font-semibold">
-                    Sparklines
+                    Tendência (8 semanas)
                   </span>
                 </div>
                 <p className="text-gray-500 mt-0.5">
-                  Mini-gráficos com tendência das últimas 8 semanas.
+                  Mini-gráficos com evolução semanal.
                   Tracejado = referência (2000km, 50% margem, 6.5€/h SMN).
                 </p>
-                <div className="flex items-center gap-3 mt-1.5">
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-0.5 bg-emerald-500 rounded" />
-                    <span className="text-gray-500">Só Renda</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-0.5 bg-amber-500 rounded" />
-                    <span className="text-gray-500">c/ Energia</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="text-emerald-400 text-[10px]">▲▼</span>
-                    <span className="text-gray-500">vs semana ant.</span>
-                  </span>
+                <div className="flex flex-col gap-1.5 mt-2">
+                  {/* Linhas de cor */}
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-0.5 bg-emerald-500 rounded" />
+                      <span className="text-gray-500">Só Renda</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-0.5 bg-amber-500 rounded" />
+                      <span className="text-gray-500">c/ Energia</span>
+                    </span>
+                  </div>
+                  {/* Badges explicados */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <span className="text-emerald-400 text-[10px] font-mono">▲ 7.5% /dia</span>
+                      <span className="text-gray-600">= média diária vs semana ant.</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <span className="text-red-400 text-[10px] font-mono">▼ 4.9 p.p.</span>
+                      <span className="text-gray-600">= variação de margem</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <span className="text-gray-400 text-[10px] font-mono">— 0.3%</span>
+                      <span className="text-gray-600">= variação mínima (estável)</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-gray-500 text-[9px]">⏳ 2/7d</span>
+                      <span className="text-gray-600">= semana incompleta</span>
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -743,23 +794,25 @@ export function KmRentabilidadeGestor({
   );
 }
 
-// ——— KPI Card (atualizado com slots de sparkline e trend) ———
+// =============================================================================
+// KpiCard — com slots de sparkline e trend
+// =============================================================================
 function KpiCard({
   label,
   value,
   sub,
   accent,
   icon,
-  sparkline,  // 🆕
-  trend,      // 🆕
+  sparkline,
+  trend,
 }: {
   label: string;
   value: string;
   sub: string;
   accent: string;
   icon?: React.ReactNode;
-  sparkline?: React.ReactNode;  // 🆕
-  trend?: React.ReactNode;      // 🆕
+  sparkline?: React.ReactNode;
+  trend?: React.ReactNode;
 }) {
   return (
     <div
@@ -771,14 +824,12 @@ function KpiCard({
           {label}
         </p>
         <div className="flex items-center gap-2">
-          {/* 🆕 Sparkline ao lado do ícone */}
           {sparkline}
           {icon}
         </div>
       </div>
       <div className="flex items-center gap-2 mb-0.5">
         <p className="text-2xl font-bold text-white">{value}</p>
-        {/* 🆕 Trend badge ao lado do valor */}
         {trend}
       </div>
       <p className="text-xs text-gray-500">{sub}</p>

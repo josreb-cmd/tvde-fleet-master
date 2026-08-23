@@ -1,10 +1,12 @@
 // =============================================================================
 // useKmRentabilidade.ts — Hook principal do módulo Rentabilidade km
-// TVDE Fleet Master V.2.6.1
+// TVDE Fleet Master V.2.8.0
 // hoursWorked = number (decimal). Ex: 8.75 = 8h45min
+// Deteção de folga: isDayOff() — convenção híbrida (nota + zeros)
 // =============================================================================
 import { useState, useMemo } from "react";
 import { useTVDE } from "../../contexts/TVDEContext";
+import { isDayOff } from "../../utils/dayOff";
 import {
   RENDA_SEMANAL,
   KM_BASE,
@@ -97,11 +99,17 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     [sundayAnterior]
   );
 
+  // ——— ShiftLogs desta semana ———
+  const shiftsNaSemana = useMemo(
+    () =>
+      shiftLogs.filter(
+        (s) => s.date >= mondayStr && s.date <= sundayStr
+      ),
+    [shiftLogs, mondayStr, sundayStr]
+  );
+
   // ——— Agrupar shiftLogs por dia da semana (Seg→Dom) ———
   const dadosDiarios: DiaData[] = useMemo(() => {
-    const shiftsNaSemana = shiftLogs.filter(
-      (s) => s.date >= mondayStr && s.date <= sundayStr
-    );
     return DIAS_SEMANA.map((dia, i) => {
       const diaDate = new Date(monday);
       diaDate.setDate(monday.getDate() + i);
@@ -119,13 +127,18 @@ export function useKmRentabilidade(): KmRentabilidadeData {
       );
       // hoursWorked é number decimal (ex: 8.75 = 8h45min)
       const horas = shiftsNoDia.reduce(
-        (acc, s) => acc + (typeof s.hoursWorked === "number" ? s.hoursWorked : 0),
+        (acc, s) =>
+          acc + (typeof s.hoursWorked === "number" ? s.hoursWorked : 0),
         0
       );
 
-      return { dia, km, receita, renda, horas };
+      // Deteção de folga via isDayOff() — verifica se TODOS os shifts do dia são folga
+      const folga =
+        shiftsNoDia.length > 0 && shiftsNoDia.every((s) => isDayOff(s));
+
+      return { dia, km, receita, renda, horas, folga };
     });
-  }, [shiftLogs, mondayStr, sundayStr, monday]);
+  }, [shiftsNaSemana, monday]);
 
   // ——— Totais ———
   const kmTotal = useMemo(
@@ -144,8 +157,16 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     () => dadosDiarios.reduce((s, d) => s + d.horas, 0),
     [dadosDiarios]
   );
+
+  // ——— Dias trabalhados = dias que NÃO são folga E têm actividade ———
   const diasTrabalhados = useMemo(
-    () => dadosDiarios.filter((d) => d.km > 0 || d.receita > 0).length,
+    () => dadosDiarios.filter((d) => !d.folga && (d.km > 0 || d.receita > 0)).length,
+    [dadosDiarios]
+  );
+
+  // ——— Dias de folga (para Smart Line e projeção) ———
+  const diasFolga = useMemo(
+    () => dadosDiarios.filter((d) => d.folga).length,
     [dadosDiarios]
   );
 
@@ -190,9 +211,9 @@ export function useKmRentabilidade(): KmRentabilidadeData {
       ? parseFloat(((lucroLiquido / receitaTotal) * 10).toFixed(2))
       : 0;
 
-  // Melhor e pior dia (por receita)
+  // Melhor e pior dia (por receita, excluindo folgas)
   const diasComActividade = useMemo(
-    () => dadosDiarios.filter((d) => d.receita > 0),
+    () => dadosDiarios.filter((d) => !d.folga && d.receita > 0),
     [dadosDiarios]
   );
 
@@ -212,14 +233,14 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     return { dia: worst.dia, valor: worst.receita };
   }, [diasComActividade]);
 
-  // Streak: dias com km >= 286 (ritmo para 2000/7)
+  // Streak: dias com km >= KM_DIA_TARGET (excluindo folgas)
   const KM_DIA_TARGET = Math.ceil(KM_BASE / 7); // 286
   const diasAcimaTarget = useMemo(
-    () => dadosDiarios.filter((d) => d.km >= KM_DIA_TARGET).length,
+    () => dadosDiarios.filter((d) => !d.folga && d.km >= KM_DIA_TARGET).length,
     [dadosDiarios, KM_DIA_TARGET]
   );
 
-  // Ranking de dias por eficiência (€/hora)
+  // Ranking de dias por eficiência (€/hora, excluindo folgas)
   const rankingDias: RankingDia[] = useMemo(() => {
     return diasComActividade
       .map((d) => ({
@@ -265,7 +286,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     return day === 0 ? 7 : day;
   }, [isCurrentWeek]);
 
-  // Km/dia necessários para atingir 2000
+  // Km/dia necessários para atingir 2000 (excluindo folgas futuras)
   const diasRestantes = Math.max(1, 7 - diasDecorridos);
   const kmPorDiaNecessarios =
     kmTotal < KM_BASE ? Math.ceil((KM_BASE - kmTotal) / diasRestantes) : 0;
@@ -304,19 +325,46 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   // ——— Projeção (apenas semana atual, com dados) ———
   const projecao: Projecao | null = useMemo(() => {
     if (!isCurrentWeek || diasDecorridos === 0 || kmTotal === 0) return null;
-    const kmPorDia = kmTotal / diasDecorridos;
-    const receitaPorDia = receitaTotal / diasDecorridos;
-    const kmProjetado = Math.round(kmPorDia * 7);
-    const receitaProjetada = receitaPorDia * 7;
+
+    // Usar apenas dias trabalhados (não folgas) para média
+    const diasTrabalhadosAteAgora = dadosDiarios
+      .slice(0, diasDecorridos)
+      .filter((d) => !d.folga && (d.km > 0 || d.receita > 0)).length;
+
+    if (diasTrabalhadosAteAgora === 0) return null;
+
+    const kmPorDia = kmTotal / diasTrabalhadosAteAgora;
+    const receitaPorDia = receitaTotal / diasTrabalhadosAteAgora;
+
+    // Dias restantes de trabalho (excluindo folgas futuras já registadas)
+    const diasFolgaFuturos = dadosDiarios
+      .slice(diasDecorridos)
+      .filter((d) => d.folga).length;
+    const diasTrabFuturos = Math.max(0, diasRestantes - diasFolgaFuturos);
+
+    const kmProjetado = Math.round(
+      kmTotal + kmPorDia * diasTrabFuturos
+    );
+    const receitaProjetada =
+      receitaTotal + receitaPorDia * diasTrabFuturos;
     const { custoTotal: custoProj } = calcularCustoSemanal(kmProjetado);
+
     return {
       kmProjetado,
       lucro: receitaProjetada - custoProj,
-      kmFaltam: Math.ceil(
-        Math.max(0, KM_BASE - kmTotal) / Math.max(1, 7 - diasDecorridos)
-      ),
+      kmFaltam:
+        diasTrabFuturos > 0
+          ? Math.ceil(Math.max(0, KM_BASE - kmTotal) / diasTrabFuturos)
+          : 0,
     };
-  }, [kmTotal, receitaTotal, diasDecorridos, isCurrentWeek]);
+  }, [
+    kmTotal,
+    receitaTotal,
+    diasDecorridos,
+    isCurrentWeek,
+    dadosDiarios,
+    diasRestantes,
+  ]);
 
   // ——— Tabela de sensibilidade (dupla perspetiva) ———
   const tabelaSensibilidade: SensibilidadeRow[] = useMemo(() => {
@@ -364,6 +412,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     kmTotal,
     kmExtra,
     diasTrabalhados,
+    diasFolga,
     horasTotal,
     receitaTotal,
     rendaTotal,

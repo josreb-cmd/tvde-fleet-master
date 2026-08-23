@@ -1,7 +1,12 @@
-// src/components/rentabilidade/SparklineChart.tsx
-// Componente SVG para mini-gráficos de tendência (sparklines)
+// =============================================================================
+// SparklineChart.tsx — Componente SVG para mini-gráficos de tendência
+// TVDE Fleet Master V.2.7.0
+// TrendBadge: suporta normalização /dia, p.p., dead band, indicador parcial
+// =============================================================================
 import React, { useMemo } from "react";
-import type { SparklineDataPoint } from "./types";
+import type { SparklineDataPoint, TrendValue } from "./types";
+
+// ——— SparklineChart (sem alterações na lógica SVG) ———
 
 interface SparklineChartProps {
   data: SparklineDataPoint[];
@@ -37,12 +42,18 @@ export function SparklineChart({
   suffix = "",
   decimals = 0,
 }: SparklineChartProps) {
-  const padding = { top: 2, right: showLastValue ? 4 : 2, bottom: 2, left: 2 };
+  const padding = {
+    top: 2,
+    right: showLastValue ? 4 : 2,
+    bottom: 2,
+    left: 2,
+  };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
-  const { path1, path2, refY, dots, allValues } = useMemo(() => {
-    if (data.length < 2) return { path1: "", path2: "", refY: null, dots: [], allValues: [] };
+  const { path1, path2, refY, dots } = useMemo(() => {
+    if (data.length < 2)
+      return { path1: "", path2: "", refY: null, dots: [] };
 
     // Recolher todos os valores para calcular min/max
     const vals1 = data.map((d) => d.value);
@@ -98,7 +109,7 @@ export function SparklineChart({
       });
     }
 
-    return { path1: p1, path2: p2, refY: ry, dots: dotsList, allValues: allVals };
+    return { path1: p1, path2: p2, refY: ry, dots: dotsList };
   }, [data, color, color2, refValue, width, height, chartW, chartH, padding]);
 
   if (data.length < 2) {
@@ -156,17 +167,11 @@ export function SparklineChart({
 
         {/* Dots nos últimos pontos */}
         {dots.map((dot, i) => (
-          <circle
-            key={i}
-            cx={dot.cx}
-            cy={dot.cy}
-            r={2}
-            fill={dot.color}
-          />
+          <circle key={i} cx={dot.cx} cy={dot.cy} r={2} fill={dot.color} />
         ))}
       </svg>
 
-      {/* Indicador de tendência */}
+      {/* Indicador de tendência (seta simples da sparkline) */}
       {showLastValue && (
         <span
           className="text-[10px] font-mono font-semibold"
@@ -179,14 +184,51 @@ export function SparklineChart({
   );
 }
 
-// ——— Badge de tendência (para usar ao lado dos KPIs) ———
-export function TrendBadge({
-  value,
-  suffix = "%",
-}: {
+// =============================================================================
+// TrendBadge V.2.7.0 — Badge de tendência normalizado
+// Suporta: % /dia, p.p., dead band (cinza), indicador parcial ⏳
+// =============================================================================
+
+// ——— Overload 1: Legacy (valor simples — retrocompatibilidade) ———
+// ——— Overload 2: TrendValue (normalizado — V.2.7.0) ———
+
+interface TrendBadgeLegacyProps {
   value: number | null;
   suffix?: string;
-}) {
+  /** Não usado na versão legacy */
+  trend?: undefined;
+  isPartial?: undefined;
+  diasAtual?: undefined;
+}
+
+interface TrendBadgeNormalizedProps {
+  /** Ignorado se trend fornecido */
+  value?: undefined;
+  /** Ignorado se trend fornecido */
+  suffix?: undefined;
+  /** TrendValue com metadata completa */
+  trend: TrendValue;
+  /** Semana parcial? */
+  isPartial?: boolean;
+  /** Dias com dados na semana atual */
+  diasAtual?: number;
+}
+
+type TrendBadgeProps = TrendBadgeLegacyProps | TrendBadgeNormalizedProps;
+
+export function TrendBadge(props: TrendBadgeProps) {
+  // ——— Detectar modo: Legacy vs Normalizado ———
+  if ("trend" in props && props.trend !== undefined) {
+    return <TrendBadgeNormalized {...props as TrendBadgeNormalizedProps} />;
+  }
+  return <TrendBadgeLegacy {...props as TrendBadgeLegacyProps} />;
+}
+
+// ——— Legacy (mantém comportamento original para quem usar value={number}) ———
+function TrendBadgeLegacy({
+  value,
+  suffix = "%",
+}: TrendBadgeLegacyProps) {
   if (value === null) return null;
 
   const isPositive = value > 0;
@@ -194,8 +236,8 @@ export function TrendBadge({
   const color = isPositive
     ? "text-emerald-400 bg-emerald-950/50"
     : isNeutral
-    ? "text-gray-400 bg-gray-800/50"
-    : "text-red-400 bg-red-950/50";
+      ? "text-gray-400 bg-gray-800/50"
+      : "text-red-400 bg-red-950/50";
   const arrow = isPositive ? "▲" : isNeutral ? "—" : "▼";
 
   return (
@@ -204,6 +246,53 @@ export function TrendBadge({
     >
       {arrow} {Math.abs(value).toFixed(1)}
       {suffix}
+    </span>
+  );
+}
+
+// ——— Normalizado V.2.7.0 ———
+function TrendBadgeNormalized({
+  trend,
+  isPartial = false,
+  diasAtual,
+}: TrendBadgeNormalizedProps) {
+  // Sem dados de comparação
+  if (trend.value === null) return null;
+
+  const val = trend.value;
+
+  // Dead band — variação insignificante → cinza estável
+  if (trend.isNeutral) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded text-gray-400 bg-gray-800/50">
+        — {Math.abs(val).toFixed(1)}
+        {trend.displaySuffix}
+      </span>
+    );
+  }
+
+  const isPositive = val > 0;
+  const color = isPositive
+    ? "text-emerald-400 bg-emerald-950/50"
+    : "text-red-400 bg-red-950/50";
+  const arrow = isPositive ? "▲" : "▼";
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      {/* Badge principal */}
+      <span
+        className={`inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded ${color}`}
+      >
+        {arrow} {Math.abs(val).toFixed(1)}
+        {trend.displaySuffix}
+      </span>
+
+      {/* Indicador de semana parcial */}
+      {isPartial && diasAtual !== undefined && (
+        <span className="text-[9px] font-mono text-gray-500" title={`Dados de ${diasAtual} dia${diasAtual !== 1 ? "s" : ""} — semana incompleta`}>
+          ⏳ {diasAtual}/7d
+        </span>
+      )}
     </span>
   );
 }

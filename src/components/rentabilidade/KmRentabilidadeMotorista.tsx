@@ -1,5 +1,6 @@
 // src/components/rentabilidade/KmRentabilidadeMotorista.tsx
-// Vista Motorista — linguagem simples, métricas acionáveis, gamificação leve
+// Vista Motorista — V.2.7.0 com sparklines + TrendBadge normalizado
+// Linguagem simples, métricas acionáveis, gamificação leve
 import React from "react";
 import {
   AreaChart,
@@ -25,8 +26,32 @@ import {
   Flame,
   AlertTriangle,
 } from "lucide-react";
-import type { KmRentabilidadeData } from "./types";
+import type {
+  KmRentabilidadeData,
+  SparklineDataPoint,
+  SparklineTendencia,
+} from "./types";
 import { KM_BASE, ENERGIA_POR_KM } from "./constants";
+import { SparklineChart, TrendBadge } from "./SparklineChart";
+
+// ——— Tipos de props ———
+
+interface SparklineSeries {
+  km: SparklineDataPoint[];
+  lucro: SparklineDataPoint[];
+  margem: SparklineDataPoint[];
+  rendimentoHora: SparklineDataPoint[];
+  receitaPorKm: SparklineDataPoint[];
+}
+
+interface MotoristaProps {
+  data: KmRentabilidadeData;
+  sparklineSeries?: SparklineSeries | null;
+  sparklineTendencia?: SparklineTendencia | null;
+  hasSparklineData?: boolean;
+}
+
+// ——— Helpers ———
 
 function formatEuro(v: number) {
   return (
@@ -37,11 +62,16 @@ function formatEuro(v: number) {
   );
 }
 
+// =============================================================================
+// Componente principal
+// =============================================================================
+
 export function KmRentabilidadeMotorista({
   data,
-}: {
-  data: KmRentabilidadeData;
-}) {
+  sparklineSeries,
+  sparklineTendencia,
+  hasSparklineData = false,
+}: MotoristaProps) {
   const {
     kmTotal,
     kmExtra,
@@ -76,6 +106,10 @@ export function KmRentabilidadeMotorista({
 
   const KM_DIA_TARGET = Math.ceil(KM_BASE / 7);
 
+  // 🆕 V.2.7.0 — Metadata de parcialidade para TrendBadge
+  const tIsPartial = sparklineTendencia?.isPartial ?? false;
+  const tDiasAtual = sparklineTendencia?.diasAtual ?? 0;
+
   return (
     <>
       {/* ═══ BARRA DE PROGRESSO SEMANAL ═══ */}
@@ -86,6 +120,14 @@ export function KmRentabilidadeMotorista({
             <span className="text-sm font-medium text-gray-300">
               Progresso semanal
             </span>
+            {/* 🆕 V.2.7.0 — TrendBadge km na barra de progresso */}
+            {hasSparklineData && sparklineTendencia && (
+              <TrendBadge
+                trend={sparklineTendencia.km}
+                isPartial={tIsPartial}
+                diasAtual={tDiasAtual}
+              />
+            )}
           </div>
           <span className="text-sm font-mono font-bold text-white">
             {kmTotal.toLocaleString("pt-PT")} / {KM_BASE.toLocaleString("pt-PT")} km
@@ -100,8 +142,8 @@ export function KmRentabilidadeMotorista({
                 progressoSemanal >= 100
                   ? "linear-gradient(90deg, #10b981, #34d399)"
                   : progressoSemanal >= 75
-                  ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
-                  : "linear-gradient(90deg, #6366f1, #818cf8)",
+                    ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
+                    : "linear-gradient(90deg, #6366f1, #818cf8)",
             }}
           />
         </div>
@@ -128,12 +170,12 @@ export function KmRentabilidadeMotorista({
               {kmTotal >= KM_BASE
                 ? "🎯 Objetivo atingido! Cada km extra rende receita, mas custa +0,25€. Avalia se compensa."
                 : kmTotal >= KM_BASE * 0.8
-                ? `💪 Quase lá! Faltam apenas ${(KM_BASE - kmTotal).toLocaleString("pt-PT")} km.`
-                : kmTotal >= KM_BASE * 0.5
-                ? `🚗 Bom ritmo! Mantém ${kmPorDiaNecessarios} km/dia e chegas lá.`
-                : kmTotal > 0
-                ? `📈 Ainda há tempo. Precisas de ${kmPorDiaNecessarios} km/dia nos dias restantes.`
-                : "🔑 A semana acaba de começar. Bora!"}
+                  ? `💪 Quase lá! Faltam apenas ${(KM_BASE - kmTotal).toLocaleString("pt-PT")} km.`
+                  : kmTotal >= KM_BASE * 0.5
+                    ? `🚗 Bom ritmo! Mantém ${kmPorDiaNecessarios} km/dia e chegas lá.`
+                    : kmTotal > 0
+                      ? `📈 Ainda há tempo. Precisas de ${kmPorDiaNecessarios} km/dia nos dias restantes.`
+                      : "🔑 A semana acaba de começar. Bora!"}
             </p>
           </div>
         )}
@@ -149,14 +191,37 @@ export function KmRentabilidadeMotorista({
             borderLeftWidth: 3,
           }}
         >
-          <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-1">
-            Lucro / dia
-          </p>
-          <p className="text-2xl font-bold text-white mb-0.5">
-            {diasTrabalhados > 0
-              ? formatEuro(lucroLiquidoPorDia)
-              : "—"}
-          </p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+              Lucro / dia
+            </p>
+            {/* 🆕 V.2.7.0 — Sparkline lucro */}
+            {hasSparklineData && sparklineSeries && (
+              <SparklineChart
+                data={sparklineSeries.lucro}
+                color="#10b981"
+                color2="#f59e0b"
+                refValue={0}
+                refColor="#ef4444"
+                showLastValue
+              />
+            )}
+          </div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="text-2xl font-bold text-white">
+              {diasTrabalhados > 0
+                ? formatEuro(lucroLiquidoPorDia)
+                : "—"}
+            </p>
+            {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
+            {hasSparklineData && sparklineTendencia && (
+              <TrendBadge
+                trend={sparklineTendencia.lucroLiquido}
+                isPartial={tIsPartial}
+                diasAtual={tDiasAtual}
+              />
+            )}
+          </div>
           <p className="text-xs text-gray-500">
             {diasTrabalhados > 0
               ? `${diasTrabalhados} dias trabalhados`
@@ -177,8 +242,8 @@ export function KmRentabilidadeMotorista({
               rendimentoHoraLiquido >= 10
                 ? "#10b981"
                 : rendimentoHoraLiquido >= 6.5
-                ? "#f59e0b"
-                : "#ef4444",
+                  ? "#f59e0b"
+                  : "#ef4444",
             borderLeftWidth: 3,
           }}
         >
@@ -186,13 +251,35 @@ export function KmRentabilidadeMotorista({
             <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
               €/hora líquido
             </p>
-            <Clock size={14} className="text-gray-500" />
+            <div className="flex items-center gap-2">
+              {/* 🆕 V.2.7.0 — Sparkline rendimento/hora */}
+              {hasSparklineData && sparklineSeries && (
+                <SparklineChart
+                  data={sparklineSeries.rendimentoHora}
+                  color="#f59e0b"
+                  refValue={6.5}
+                  refColor="#ef4444"
+                  showLastValue
+                />
+              )}
+              <Clock size={14} className="text-gray-500" />
+            </div>
           </div>
-          <p className="text-2xl font-bold text-white mb-0.5">
-            {horasTotal > 0
-              ? `${rendimentoHoraLiquido.toFixed(2)}€`
-              : "—"}
-          </p>
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="text-2xl font-bold text-white">
+              {horasTotal > 0
+                ? `${rendimentoHoraLiquido.toFixed(2)}€`
+                : "—"}
+            </p>
+            {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
+            {hasSparklineData && sparklineTendencia && (
+              <TrendBadge
+                trend={sparklineTendencia.rendimentoHora}
+                isPartial={tIsPartial}
+                diasAtual={tDiasAtual}
+              />
+            )}
+          </div>
           <p className="text-xs text-gray-500">
             {horasTotal > 0
               ? `${horasTotal.toFixed(1)}h trabalhadas`
@@ -216,8 +303,8 @@ export function KmRentabilidadeMotorista({
               receitaPorKm >= 0.4
                 ? "#10b981"
                 : receitaPorKm >= 0.35
-                ? "#f59e0b"
-                : "#ef4444",
+                  ? "#f59e0b"
+                  : "#ef4444",
             borderLeftWidth: 3,
           }}
         >
@@ -225,7 +312,19 @@ export function KmRentabilidadeMotorista({
             <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
               Qualidade das corridas
             </p>
-            <Zap size={14} className="text-yellow-400" />
+            <div className="flex items-center gap-2">
+              {/* 🆕 V.2.7.0 — Sparkline receita/km */}
+              {hasSparklineData && sparklineSeries && (
+                <SparklineChart
+                  data={sparklineSeries.receitaPorKm}
+                  color="#f59e0b"
+                  refValue={0.35}
+                  refColor="#ef4444"
+                  showLastValue
+                />
+              )}
+              <Zap size={14} className="text-yellow-400" />
+            </div>
           </div>
           <p className="text-2xl font-bold text-white mb-0.5">
             {receitaPorKm > 0 ? `${receitaPorKm.toFixed(3)}€/km` : "—"}
@@ -234,10 +333,10 @@ export function KmRentabilidadeMotorista({
             {receitaPorKm >= 0.4
               ? "Excelente — corridas eficientes"
               : receitaPorKm >= 0.35
-              ? "Bom — dentro da média"
-              : receitaPorKm > 0
-              ? "Abaixo da média — muitos km mortos?"
-              : "Sem dados"}
+                ? "Bom — dentro da média"
+                : receitaPorKm > 0
+                  ? "Abaixo da média — muitos km mortos?"
+                  : "Sem dados"}
           </p>
           <div className="border-t border-gray-700 pt-2 mt-2">
             <p className="text-xs text-gray-600">
@@ -251,15 +350,37 @@ export function KmRentabilidadeMotorista({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
         {/* 🪙 "De cada 10€, ficas com…" */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 border-l-[3px] border-l-yellow-500">
-          <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
-            O que fica no bolso
-          </p>
-          <div className="text-center py-2">
-            <p className="text-3xl font-bold text-yellow-400">
-              {eurosPorDezFaturados > 0
-                ? `${eurosPorDezFaturados.toFixed(2)}€`
-                : "—"}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+              O que fica no bolso
             </p>
+            {/* 🆕 V.2.7.0 — Sparkline margem */}
+            {hasSparklineData && sparklineSeries && (
+              <SparklineChart
+                data={sparklineSeries.margem}
+                color="#f59e0b"
+                refValue={50}
+                refColor="#6366f1"
+                showLastValue
+              />
+            )}
+          </div>
+          <div className="text-center py-2">
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-3xl font-bold text-yellow-400">
+                {eurosPorDezFaturados > 0
+                  ? `${eurosPorDezFaturados.toFixed(2)}€`
+                  : "—"}
+              </p>
+              {/* 🆕 V.2.7.0 — TrendBadge margem */}
+              {hasSparklineData && sparklineTendencia && (
+                <TrendBadge
+                  trend={sparklineTendencia.margem}
+                  isPartial={tIsPartial}
+                  diasAtual={tDiasAtual}
+                />
+              )}
+            </div>
             <p className="text-sm text-gray-400 mt-1">
               de cada 10€ faturados
             </p>
@@ -307,7 +428,7 @@ export function KmRentabilidadeMotorista({
           )}
         </div>
 
-        {/* 🔥 Streak + Variação semanal */}
+        {/* 🔥 Streak + Variação semanal — 🆕 V.2.7.0 migrado para TrendBadge normalizado */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
             Ritmo & tendência
@@ -332,9 +453,31 @@ export function KmRentabilidadeMotorista({
               </p>
             </div>
           </div>
-          {/* Variação vs semana anterior */}
-          {variacaoVsSemanaAnterior !== null && (
-            <div className="border-t border-gray-700 pt-2">
+          {/* 🆕 V.2.7.0 — TrendBadge normalizado (substitui variacaoVsSemanaAnterior bruta) */}
+          <div className="border-t border-gray-700 pt-2">
+            {hasSparklineData && sparklineTendencia ? (
+              <div className="flex flex-col gap-2">
+                {/* Km: tendência principal */}
+                <div className="flex items-center gap-2">
+                  <TrendBadge
+                    trend={sparklineTendencia.km}
+                    isPartial={tIsPartial}
+                    diasAtual={tDiasAtual}
+                  />
+                  <span className="text-xs text-gray-500">km vs semana anterior</span>
+                </div>
+                {/* Lucro Só Renda */}
+                <div className="flex items-center gap-2">
+                  <TrendBadge
+                    trend={sparklineTendencia.lucroSoRenda}
+                    isPartial={tIsPartial}
+                    diasAtual={tDiasAtual}
+                  />
+                  <span className="text-xs text-gray-500">lucro vs semana anterior</span>
+                </div>
+              </div>
+            ) : variacaoVsSemanaAnterior !== null ? (
+              /* Fallback legacy — para quando não há sparkline data */
               <div className="flex items-center gap-2">
                 {variacaoVsSemanaAnterior >= 0 ? (
                   <TrendingUp size={16} className="text-emerald-400" />
@@ -355,8 +498,8 @@ export function KmRentabilidadeMotorista({
                   vs semana anterior
                 </span>
               </div>
-            </div>
-          )}
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -739,8 +882,8 @@ export function KmRentabilidadeMotorista({
                     isFirst
                       ? "bg-emerald-950/50 border border-emerald-800/50"
                       : isLast
-                      ? "bg-red-950/30 border border-red-900/30"
-                      : "bg-gray-800/50"
+                        ? "bg-red-950/30 border border-red-900/30"
+                        : "bg-gray-800/50"
                   }`}
                 >
                   <span className="text-lg font-bold text-gray-400 w-6 text-center">
