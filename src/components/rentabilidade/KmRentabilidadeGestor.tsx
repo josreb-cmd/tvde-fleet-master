@@ -362,7 +362,7 @@ export function KmRentabilidadeGestor({
               </div>
             )}
             <div className="border-t border-gray-700 pt-2 space-y-1 text-gray-500">
-              <p>⚡ Energia: {ENERGIA_POR_KM.toFixed(2)}€/km</p>
+              <p>⚡ Energia: {ENERGIA_POR_KM.toFixed(3)}€/km</p>
               <p>📍 Base: {KM_BASE.toLocaleString("pt-PT")} km</p>
               <p>💰 Sobretaxa: {TAXA_ADICIONAL.toFixed(2)}€/km</p>
             </div>
