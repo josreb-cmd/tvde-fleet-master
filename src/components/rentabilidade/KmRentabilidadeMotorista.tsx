@@ -1,6 +1,12 @@
+// =============================================================================
 // src/components/rentabilidade/KmRentabilidadeMotorista.tsx
-// Vista Motorista — V.2.8.1 com target dinâmico (folgas) + badge Folga
+// Vista Motorista — V.2.8.4 FINAL
+// ✅ Target dinâmico (folgas) + badge Folga
+// ✅ V.2.8.4 FIX: Barra verde ≤2000km, amber >2000–2500, vermelho >2500
+// ✅ V.2.8.4 FIX: Break-even dual com renda semanal fixa (linhas separadas)
+// 🆕 Mensagem custo/benefício consome veredictoKmExtra do hook (sem IIFE inline)
 // Linguagem simples, métricas acionáveis, gamificação leve
+// =============================================================================
 import React from "react";
 import {
   AreaChart,
@@ -91,6 +97,7 @@ export function KmRentabilidadeMotorista({
     variacaoVsSemanaAnterior,
     diasAcimaTarget,
     breakEvenDia,
+    breakEvenDiaSoRenda,
     progressoSemanal,
     kmPorDiaNecessarios,
     rankingDias,
@@ -102,19 +109,45 @@ export function KmRentabilidadeMotorista({
     dadosDiarios,
     dadosAcumulados,
     rendaTotal,
-    // 🆕 V.2.8.1 — target dinâmico
+    // V.2.8.1 — target dinâmico
     diasEfetivos,
     kmDiaTarget,
+    // 🆕 V.2.8.2 — custo marginal do hook
+    custoMarginalKm,
+    ganhoLiquidoPorKmExtra,
+    margemPorKmExtra,
+    veredictoKmExtra,
   } = data;
 
-  // 🆕 V.2.8.1 — target dinâmico (com fallback para backward compatibility)
+  // Target dinâmico (com fallback para backward compatibility)
   const targetDiario = kmDiaTarget ?? Math.ceil(KM_BASE / 7);
   const diasEfetivosVal = diasEfetivos ?? 7;
   const folgas = 7 - diasEfetivosVal;
 
-  // 🆕 V.2.7.0 — Metadata de parcialidade para TrendBadge
+  // Metadata de parcialidade para TrendBadge
   const tIsPartial = sparklineTendencia?.isPartial ?? false;
   const tDiasAtual = sparklineTendencia?.diasAtual ?? 0;
+
+  // ═══════════════════════════════════════════════════════════════
+  // V.2.8.4 — Lógica de cor da barra de progresso
+  // ═══════════════════════════════════════════════════════════════
+  // kmTotal ≤ 2000 (progressoSemanal ≤ 100):
+  //   ≥ 90% → verde (bom ritmo / objetivo atingido)
+  //   ≥ 50% → indigo (ritmo normal)
+  //   < 50% → amber (ritmo fraco, atenção)
+  // kmTotal > 2000 (progressoSemanal > 100 — cap removido):
+  //   > 125% (≈2500 km) → vermelho puro (margens degradam)
+  //   > 100% → amber→vermelho (sobretaxa ativa, ainda viável)
+  // ═══════════════════════════════════════════════════════════════
+  const progressoReal = (kmTotal / KM_BASE) * 100; // sem cap, para distinguir >125%
+
+  const getBarraGradient = (): string => {
+    if (progressoReal > 125) return "linear-gradient(90deg, #ef4444, #dc2626)";       // vermelho: >2500 km
+    if (progressoReal > 100) return "linear-gradient(90deg, #f59e0b, #ef4444)";       // amber→vermelho: 2001–2500 km
+    if (progressoSemanal >= 90) return "linear-gradient(90deg, #10b981, #34d399)";    // verde: ≥90%
+    if (progressoSemanal >= 50) return "linear-gradient(90deg, #6366f1, #818cf8)";    // indigo: 50–89%
+    return "linear-gradient(90deg, #f59e0b, #fbbf24)";                                 // amber: <50%
+  };
 
   return (
     <>
@@ -126,7 +159,6 @@ export function KmRentabilidadeMotorista({
             <span className="text-sm font-medium text-gray-300">
               Progresso semanal
             </span>
-            {/* 🆕 V.2.7.0 — TrendBadge km na barra de progresso */}
             {hasSparklineData && sparklineTendencia && (
               <TrendBadge
                 trend={sparklineTendencia.km}
@@ -139,20 +171,18 @@ export function KmRentabilidadeMotorista({
             {kmTotal.toLocaleString("pt-PT")} / {KM_BASE.toLocaleString("pt-PT")} km
           </span>
         </div>
+
+        {/* V.2.8.4 — Barra de progresso com cor contextual corrigida */}
         <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-700 ease-out"
             style={{
               width: `${Math.min(100, progressoSemanal)}%`,
-              background:
-                progressoSemanal >= 100
-                  ? "linear-gradient(90deg, #10b981, #34d399)"
-                  : progressoSemanal >= 75
-                    ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
-                    : "linear-gradient(90deg, #6366f1, #818cf8)",
+              background: getBarraGradient(),
             }}
           />
         </div>
+
         <div className="flex justify-between mt-2">
           <span className="text-xs text-gray-500">
             {progressoSemanal.toFixed(0)}% do objetivo
@@ -163,13 +193,15 @@ export function KmRentabilidadeMotorista({
               {kmPorDiaNecessarios} km/dia
             </span>
           ) : kmTotal >= KM_BASE ? (
-            <span className="text-xs text-emerald-400">
-              ✅ Objetivo atingido! +{kmExtra.toLocaleString("pt-PT")} km extra
+            <span className={`text-xs ${kmExtra > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+              {kmExtra > 0
+                ? `⚠️ +${kmExtra.toLocaleString("pt-PT")} km extra — sobretaxa ativa (${TAXA_ADICIONAL.toFixed(2)}€/km)`
+                : "✅ Objetivo atingido!"}
             </span>
           ) : null}
         </div>
 
-        {/* 🆕 V.2.8.1 — Info folgas na barra de progresso */}
+        {/* Info folgas na barra de progresso */}
         {folgas > 0 && (
           <div className="mt-2">
             <span className="text-[10px] bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded-full">
@@ -178,19 +210,26 @@ export function KmRentabilidadeMotorista({
           </div>
         )}
 
-        {/* Mensagem motivacional */}
+        {/* 🆕 V.2.8.2 — Mensagem motivacional com veredicto do hook (sem IIFE) */}
         {isCurrentWeek && diasDecorridos < 7 && (
           <div className="mt-3 pt-3 border-t border-gray-800">
             <p className="text-xs text-gray-400 italic">
-              {kmTotal >= KM_BASE
-                ? `🎯 Objetivo atingido! Cada km extra rende receita, mas custa +${TAXA_ADICIONAL.toFixed(2)}€. Avalia se compensa.`
-                : kmTotal >= KM_BASE * 0.8
-                  ? `💪 Quase lá! Faltam apenas ${(KM_BASE - kmTotal).toLocaleString("pt-PT")} km.`
-                  : kmTotal >= KM_BASE * 0.5
-                    ? `🚗 Bom ritmo! Mantém ${kmPorDiaNecessarios} km/dia e chegas lá.`
-                    : kmTotal > 0
-                      ? `📈 Ainda há tempo. Precisas de ${kmPorDiaNecessarios} km/dia nos dias restantes.`
-                      : "🔑 A semana acaba de começar. Bora!"}
+              {kmTotal >= KM_BASE ? (
+                // Pós-2000 km — usar veredictoKmExtra centralizado
+                veredictoKmExtra === "compensa"
+                  ? `✅ Cada km extra rende ${receitaPorKm.toFixed(2)}€ e custa ${custoMarginalKm.toFixed(3)}€ (taxa ${TAXA_ADICIONAL.toFixed(2)}€ + energia ${ENERGIA_POR_KM.toFixed(3)}€). Lucras ${ganhoLiquidoPorKmExtra.toFixed(2)}€/km (margem ${margemPorKmExtra.toFixed(0)}%) — compensa continuar!`
+                  : veredictoKmExtra === "limite"
+                    ? `⚡ Cada km extra rende ${receitaPorKm.toFixed(2)}€ e custa ${custoMarginalKm.toFixed(3)}€. Ganho marginal de apenas ${ganhoLiquidoPorKmExtra.toFixed(2)}€/km — estás no limite, avalia se compensa.`
+                    : `⚠️ Atenção: cada km extra custa ${custoMarginalKm.toFixed(3)}€ mas só rende ${receitaPorKm.toFixed(2)}€. Estás a perder ${Math.abs(ganhoLiquidoPorKmExtra).toFixed(2)}€/km — considera parar.`
+              ) : kmTotal >= KM_BASE * 0.8 ? (
+                `💪 Quase lá! Faltam apenas ${(KM_BASE - kmTotal).toLocaleString("pt-PT")} km.`
+              ) : kmTotal >= KM_BASE * 0.5 ? (
+                `🚗 Bom ritmo! Mantém ${kmPorDiaNecessarios} km/dia e chegas lá.`
+              ) : kmTotal > 0 ? (
+                `📈 Ainda há tempo. Precisas de ${kmPorDiaNecessarios} km/dia nos dias restantes.`
+              ) : (
+                "🔑 A semana acaba de começar. Bora!"
+              )}
             </p>
           </div>
         )}
@@ -210,7 +249,6 @@ export function KmRentabilidadeMotorista({
             <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
               Lucro / dia
             </p>
-            {/* 🆕 V.2.7.0 — Sparkline lucro */}
             {hasSparklineData && sparklineSeries && (
               <SparklineChart
                 data={sparklineSeries.lucro}
@@ -228,7 +266,6 @@ export function KmRentabilidadeMotorista({
                 ? formatEuro(lucroLiquidoPorDia)
                 : "—"}
             </p>
-            {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
             {hasSparklineData && sparklineTendencia && (
               <TrendBadge
                 trend={sparklineTendencia.lucroLiquido}
@@ -267,7 +304,6 @@ export function KmRentabilidadeMotorista({
               €/hora líquido
             </p>
             <div className="flex items-center gap-2">
-              {/* 🆕 V.2.7.0 — Sparkline rendimento/hora */}
               {hasSparklineData && sparklineSeries && (
                 <SparklineChart
                   data={sparklineSeries.rendimentoHora}
@@ -286,7 +322,6 @@ export function KmRentabilidadeMotorista({
                 ? `${rendimentoHoraLiquido.toFixed(2)}€`
                 : "—"}
             </p>
-            {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
             {hasSparklineData && sparklineTendencia && (
               <TrendBadge
                 trend={sparklineTendencia.rendimentoHora}
@@ -328,7 +363,6 @@ export function KmRentabilidadeMotorista({
               Qualidade das corridas
             </p>
             <div className="flex items-center gap-2">
-              {/* 🆕 V.2.7.0 — Sparkline receita/km */}
               {hasSparklineData && sparklineSeries && (
                 <SparklineChart
                   data={sparklineSeries.receitaPorKm}
@@ -369,7 +403,6 @@ export function KmRentabilidadeMotorista({
             <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
               O que fica no bolso
             </p>
-            {/* 🆕 V.2.7.0 — Sparkline margem */}
             {hasSparklineData && sparklineSeries && (
               <SparklineChart
                 data={sparklineSeries.margem}
@@ -387,7 +420,6 @@ export function KmRentabilidadeMotorista({
                   ? `${eurosPorDezFaturados.toFixed(2)}€`
                   : "—"}
               </p>
-              {/* 🆕 V.2.7.0 — TrendBadge margem */}
               {hasSparklineData && sparklineTendencia && (
                 <TrendBadge
                   trend={sparklineTendencia.margem}
@@ -443,12 +475,12 @@ export function KmRentabilidadeMotorista({
           )}
         </div>
 
-        {/* 🔥 Streak + Variação semanal — 🆕 V.2.8.1 target dinâmico */}
+        {/* 🔥 Streak + Variação semanal — target dinâmico */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
             Ritmo & tendência
           </p>
-          {/* Streak — 🆕 V.2.8.1 usa targetDiario dinâmico */}
+          {/* Streak — usa targetDiario dinâmico */}
           <div className="flex items-center gap-2 mb-3">
             <Flame
               size={18}
@@ -473,11 +505,10 @@ export function KmRentabilidadeMotorista({
               </p>
             </div>
           </div>
-          {/* 🆕 V.2.7.0 — TrendBadge normalizado (substitui variacaoVsSemanaAnterior bruta) */}
+          {/* TrendBadge normalizado */}
           <div className="border-t border-gray-700 pt-2">
             {hasSparklineData && sparklineTendencia ? (
               <div className="flex flex-col gap-2">
-                {/* Km: tendência principal */}
                 <div className="flex items-center gap-2">
                   <TrendBadge
                     trend={sparklineTendencia.km}
@@ -486,7 +517,6 @@ export function KmRentabilidadeMotorista({
                   />
                   <span className="text-xs text-gray-500">km vs semana anterior</span>
                 </div>
-                {/* Lucro Só Renda */}
                 <div className="flex items-center gap-2">
                   <TrendBadge
                     trend={sparklineTendencia.lucroSoRenda}
@@ -497,7 +527,6 @@ export function KmRentabilidadeMotorista({
                 </div>
               </div>
             ) : variacaoVsSemanaAnterior !== null ? (
-              /* Fallback legacy — para quando não há sparkline data */
               <div className="flex items-center gap-2">
                 {variacaoVsSemanaAnterior >= 0 ? (
                   <TrendingUp size={16} className="text-emerald-400" />
@@ -625,17 +654,29 @@ export function KmRentabilidadeMotorista({
           </ResponsiveContainer>
         </div>
 
-        {/* Lucro acumulado — com break-even narrativo */}
+        {/* Lucro acumulado — dual break-even badges */}
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-sm font-semibold text-gray-300">
               Quando começas a ganhar dinheiro
             </h2>
-            {breakEvenDia && (
-              <span className="text-xs bg-emerald-900 text-emerald-300 px-2 py-1 rounded-full">
-                Break-even: {breakEvenDia}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {breakEvenDiaSoRenda && (
+                <span className="text-xs bg-emerald-900/70 text-emerald-300 px-2 py-1 rounded-full whitespace-nowrap">
+                  🟢 Só Renda: {breakEvenDiaSoRenda}
+                </span>
+              )}
+              {breakEvenDia && (
+                <span className="text-xs bg-yellow-900/70 text-yellow-300 px-2 py-1 rounded-full whitespace-nowrap">
+                  🟡 Líquido: {breakEvenDia}
+                </span>
+              )}
+              {!breakEvenDiaSoRenda && !breakEvenDia && (
+                <span className="text-xs bg-red-900/50 text-red-300 px-2 py-1 rounded-full whitespace-nowrap">
+                  Ainda não atingido
+                </span>
+              )}
+            </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart
@@ -691,7 +732,6 @@ export function KmRentabilidadeMotorista({
                     : "Lucro real",
                 ]}
               />
-              {/* Linha 0€ = break-even */}
               <ReferenceLine
                 y={0}
                 stroke="#6b7280"
@@ -734,7 +774,7 @@ export function KmRentabilidadeMotorista({
         </div>
       </div>
 
-      {/* ═══ DETALHE DIÁRIO — com tooltip rico + 🆕 V.2.8.1 badge Folga ═══ */}
+      {/* ═══ DETALHE DIÁRIO — com tooltip rico + badge Folga ═══ */}
       <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-1">
           Os teus dias, um a um
@@ -796,10 +836,7 @@ export function KmRentabilidadeMotorista({
                   const d = dadosDiarios.find((x) => x.dia === label);
                   if (!d) return null;
 
-                  // 🆕 V.2.8.1 — Detetar dia de folga
-                  const isFolga = !!(d as any).folga;
-
-                  if (isFolga) {
+                  if (d.folga) {
                     return (
                       <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl">
                         <p className="text-sm font-bold text-white mb-1">
@@ -880,8 +917,8 @@ export function KmRentabilidadeMotorista({
                   <Cell
                     key={i}
                     fill={
-                      (d as any).folga
-                        ? "#1e1b4b"   /* indigo-950 — dia de folga */
+                      d.folga
+                        ? "#1e1b4b"
                         : d.km === 0
                           ? "#374151"
                           : "#6366f1"
@@ -900,7 +937,7 @@ export function KmRentabilidadeMotorista({
                   <Cell
                     key={i}
                     fill={
-                      (d as any).folga
+                      d.folga
                         ? "#1e1b4b"
                         : d.receita === 0
                           ? "#374151"
@@ -1019,15 +1056,18 @@ export function KmRentabilidadeMotorista({
             <p className="text-xs text-gray-500">por cada 10€</p>
           </div>
         </div>
+        {/* 🆕 V.2.8.2 — Resumo km extra usa veredicto centralizado */}
         {kmExtra > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-700">
             <p className="text-xs text-amber-400">
               ⚠️ Fizeste {kmExtra.toLocaleString("pt-PT")} km acima do limite — pagaste{" "}
-              {formatEuro(sobretaxa)} de sobretaxa. Cada km extra custa {TAXA_ADICIONAL.toFixed(2)}€ mas rende ~
-              {receitaPorKm > 0 ? receitaPorKm.toFixed(2) : "0,35"}€ — 
-              {receitaPorKm > ENERGIA_POR_KM + TAXA_ADICIONAL
-                ? " ainda compensa ✅"
-                : " está no limite ⚠️"}
+              {formatEuro(sobretaxa)} de sobretaxa. Cada km extra custa {custoMarginalKm.toFixed(3)}€ mas rende ~
+              {receitaPorKm > 0 ? receitaPorKm.toFixed(2) : "0,35"}€ —{" "}
+              {veredictoKmExtra === "compensa"
+                ? "ainda compensa ✅"
+                : veredictoKmExtra === "limite"
+                  ? "está no limite ⚡"
+                  : "não compensa ❌"}
             </p>
           </div>
         )}

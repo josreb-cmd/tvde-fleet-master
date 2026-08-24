@@ -1,8 +1,12 @@
 // =============================================================================
 // src/components/rentabilidade/useKmRentabilidade.ts
 // Hook principal do módulo Rentabilidade km
-// TVDE Fleet Master V.2.8.1
-// 🆕 Ritmo ideal DINÂMICO — descontar folgas do divisor
+// TVDE Fleet Master V.2.8.4
+// 🆕 Análise custo marginal centralizada + veredictoKmExtra
+// ✅ Ritmo ideal DINÂMICO — descontar folgas do divisor
+// ✅ Break-even duplo (Só Renda + Líquido) — V.2.8.4 FIX: renda semanal fixa
+// ✅ Fix ranking — sobretaxa é semanal, não diária
+// ✅ V.2.8.4 FIX: barra progresso verde ≤ 2000 km
 // hoursWorked = number (decimal). Ex: 8.75 = 8h45min
 // Deteção de folga: isDayOff() — convenção híbrida (nota + zeros)
 // =============================================================================
@@ -26,7 +30,13 @@ import type {
   KmRentabilidadeData,
   DiaDestaque,
   RankingDia,
+  VeredictoKmExtra,
 } from "./types";
+
+// ——— Constante derivada V.2.8.2 ———
+
+/** Limiar mínimo de ganho por km extra para ser considerado "compensa" */
+const LIMIAR_COMPENSA = 0.05; // 5 cêntimos
 
 // ——— Helpers ———
 
@@ -53,6 +63,7 @@ function toDateStr(d: Date): string {
 /**
  * Custos usando renda REAL (soma dos rentalExpenseAmount).
  * Perspetiva contratual: rendaReal + sobretaxa.
+ * Usado para KPIs finais (totais semanais).
  */
 function calcularCustoReal(kmTotal: number, rendaReal: number) {
   const kmExtra = Math.max(0, kmTotal - KM_BASE);
@@ -205,6 +216,39 @@ export function useKmRentabilidade(): KmRentabilidadeData {
         : RENDA_SEMANAL / KM_BASE;
   const receitaPorKm = kmTotal > 0 ? receitaTotal / kmTotal : 0;
 
+  // ═══════════════════════════════════════════════════════════════
+  // 🆕 V.2.8.2 — ANÁLISE CUSTO MARGINAL KM EXTRA (centralizada)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Custo marginal de cada km acima dos 2000:
+   *   TAXA_ADICIONAL (0.25€) + ENERGIA_POR_KM (0.065€) = 0.315€/km
+   *
+   * Ganho líquido por km extra = receitaPorKm real − custoMarginalKm
+   *   Se > LIMIAR_COMPENSA (0.05€)  → "compensa"
+   *   Se > 0 mas ≤ LIMIAR_COMPENSA  → "limite"
+   *   Se ≤ 0                        → "nao_compensa"
+   */
+  const custoMarginalKm = TAXA_ADICIONAL + ENERGIA_POR_KM; // 0.315€
+
+  const ganhoLiquidoPorKmExtra = receitaPorKm - custoMarginalKm;
+
+  const margemPorKmExtra =
+    receitaPorKm > 0
+      ? (ganhoLiquidoPorKmExtra / receitaPorKm) * 100
+      : 0;
+
+  const veredictoKmExtra: VeredictoKmExtra = useMemo(() => {
+    if (receitaPorKm === 0) return "nao_compensa";
+    if (ganhoLiquidoPorKmExtra > LIMIAR_COMPENSA) return "compensa";
+    if (ganhoLiquidoPorKmExtra > 0) return "limite";
+    return "nao_compensa";
+  }, [receitaPorKm, ganhoLiquidoPorKmExtra]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // FIM — Análise custo marginal
+  // ═══════════════════════════════════════════════════════════════
+
   // ——— Métricas do MOTORISTA ———
   const lucroLiquidoPorDia =
     diasTrabalhados > 0 ? lucroLiquido / diasTrabalhados : 0;
@@ -238,10 +282,10 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   }, [diasComActividade]);
 
   // ═══════════════════════════════════════════════════════════════
-  // 🆕 V.2.8.1 — RITMO IDEAL DINÂMICO (descontar folgas)
+  // V.2.8.1 — RITMO IDEAL DINÂMICO (descontar folgas)
   // ═══════════════════════════════════════════════════════════════
 
-  // Dias decorridos na semana (movido para cima — necessário para diasEfetivos)
+  // Dias decorridos na semana
   const diasDecorridos = useMemo(() => {
     if (!isCurrentWeek) return 7;
     const hoje = new Date();
@@ -256,10 +300,8 @@ export function useKmRentabilidade(): KmRentabilidadeData {
    */
   const diasEfetivos = useMemo(() => {
     if (!isCurrentWeek) {
-      // Semana fechada — sabemos exatamente quantas folgas houve
       return Math.max(1, 7 - diasFolga);
     }
-    // Semana corrente — dias já trabalhados + dias futuros (excluindo folgas já registadas)
     const diasFolgaFuturos = dadosDiarios
       .slice(diasDecorridos)
       .filter((d) => d.folga).length;
@@ -310,21 +352,16 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   // FIM — Ritmo ideal dinâmico
   // ═══════════════════════════════════════════════════════════════
 
-  // Ranking de dias por eficiência (€/hora, excluindo folgas)
+  // ——— Ranking de dias por eficiência (€/hora, excluindo folgas) ———
+  // Nota: sobretaxa é SEMANAL (acima de 2000 km no total), não diária.
+  // Custo diário individual = renda real registada + energia. Sem sobretaxa.
   const rankingDias: RankingDia[] = useMemo(() => {
     return diasComActividade
       .map((d) => ({
         dia: d.dia,
         receitaPorKm: d.km > 0 ? d.receita / d.km : 0,
         receitaPorHora: d.horas > 0 ? d.receita / d.horas : 0,
-        lucroLiquido:
-          d.receita -
-          d.renda -
-          Math.max(
-            0,
-            d.km > KM_BASE / 7 ? (d.km - KM_BASE / 7) * TAXA_ADICIONAL : 0
-          ) -
-          d.km * ENERGIA_POR_KM,
+        lucroLiquido: d.receita - d.renda - d.km * ENERGIA_POR_KM,
       }))
       .sort((a, b) => b.receitaPorHora - a.receitaPorHora);
   }, [diasComActividade]);
@@ -348,19 +385,30 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   // Progresso semanal (% dos 2000 km)
   const progressoSemanal = Math.min(100, (kmTotal / KM_BASE) * 100);
 
-  // ——— Dados acumulados (dual-line: Só Renda + Líquido) ———
+  // ═══════════════════════════════════════════════════════════════
+  // V.2.8.4 FIX — Dados acumulados com RENDA_SEMANAL fixa
+  // ═══════════════════════════════════════════════════════════════
+  // O break-even mostra: "quando é que a receita acumulada paga a renda
+  // semanal (350€)?"
+  // Antes (bug): usava accRenda (50€/dia) → lucro positivo desde dia 1,
+  // ambas as linhas coladas. Agora: renda fixa de 350€ desde o início →
+  // começa a −350€ e sobe até cruzar 0€. A linha "Líquido" cruza DEPOIS
+  // porque desconta também a energia acumulada.
+  // ═══════════════════════════════════════════════════════════════
   const dadosAcumulados: DiaAcumulado[] = useMemo(() => {
     let accKm = 0;
     let accReceita = 0;
-    let accRenda = 0;
     return dadosDiarios.map((d) => {
       accKm += d.km;
       accReceita += d.receita;
-      accRenda += d.renda;
-      const { custoTotal: custoAcc } = calcularCustoReal(accKm, accRenda);
-      const lucroSoRendaAcc = accReceita - custoAcc;
+      // Sobretaxa depende dos km acumulados até este dia
+      const kmExtraAcc = Math.max(0, accKm - KM_BASE);
+      const sobretaxaAcc = kmExtraAcc * TAXA_ADICIONAL;
+      // Perspetiva "Só Renda": receita − renda semanal completa − sobretaxa
+      const lucroSoRendaAcc = accReceita - RENDA_SEMANAL - sobretaxaAcc;
+      // Perspetiva "Líquido": receita − renda − sobretaxa − energia acumulada
       const energiaAcc = accKm * ENERGIA_POR_KM;
-      const lucroLiquidoAcc = accReceita - custoAcc - energiaAcc;
+      const lucroLiquidoAcc = accReceita - RENDA_SEMANAL - sobretaxaAcc - energiaAcc;
       const margemAcc =
         accReceita > 0 ? (lucroSoRendaAcc / accReceita) * 100 : 0;
       return {
@@ -373,9 +421,14 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     });
   }, [dadosDiarios]);
 
-  // Break-even: primeiro dia em que lucroLiquido >= 0
+  // ——— Break-even duplo: Só Renda + Líquido ———
   const breakEvenDia = useMemo(() => {
     const idx = dadosAcumulados.findIndex((d) => d.lucroLiquido >= 0);
+    return idx >= 0 ? dadosAcumulados[idx].dia : null;
+  }, [dadosAcumulados]);
+
+  const breakEvenDiaSoRenda = useMemo(() => {
+    const idx = dadosAcumulados.findIndex((d) => d.lucroSoRenda >= 0);
     return idx >= 0 ? dadosAcumulados[idx].dia : null;
   }, [dadosAcumulados]);
 
@@ -383,7 +436,6 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   const projecao: Projecao | null = useMemo(() => {
     if (!isCurrentWeek || diasDecorridos === 0 || kmTotal === 0) return null;
 
-    // Usar apenas dias trabalhados (não folgas) para média
     const diasTrabalhadosAteAgora = dadosDiarios
       .slice(0, diasDecorridos)
       .filter((d) => !d.folga && (d.km > 0 || d.receita > 0)).length;
@@ -393,7 +445,6 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     const kmPorDia = kmTotal / diasTrabalhadosAteAgora;
     const receitaPorDia = receitaTotal / diasTrabalhadosAteAgora;
 
-    // Dias restantes de trabalho (excluindo folgas futuras já registadas)
     const diasFolgaFuturos = dadosDiarios
       .slice(diasDecorridos)
       .filter((d) => d.folga).length;
@@ -500,11 +551,18 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     variacaoVsSemanaAnterior,
     diasAcimaTarget,
     breakEvenDia,
+    breakEvenDiaSoRenda,
     rankingDias,
 
-    // 🆕 V.2.8.1 — Ritmo dinâmico
+    // V.2.8.1 — Ritmo dinâmico
     diasEfetivos,
     kmDiaTarget,
+
+    // 🆕 V.2.8.2 — Análise custo marginal km extra
+    custoMarginalKm,
+    ganhoLiquidoPorKmExtra,
+    margemPorKmExtra,
+    veredictoKmExtra,
 
     // Dados
     dadosDiarios,
