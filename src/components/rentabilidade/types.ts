@@ -1,143 +1,116 @@
 // =============================================================================
-// types.ts — Tipos do módulo Rentabilidade km
-// TVDE Fleet Master V.2.8.1
-// Alinhado com useKmRentabilidade.ts e useWeeklySparklines.ts
-// V.2.7.0: SparklineTendencia expandida para normalização temporal
-// V.2.8.0: DiaData.folga + KmRentabilidadeData.diasFolga (isDayOff)
-// V.2.8.1: diasEfetivos + kmDiaTarget (ritmo ideal dinâmico)
+// src/components/rentabilidade/types.ts
+// Tipos do módulo Rentabilidade km
+// TVDE Fleet Master V.2.8.3
+// 🆕 Análise custo marginal + veredicto km extra (centralizado no hook)
+// ✅ Fix: TrendValue, WeeklySnapshot, SparklineDataPoint alinhados com
+//    SparklineChart.tsx e useWeeklySparklines.ts
 // =============================================================================
 
-import type React from 'react';
-
-// ---------- Dados diários (calculados a partir de DailyShiftLog) ----------
+// ——— Dados diários ———
 
 export interface DiaData {
-  dia: string;                // "Seg", "Ter", etc.
+  dia: string;           // "Seg", "Ter", etc.
   km: number;
   receita: number;
-  renda: number;              // rentalExpenseAmount diário
-  horas: number;              // decimal — 8.75 = 8h45min
-  folga: boolean;             // true se isDayOff() para todos os shifts do dia
+  renda: number;         // rentalExpenseAmount real do dia
+  horas: number;         // decimal (ex: 8.75 = 8h45min)
+  folga: boolean;        // isDayOff()
 }
+
+// ——— Dados acumulados (gráficos) ———
 
 export interface DiaAcumulado {
-  dia: string;                // "Seg", "Ter", etc.
-  km: number;                 // km acumulados
-  lucroSoRenda: number;       // acumulado
-  lucroLiquido: number;       // acumulado
-  margem: number;             // % acumulada (Só Renda)
+  dia: string;
+  km: number;
+  lucroSoRenda: number;
+  lucroLiquido: number;
+  margem: number;        // % — perspetiva Só Renda
 }
 
-// ---------- Projeção mid-week ----------
+// ——— Projeção mid-week ———
 
 export interface Projecao {
   kmProjetado: number;
-  lucro: number;              // lucro projetado (Só Renda)
-  kmFaltam: number;           // km/dia necessários para atingir KM_BASE
+  lucro: number;         // perspetiva Só Renda (com renda fixa)
+  kmFaltam: number;      // km/dia necessários para atingir 2000
 }
 
-// ---------- Tabela de sensibilidade ----------
+// ——— Tabela de sensibilidade ———
 
 export interface SensibilidadeRow {
   km: number;
   kmExtra: number;
   sobretaxa: number;
-  custoTotal: number;         // Renda + Sobretaxa
+  custoTotal: number;        // renda + sobretaxa
   receita: number;
-  lucro: number;              // Só Renda
-  margem: number;             // % Só Renda
+  lucro: number;             // Só Renda
+  margem: number;            // % Só Renda
   custoPorKm: number;
-  custoComEnergia: number;
-  lucroLiquido: number;
-  margemLiquida: number;      // %
+  custoComEnergia: number;   // renda + sobretaxa + energia
+  lucroLiquido: number;      // receita − custoComEnergia
+  margemLiquida: number;     // % Líquido
 }
 
-// ---------- Ranking / Melhor-Pior dia ----------
+// ——— Dia destaque (melhor/pior) ———
 
 export interface DiaDestaque {
   dia: string;
-  valor: number;
+  valor: number;             // receita do dia
 }
+
+// ——— Ranking de dias por eficiência ———
 
 export interface RankingDia {
   dia: string;
   receitaPorKm: number;
   receitaPorHora: number;
-  lucroLiquido: number;
+  lucroLiquido: number;      // receita − renda − energia (sem sobretaxa diária)
 }
 
-// ---------- Output completo do hook useKmRentabilidade ----------
+// ——— V.2.8.2 — Veredicto km extra ———
 
-export interface KmRentabilidadeData {
-  // Totais da semana
-  kmTotal: number;
-  kmExtra: number;
-  diasTrabalhados: number;
-  diasFolga: number;          // dias de folga na semana (isDayOff)
-  horasTotal: number;
-  receitaTotal: number;
-  rendaTotal: number;         // soma real de rentalExpenseAmount
-  sobretaxa: number;
-  custoTotal: number;         // rendaTotal + sobretaxa
-  custoEnergia: number;
-  custoComEnergia: number;    // custoTotal + custoEnergia
+export type VeredictoKmExtra = "compensa" | "limite" | "nao_compensa";
 
-  // Métricas dupla perspetiva — Só Renda
-  lucroSoRenda: number;
-  margemSoRenda: number;      // %
-  rendimentoHoraSoRenda: number;
+// ——— TrendValue — valor de tendência com metadata para display ———
 
-  // Métricas dupla perspetiva — Líquido
-  lucroLiquido: number;
-  margemLiquida: number;      // %
-  rendimentoHoraLiquido: number;
-
-  // Métricas comuns
-  custoPorKm: number;
-  receitaPorKm: number;
-
-  // Métricas do MOTORISTA
-  lucroLiquidoPorDia: number;
-  custoFixoPorDia: number;
-  eurosPorDezFaturados: number;
-  melhorDia: DiaDestaque | null;
-  piorDia: DiaDestaque | null;
-  variacaoVsSemanaAnterior: number | null;  // % vs semana anterior
-  diasAcimaTarget: number;    // dias com km >= kmDiaTarget (dinâmico)
-  breakEvenDia: string | null;
-  rankingDias: RankingDia[];
-
-  // 🆕 V.2.8.1 — Ritmo ideal dinâmico
-  diasEfetivos: number;       // dias de trabalho na semana (7 - folgas)
-  kmDiaTarget: number;        // KM_BASE ÷ diasEfetivos (ex: 286, 334, 400)
-
-  // Dados diários e acumulados
-  dadosDiarios: DiaData[];
-  dadosAcumulados: DiaAcumulado[];
-
-  // Projeção e sensibilidade
-  projecao: Projecao | null;
-  tabelaSensibilidade: SensibilidadeRow[];
-
-  // Estado e navegação
-  progressoSemanal: number;   // 0-100
-  kmPorDiaNecessarios: number;
-  statusColor: string;
-  temDados: boolean;
-  apenasDesp: boolean;        // só despesas, sem km
-  isCurrentWeek: boolean;
-  diasDecorridos: number;
-  monday: Date;
-  sunday: Date;
-  weekOffset: number;
-  setWeekOffset: React.Dispatch<React.SetStateAction<number>>;
+export interface TrendValue {
+  value: number | null;      // variação numérica (null = sem dados)
+  type: "pct" | "pp";       // "pct" = percentual, "pp" = pontos percentuais
+  displaySuffix: string;    // sufixo para UI (ex: "%", "% /dia", "p.p.")
+  isNeutral: boolean;       // true se variação < TREND_THRESHOLD (dead band)
 }
 
-// ---------- Sparklines (tendência multi-semana) ----------
+// ——— Sparkline types ———
+
+export interface SparklineDataPoint {
+  label: string;             // rótulo compacto (ex: "03/06")
+  value: number;             // valor principal (perspetiva verde / Só Renda)
+  value2?: number;           // valor secundário (perspetiva amarela / Líquido)
+}
+
+export type TrendDirection = "up" | "down" | "stable";
+
+// ——— SparklineTendencia — tendências por métrica (usa TrendValue) ———
+
+export interface SparklineTendencia {
+  km: TrendValue;
+  receita: TrendValue;
+  lucroSoRenda: TrendValue;
+  lucroLiquido: TrendValue;
+  margem: TrendValue;
+  rendimentoHora: TrendValue;
+  receitaPorKm?: TrendValue;
+  diasAtual?: number;
+  diasAnterior?: number;
+  isPartial?: boolean;
+}
+
+// ——— WeeklySnapshot — snapshot semanal para sparklines ———
 
 export interface WeeklySnapshot {
-  weekLabel: string;          // "dd/mm" da segunda-feira
-  monday: Date;               // objecto Date da segunda-feira
+  weekLabel: string;
+  monday: Date;
   kmTotal: number;
   receitaTotal: number;
   rendaTotal: number;
@@ -157,51 +130,74 @@ export interface WeeklySnapshot {
   custoPorKm: number;
 }
 
-export interface SparklineDataPoint {
-  label: string;              // "dd/mm"
-  value: number;              // linha primária (Só Renda)
-  value2?: number;            // linha secundária (Líquido)
-}
+// ——— Return type do hook useKmRentabilidade ———
 
-// ——— V.2.7.0: SparklineTendencia expandida ———
+export interface KmRentabilidadeData {
+  // Totais
+  kmTotal: number;
+  kmExtra: number;
+  diasTrabalhados: number;
+  diasFolga: number;
+  horasTotal: number;
+  receitaTotal: number;
+  rendaTotal: number;
+  sobretaxa: number;
+  custoTotal: number;
+  custoEnergia: number;
+  custoComEnergia: number;
 
-/** Valor de tendência individual com metadata */
-export interface TrendValue {
-  /** Variação calculada (% ou p.p.) — null se sem base de comparação */
-  value: number | null;
-  /** Tipo de variação: "pct" = percentual relativa, "pp" = pontos percentuais */
-  type: "pct" | "pp";
-  /** Sufixo de exibição: "%", "% /dia", "p.p." */
-  displaySuffix: string;
-  /** Está dentro da dead band? (|value| < TREND_THRESHOLD) */
-  isNeutral: boolean;
-}
+  // Dupla perspetiva — Só Renda
+  lucroSoRenda: number;
+  margemSoRenda: number;
+  rendimentoHoraSoRenda: number;
 
-export interface SparklineTendencia {
-  km: TrendValue;
-  receita: TrendValue;
-  lucroSoRenda: TrendValue;
-  lucroLiquido: TrendValue;
-  margem: TrendValue;
-  rendimentoHora: TrendValue;
+  // Dupla perspetiva — Líquido
+  lucroLiquido: number;
+  margemLiquida: number;
+  rendimentoHoraLiquido: number;
 
-  /** Dias com actividade na semana atual */
-  diasAtual: number;
-  /** Dias com actividade na semana anterior */
-  diasAnterior: number;
-  /** true se a semana atual tem menos de 7 dias decorridos */
-  isPartial: boolean;
-}
+  // Comuns
+  custoPorKm: number;
+  receitaPorKm: number;
 
-// Mantido para retrocompatibilidade com SparklineChart.tsx
-export interface SparklineConfig {
-  data: SparklineDataPoint[];
-  referenceLine?: number;
-  referenceLabel?: string;
-  colorPrimary?: string;      // default: verde (#10b981)
-  colorSecondary?: string;    // default: amarelo (#f59e0b)
-  trend: {
-    variation: number;
-    direction: 'up' | 'down' | 'stable';
-  };
+  // Motorista
+  lucroLiquidoPorDia: number;
+  custoFixoPorDia: number;
+  eurosPorDezFaturados: number;
+  melhorDia: DiaDestaque | null;
+  piorDia: DiaDestaque | null;
+  variacaoVsSemanaAnterior: number | null;
+  diasAcimaTarget: number;
+  breakEvenDia: string | null;
+  breakEvenDiaSoRenda: string | null;
+  rankingDias: RankingDia[];
+
+  // V.2.8.1 — Ritmo dinâmico
+  diasEfetivos: number;
+  kmDiaTarget: number;
+
+  // V.2.8.2 — Análise custo marginal km extra
+  custoMarginalKm: number;
+  ganhoLiquidoPorKmExtra: number;
+  margemPorKmExtra: number;
+  veredictoKmExtra: VeredictoKmExtra;
+
+  // Dados
+  dadosDiarios: DiaData[];
+  dadosAcumulados: DiaAcumulado[];
+  projecao: Projecao | null;
+  tabelaSensibilidade: SensibilidadeRow[];
+
+  // Estado e navegação
+  progressoSemanal: number;
+  kmPorDiaNecessarios: number;
+  statusColor: string;
+  temDados: boolean;
+  apenasDesp: boolean;
+  isCurrentWeek: boolean;
+  diasDecorridos: number;
+  monday: Date;
+  sunday: Date;
+  weekOffset: number;
+  setWeekOffset: (offset: number | ((prev: number) => number)) => void;
 }
