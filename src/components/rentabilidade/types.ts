@@ -1,9 +1,10 @@
 // =============================================================================
 // types.ts — Tipos do módulo Rentabilidade km
-// TVDE Fleet Master V.2.8.0
+// TVDE Fleet Master V.2.8.1
 // Alinhado com useKmRentabilidade.ts e useWeeklySparklines.ts
 // V.2.7.0: SparklineTendencia expandida para normalização temporal
 // V.2.8.0: DiaData.folga + KmRentabilidadeData.diasFolga (isDayOff)
+// V.2.8.1: diasEfetivos + kmDiaTarget (ritmo ideal dinâmico)
 // =============================================================================
 
 import type React from 'react';
@@ -102,9 +103,13 @@ export interface KmRentabilidadeData {
   melhorDia: DiaDestaque | null;
   piorDia: DiaDestaque | null;
   variacaoVsSemanaAnterior: number | null;  // % vs semana anterior
-  diasAcimaTarget: number;    // dias com km >= 286
+  diasAcimaTarget: number;    // dias com km >= kmDiaTarget (dinâmico)
   breakEvenDia: string | null;
   rankingDias: RankingDia[];
+
+  // 🆕 V.2.8.1 — Ritmo ideal dinâmico
+  diasEfetivos: number;       // dias de trabalho na semana (7 - folgas)
+  kmDiaTarget: number;        // KM_BASE ÷ diasEfetivos (ex: 286, 334, 400)
 
   // Dados diários e acumulados
   dadosDiarios: DiaData[];

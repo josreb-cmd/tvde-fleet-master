@@ -1,5 +1,5 @@
 // src/components/rentabilidade/KmRentabilidadeMotorista.tsx
-// Vista Motorista — V.2.7.0 com sparklines + TrendBadge normalizado
+// Vista Motorista — V.2.8.1 com target dinâmico (folgas) + badge Folga
 // Linguagem simples, métricas acionáveis, gamificação leve
 import React from "react";
 import {
@@ -31,7 +31,7 @@ import type {
   SparklineDataPoint,
   SparklineTendencia,
 } from "./types";
-import { KM_BASE, ENERGIA_POR_KM } from "./constants";
+import { KM_BASE, ENERGIA_POR_KM, TAXA_ADICIONAL } from "./constants";
 import { SparklineChart, TrendBadge } from "./SparklineChart";
 
 // ——— Tipos de props ———
@@ -102,9 +102,15 @@ export function KmRentabilidadeMotorista({
     dadosDiarios,
     dadosAcumulados,
     rendaTotal,
+    // 🆕 V.2.8.1 — target dinâmico
+    diasEfetivos,
+    kmDiaTarget,
   } = data;
 
-  const KM_DIA_TARGET = Math.ceil(KM_BASE / 7);
+  // 🆕 V.2.8.1 — target dinâmico (com fallback para backward compatibility)
+  const targetDiario = kmDiaTarget ?? Math.ceil(KM_BASE / 7);
+  const diasEfetivosVal = diasEfetivos ?? 7;
+  const folgas = 7 - diasEfetivosVal;
 
   // 🆕 V.2.7.0 — Metadata de parcialidade para TrendBadge
   const tIsPartial = sparklineTendencia?.isPartial ?? false;
@@ -163,12 +169,21 @@ export function KmRentabilidadeMotorista({
           ) : null}
         </div>
 
+        {/* 🆕 V.2.8.1 — Info folgas na barra de progresso */}
+        {folgas > 0 && (
+          <div className="mt-2">
+            <span className="text-[10px] bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded-full">
+              {folgas} {folgas === 1 ? "folga" : "folgas"} · Meta: {KM_BASE.toLocaleString("pt-PT")} km ÷ {diasEfetivosVal} dias = {targetDiario} km/dia
+            </span>
+          </div>
+        )}
+
         {/* Mensagem motivacional */}
         {isCurrentWeek && diasDecorridos < 7 && (
           <div className="mt-3 pt-3 border-t border-gray-800">
             <p className="text-xs text-gray-400 italic">
               {kmTotal >= KM_BASE
-                ? "🎯 Objetivo atingido! Cada km extra rende receita, mas custa +0,25€. Avalia se compensa."
+                ? `🎯 Objetivo atingido! Cada km extra rende receita, mas custa +${TAXA_ADICIONAL.toFixed(2)}€. Avalia se compensa.`
                 : kmTotal >= KM_BASE * 0.8
                   ? `💪 Quase lá! Faltam apenas ${(KM_BASE - kmTotal).toLocaleString("pt-PT")} km.`
                   : kmTotal >= KM_BASE * 0.5
@@ -428,12 +443,12 @@ export function KmRentabilidadeMotorista({
           )}
         </div>
 
-        {/* 🔥 Streak + Variação semanal — 🆕 V.2.7.0 migrado para TrendBadge normalizado */}
+        {/* 🔥 Streak + Variação semanal — 🆕 V.2.8.1 target dinâmico */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
             Ritmo & tendência
           </p>
-          {/* Streak */}
+          {/* Streak — 🆕 V.2.8.1 usa targetDiario dinâmico */}
           <div className="flex items-center gap-2 mb-3">
             <Flame
               size={18}
@@ -446,10 +461,15 @@ export function KmRentabilidadeMotorista({
             <div>
               <p className="text-sm font-semibold text-white">
                 {diasAcimaTarget} {diasAcimaTarget === 1 ? "dia" : "dias"} acima
-                de {Math.ceil(KM_BASE / 7)} km
+                de {targetDiario} km
               </p>
               <p className="text-xs text-gray-500">
-                Ritmo diário para atingir os {KM_BASE.toLocaleString("pt-PT")} km
+                Meta: {KM_BASE.toLocaleString("pt-PT")} km ÷ {diasEfetivosVal} dias
+                {folgas > 0 && (
+                  <span className="text-indigo-400">
+                    {" "}({folgas} {folgas === 1 ? "folga" : "folgas"})
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -714,7 +734,7 @@ export function KmRentabilidadeMotorista({
         </div>
       </div>
 
-      {/* ═══ DETALHE DIÁRIO — com tooltip rico ═══ */}
+      {/* ═══ DETALHE DIÁRIO — com tooltip rico + 🆕 V.2.8.1 badge Folga ═══ */}
       <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-1">
           Os teus dias, um a um
@@ -775,6 +795,26 @@ export function KmRentabilidadeMotorista({
                   if (!active || !payload || payload.length === 0) return null;
                   const d = dadosDiarios.find((x) => x.dia === label);
                   if (!d) return null;
+
+                  // 🆕 V.2.8.1 — Detetar dia de folga
+                  const isFolga = !!(d as any).folga;
+
+                  if (isFolga) {
+                    return (
+                      <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl">
+                        <p className="text-sm font-bold text-white mb-1">
+                          {label}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🛌</span>
+                          <span className="text-sm text-indigo-300 font-medium">
+                            Dia de folga
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const energiaDia = d.km * ENERGIA_POR_KM;
                   const rendaDia = d.renda;
                   const liquidoDia = d.receita - rendaDia - energiaDia;
@@ -839,7 +879,13 @@ export function KmRentabilidadeMotorista({
                 {dadosDiarios.map((d, i) => (
                   <Cell
                     key={i}
-                    fill={d.km === 0 ? "#374151" : "#6366f1"}
+                    fill={
+                      (d as any).folga
+                        ? "#1e1b4b"   /* indigo-950 — dia de folga */
+                        : d.km === 0
+                          ? "#374151"
+                          : "#6366f1"
+                    }
                   />
                 ))}
               </Bar>
@@ -853,7 +899,13 @@ export function KmRentabilidadeMotorista({
                 {dadosDiarios.map((d, i) => (
                   <Cell
                     key={i}
-                    fill={d.receita === 0 ? "#374151" : "#10b981"}
+                    fill={
+                      (d as any).folga
+                        ? "#1e1b4b"
+                        : d.receita === 0
+                          ? "#374151"
+                          : "#10b981"
+                    }
                   />
                 ))}
               </Bar>
@@ -971,9 +1023,9 @@ export function KmRentabilidadeMotorista({
           <div className="mt-3 pt-3 border-t border-gray-700">
             <p className="text-xs text-amber-400">
               ⚠️ Fizeste {kmExtra.toLocaleString("pt-PT")} km acima do limite — pagaste{" "}
-              {formatEuro(sobretaxa)} de sobretaxa. Cada km extra custa 0,25€ mas rende ~
+              {formatEuro(sobretaxa)} de sobretaxa. Cada km extra custa {TAXA_ADICIONAL.toFixed(2)}€ mas rende ~
               {receitaPorKm > 0 ? receitaPorKm.toFixed(2) : "0,35"}€ — 
-              {receitaPorKm > ENERGIA_POR_KM + 0.25
+              {receitaPorKm > ENERGIA_POR_KM + TAXA_ADICIONAL
                 ? " ainda compensa ✅"
                 : " está no limite ⚠️"}
             </p>

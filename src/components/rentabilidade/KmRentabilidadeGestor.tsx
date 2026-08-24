@@ -1,5 +1,5 @@
 // src/components/rentabilidade/KmRentabilidadeGestor.tsx
-// Vista Gestor — V.2.7.0 com TrendBadge normalizado (por dia, p.p., dead band)
+// Vista Gestor — V.2.8.1 com TrendBadge normalizado + ritmo ideal dinâmico
 import React from "react";
 import {
   AreaChart,
@@ -19,7 +19,7 @@ import { AlertCircle, CheckCircle, Info, TrendingUp } from "lucide-react";
 import type {
   KmRentabilidadeData,
   SparklineDataPoint,
-  SparklineTendencia,       // 🆕 V.2.7.0 — importado do types.ts (com TrendValue)
+  SparklineTendencia,
 } from "./types";
 import {
   KM_BASE,
@@ -40,13 +40,10 @@ interface SparklineSeries {
   receitaPorKm: SparklineDataPoint[];
 }
 
-// 🆕 V.2.7.0 — Removida a interface SparklineTendencia local (duplicada).
-//    Agora usa a importada de ./types com campos TrendValue + diasAtual/diasAnterior/isPartial.
-
 interface GestorProps {
   data: KmRentabilidadeData;
   sparklineSeries?: SparklineSeries | null;
-  sparklineTendencia?: SparklineTendencia | null;  // 🆕 tipo atualizado
+  sparklineTendencia?: SparklineTendencia | null;
   hasSparklineData?: boolean;
 }
 
@@ -96,9 +93,12 @@ export function KmRentabilidadeGestor({
     dadosDiarios,
     dadosAcumulados,
     tabelaSensibilidade,
+    // 🆕 V.2.8.1
+    diasEfetivos,
+    kmDiaTarget,
   } = data;
 
-  // 🆕 V.2.7.0 — Extrair metadata de parcialidade (usada em todos os TrendBadge)
+  // Metadata de parcialidade (usada em todos os TrendBadge)
   const tIsPartial = sparklineTendencia?.isPartial ?? false;
   const tDiasAtual = sparklineTendencia?.diasAtual ?? 0;
 
@@ -130,7 +130,6 @@ export function KmRentabilidadeGestor({
             ) : undefined
           }
           trend={
-            // 🆕 V.2.7.0 — TrendBadge normalizado
             hasSparklineData && sparklineTendencia ? (
               <TrendBadge
                 trend={sparklineTendencia.km}
@@ -177,7 +176,6 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Só Renda</span>
-              {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
               {hasSparklineData && sparklineTendencia && (
                 <TrendBadge
                   trend={sparklineTendencia.lucroSoRenda}
@@ -193,7 +191,6 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Líquido</span>
-              {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
               {hasSparklineData && sparklineTendencia && (
                 <TrendBadge
                   trend={sparklineTendencia.lucroLiquido}
@@ -245,7 +242,6 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Só Renda</span>
-              {/* 🆕 V.2.7.0 — Margem usa ppDiff (p.p.) — sufixo automático */}
               {hasSparklineData && sparklineTendencia && (
                 <TrendBadge
                   trend={sparklineTendencia.margem}
@@ -304,7 +300,6 @@ export function KmRentabilidadeGestor({
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Só Renda</span>
-              {/* 🆕 V.2.7.0 — TrendBadge normalizado */}
               {hasSparklineData && sparklineTendencia && (
                 <TrendBadge
                   trend={sparklineTendencia.rendimentoHora}
@@ -340,7 +335,7 @@ export function KmRentabilidadeGestor({
           </div>
         </div>
 
-        {/* Card INFO — 🆕 V.2.7.0 legenda atualizada para TrendBadge normalizado */}
+        {/* Card INFO — 🆕 V.2.8.1 legenda inclui nota sobre ritmo dinâmico */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Info size={14} className="text-indigo-400" />
@@ -361,7 +356,7 @@ export function KmRentabilidadeGestor({
                 Custo = Renda + Sobretaxa + Energia
               </p>
             </div>
-            {/* 🆕 V.2.7.0 — Legenda sparklines + TrendBadge normalizado */}
+            {/* Legenda sparklines + TrendBadge normalizado */}
             {hasSparklineData && (
               <div className="border-t border-gray-700 pt-2">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -412,10 +407,20 @@ export function KmRentabilidadeGestor({
                 </div>
               </div>
             )}
+            {/* 🆕 V.2.8.1 — Nota sobre ritmo dinâmico */}
             <div className="border-t border-gray-700 pt-2 space-y-1 text-gray-500">
               <p>⚡ Energia: {ENERGIA_POR_KM.toFixed(3)}€/km</p>
               <p>📍 Base: {KM_BASE.toLocaleString("pt-PT")} km</p>
               <p>💰 Sobretaxa: {TAXA_ADICIONAL.toFixed(2)}€/km</p>
+              <p>
+                🎯 Ritmo: {kmDiaTarget} km/dia ({diasEfetivos} dias úteis
+                {data.diasFolga > 0 && (
+                  <span className="text-amber-400">
+                    {" "}· {data.diasFolga} folga{data.diasFolga !== 1 ? "s" : ""}
+                  </span>
+                )}
+                )
+              </p>
             </div>
           </div>
         </div>
@@ -453,7 +458,7 @@ export function KmRentabilidadeGestor({
               {projecao.kmFaltam} km
             </p>
             <p className="text-xs text-indigo-400">
-              para atingir os 2.000 km
+              para atingir os {KM_BASE.toLocaleString("pt-PT")} km
             </p>
           </div>
         </div>
@@ -506,7 +511,7 @@ export function KmRentabilidadeGestor({
                 stroke="#f59e0b"
                 strokeDasharray="4 4"
                 label={{
-                  value: "2.000 km",
+                  value: `${KM_BASE.toLocaleString("pt-PT")} km`,
                   fill: "#f59e0b",
                   fontSize: 10,
                   position: "insideTopRight",
@@ -786,8 +791,9 @@ export function KmRentabilidadeGestor({
           </table>
         </div>
         <p className="text-xs text-gray-500 mt-3">
-          Acima dos 2.000 km cada km adicional custa mais 0,25€ — mas continua
-          rentável enquanto a receita por km superar esse valor.
+          Acima dos {KM_BASE.toLocaleString("pt-PT")} km cada km adicional custa mais{" "}
+          {TAXA_ADICIONAL.toFixed(2)}€ — mas continua rentável enquanto a receita
+          por km superar esse valor.
         </p>
       </div>
     </>

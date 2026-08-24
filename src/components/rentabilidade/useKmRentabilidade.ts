@@ -1,6 +1,8 @@
 // =============================================================================
-// useKmRentabilidade.ts — Hook principal do módulo Rentabilidade km
-// TVDE Fleet Master V.2.8.0
+// src/components/rentabilidade/useKmRentabilidade.ts
+// Hook principal do módulo Rentabilidade km
+// TVDE Fleet Master V.2.8.1
+// 🆕 Ritmo ideal DINÂMICO — descontar folgas do divisor
 // hoursWorked = number (decimal). Ex: 8.75 = 8h45min
 // Deteção de folga: isDayOff() — convenção híbrida (nota + zeros)
 // =============================================================================
@@ -160,11 +162,13 @@ export function useKmRentabilidade(): KmRentabilidadeData {
 
   // ——— Dias trabalhados = dias que NÃO são folga E têm actividade ———
   const diasTrabalhados = useMemo(
-    () => dadosDiarios.filter((d) => !d.folga && (d.km > 0 || d.receita > 0)).length,
+    () =>
+      dadosDiarios.filter((d) => !d.folga && (d.km > 0 || d.receita > 0))
+        .length,
     [dadosDiarios]
   );
 
-  // ——— Dias de folga (para Smart Line e projeção) ———
+  // ——— Dias de folga ———
   const diasFolga = useMemo(
     () => dadosDiarios.filter((d) => d.folga).length,
     [dadosDiarios]
@@ -233,12 +237,78 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     return { dia: worst.dia, valor: worst.receita };
   }, [diasComActividade]);
 
-  // Streak: dias com km >= KM_DIA_TARGET (excluindo folgas)
-  const KM_DIA_TARGET = Math.ceil(KM_BASE / 7); // 286
-  const diasAcimaTarget = useMemo(
-    () => dadosDiarios.filter((d) => !d.folga && d.km >= KM_DIA_TARGET).length,
-    [dadosDiarios, KM_DIA_TARGET]
+  // ═══════════════════════════════════════════════════════════════
+  // 🆕 V.2.8.1 — RITMO IDEAL DINÂMICO (descontar folgas)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Dias decorridos na semana (movido para cima — necessário para diasEfetivos)
+  const diasDecorridos = useMemo(() => {
+    if (!isCurrentWeek) return 7;
+    const hoje = new Date();
+    const day = hoje.getDay();
+    return day === 0 ? 7 : day;
+  }, [isCurrentWeek]);
+
+  /**
+   * Dias efetivos de trabalho na semana (excluindo folgas).
+   * - Semana fechada: 7 - diasFolga (sabemos tudo)
+   * - Semana corrente: diasTrabalhados já contados + dias futuros sem folga registada
+   */
+  const diasEfetivos = useMemo(() => {
+    if (!isCurrentWeek) {
+      // Semana fechada — sabemos exatamente quantas folgas houve
+      return Math.max(1, 7 - diasFolga);
+    }
+    // Semana corrente — dias já trabalhados + dias futuros (excluindo folgas já registadas)
+    const diasFolgaFuturos = dadosDiarios
+      .slice(diasDecorridos)
+      .filter((d) => d.folga).length;
+    const diasTrabalhoFuturos = Math.max(
+      0,
+      7 - diasDecorridos - diasFolgaFuturos
+    );
+    return Math.max(1, diasTrabalhados + diasTrabalhoFuturos);
+  }, [isCurrentWeek, diasFolga, diasDecorridos, diasTrabalhados, dadosDiarios]);
+
+  /**
+   * Target diário de km — dinâmico conforme folgas.
+   * Ex: 0 folgas → 2000/7 = 286 km/dia
+   *     1 folga  → 2000/6 = 334 km/dia
+   *     2 folgas → 2000/5 = 400 km/dia
+   */
+  const kmDiaTarget = useMemo(
+    () => Math.ceil(KM_BASE / diasEfetivos),
+    [diasEfetivos]
   );
+
+  // Streak: dias com km >= target dinâmico (excluindo folgas)
+  const diasAcimaTarget = useMemo(
+    () => dadosDiarios.filter((d) => !d.folga && d.km >= kmDiaTarget).length,
+    [dadosDiarios, kmDiaTarget]
+  );
+
+  /**
+   * Km/dia necessários para atingir 2000 km (descontando folgas futuras).
+   * Só faz sentido na semana corrente.
+   */
+  const kmPorDiaNecessarios = useMemo(() => {
+    if (kmTotal >= KM_BASE) return 0;
+    if (!isCurrentWeek) return 0;
+
+    const diasFolgaFuturos = dadosDiarios
+      .slice(diasDecorridos)
+      .filter((d) => d.folga).length;
+    const diasTrabalhoRestantes = Math.max(
+      1,
+      7 - diasDecorridos - diasFolgaFuturos
+    );
+
+    return Math.ceil((KM_BASE - kmTotal) / diasTrabalhoRestantes);
+  }, [kmTotal, isCurrentWeek, diasDecorridos, dadosDiarios]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // FIM — Ritmo ideal dinâmico
+  // ═══════════════════════════════════════════════════════════════
 
   // Ranking de dias por eficiência (€/hora, excluindo folgas)
   const rankingDias: RankingDia[] = useMemo(() => {
@@ -277,19 +347,6 @@ export function useKmRentabilidade(): KmRentabilidadeData {
 
   // Progresso semanal (% dos 2000 km)
   const progressoSemanal = Math.min(100, (kmTotal / KM_BASE) * 100);
-
-  // Dias decorridos na semana
-  const diasDecorridos = useMemo(() => {
-    if (!isCurrentWeek) return 7;
-    const hoje = new Date();
-    const day = hoje.getDay();
-    return day === 0 ? 7 : day;
-  }, [isCurrentWeek]);
-
-  // Km/dia necessários para atingir 2000 (excluindo folgas futuras)
-  const diasRestantes = Math.max(1, 7 - diasDecorridos);
-  const kmPorDiaNecessarios =
-    kmTotal < KM_BASE ? Math.ceil((KM_BASE - kmTotal) / diasRestantes) : 0;
 
   // ——— Dados acumulados (dual-line: Só Renda + Líquido) ———
   const dadosAcumulados: DiaAcumulado[] = useMemo(() => {
@@ -340,13 +397,13 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     const diasFolgaFuturos = dadosDiarios
       .slice(diasDecorridos)
       .filter((d) => d.folga).length;
-    const diasTrabFuturos = Math.max(0, diasRestantes - diasFolgaFuturos);
-
-    const kmProjetado = Math.round(
-      kmTotal + kmPorDia * diasTrabFuturos
+    const diasTrabFuturos = Math.max(
+      0,
+      7 - diasDecorridos - diasFolgaFuturos
     );
-    const receitaProjetada =
-      receitaTotal + receitaPorDia * diasTrabFuturos;
+
+    const kmProjetado = Math.round(kmTotal + kmPorDia * diasTrabFuturos);
+    const receitaProjetada = receitaTotal + receitaPorDia * diasTrabFuturos;
     const { custoTotal: custoProj } = calcularCustoSemanal(kmProjetado);
 
     return {
@@ -363,7 +420,6 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     diasDecorridos,
     isCurrentWeek,
     dadosDiarios,
-    diasRestantes,
   ]);
 
   // ——— Tabela de sensibilidade (dupla perspetiva) ———
@@ -445,6 +501,10 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     diasAcimaTarget,
     breakEvenDia,
     rankingDias,
+
+    // 🆕 V.2.8.1 — Ritmo dinâmico
+    diasEfetivos,
+    kmDiaTarget,
 
     // Dados
     dadosDiarios,
