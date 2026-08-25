@@ -1,9 +1,12 @@
 // =============================================================================
 // src/components/rentabilidade/KmRentabilidadeMotorista.tsx
-// Vista Motorista — V.2.8.4 FINAL
+// Vista Motorista — V.2.8.5
 // ✅ Target dinâmico (folgas) + badge Folga
 // ✅ V.2.8.4 FIX: Barra verde ≤2000km, amber >2000–2500, vermelho >2500
 // ✅ V.2.8.4 FIX: Break-even dual com renda semanal fixa (linhas separadas)
+// ✅ V.2.8.5 FIX: Tooltip Detalhe Diário usa custoEnergiaReal (não estimativa)
+// ✅ V.2.8.5 NEW: Card Desvio Energia (Real vs Estimado) com cores contextuais
+// ✅ V.2.8.5 CLEANUP: Removidos statusColor e custoFixoPorDia do destructuring
 // 🆕 Mensagem custo/benefício consome veredictoKmExtra do hook (sem IIFE inline)
 // Linguagem simples, métricas acionáveis, gamificação leve
 // =============================================================================
@@ -31,6 +34,7 @@ import {
   Star,
   Flame,
   AlertTriangle,
+  Battery,
 } from "lucide-react";
 import type {
   KmRentabilidadeData,
@@ -101,7 +105,7 @@ export function KmRentabilidadeMotorista({
     progressoSemanal,
     kmPorDiaNecessarios,
     rankingDias,
-    statusColor,
+    // ❌ V.2.8.5 CLEANUP: statusColor removido (não usado no JSX)
     apenasDesp,
     isCurrentWeek,
     diasDecorridos,
@@ -112,11 +116,15 @@ export function KmRentabilidadeMotorista({
     // V.2.8.1 — target dinâmico
     diasEfetivos,
     kmDiaTarget,
-    // 🆕 V.2.8.2 — custo marginal do hook
+    // V.2.8.2 — custo marginal do hook
     custoMarginalKm,
     ganhoLiquidoPorKmExtra,
     margemPorKmExtra,
     veredictoKmExtra,
+    // 🆕 V.2.8.5 — energia real
+    energiaTotalReal,
+    energiaEstimada,
+    desvioEnergia,
   } = data;
 
   // Target dinâmico (com fallback para backward compatibility)
@@ -131,23 +139,30 @@ export function KmRentabilidadeMotorista({
   // ═══════════════════════════════════════════════════════════════
   // V.2.8.4 — Lógica de cor da barra de progresso
   // ═══════════════════════════════════════════════════════════════
-  // kmTotal ≤ 2000 (progressoSemanal ≤ 100):
-  //   ≥ 90% → verde (bom ritmo / objetivo atingido)
-  //   ≥ 50% → indigo (ritmo normal)
-  //   < 50% → amber (ritmo fraco, atenção)
-  // kmTotal > 2000 (progressoSemanal > 100 — cap removido):
-  //   > 125% (≈2500 km) → vermelho puro (margens degradam)
-  //   > 100% → amber→vermelho (sobretaxa ativa, ainda viável)
-  // ═══════════════════════════════════════════════════════════════
-  const progressoReal = (kmTotal / KM_BASE) * 100; // sem cap, para distinguir >125%
+  const progressoReal = (kmTotal / KM_BASE) * 100;
 
   const getBarraGradient = (): string => {
-    if (progressoReal > 125) return "linear-gradient(90deg, #ef4444, #dc2626)";       // vermelho: >2500 km
-    if (progressoReal > 100) return "linear-gradient(90deg, #f59e0b, #ef4444)";       // amber→vermelho: 2001–2500 km
-    if (progressoSemanal >= 90) return "linear-gradient(90deg, #10b981, #34d399)";    // verde: ≥90%
-    if (progressoSemanal >= 50) return "linear-gradient(90deg, #6366f1, #818cf8)";    // indigo: 50–89%
-    return "linear-gradient(90deg, #f59e0b, #fbbf24)";                                 // amber: <50%
+    if (progressoReal > 125) return "linear-gradient(90deg, #ef4444, #dc2626)";
+    if (progressoReal > 100) return "linear-gradient(90deg, #f59e0b, #ef4444)";
+    if (progressoSemanal >= 90) return "linear-gradient(90deg, #10b981, #34d399)";
+    if (progressoSemanal >= 50) return "linear-gradient(90deg, #6366f1, #818cf8)";
+    return "linear-gradient(90deg, #f59e0b, #fbbf24)";
   };
+
+  // ═══════════════════════════════════════════════════════════════
+  // 🆕 V.2.8.5 — Helpers para card desvio energia
+  // ═══════════════════════════════════════════════════════════════
+  const desvioAbs = Math.abs(desvioEnergia);
+  const desvioEnergiaColor =
+    desvioAbs < 5 ? "emerald" : desvioAbs < 15 ? "amber" : "red";
+  const desvioEnergiaIcon =
+    desvioAbs < 5 ? "✅" : desvioAbs < 15 ? "⚡" : "⚠️";
+  const desvioEnergiaLabel =
+    desvioAbs < 5
+      ? "Modelo calibrado"
+      : desvioAbs < 15
+        ? "Desvio moderado"
+        : "Desvio elevado — recalibrar?";
 
   return (
     <>
@@ -172,7 +187,6 @@ export function KmRentabilidadeMotorista({
           </span>
         </div>
 
-        {/* V.2.8.4 — Barra de progresso com cor contextual corrigida */}
         <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-700 ease-out"
@@ -201,7 +215,6 @@ export function KmRentabilidadeMotorista({
           ) : null}
         </div>
 
-        {/* Info folgas na barra de progresso */}
         {folgas > 0 && (
           <div className="mt-2">
             <span className="text-[10px] bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded-full">
@@ -210,12 +223,10 @@ export function KmRentabilidadeMotorista({
           </div>
         )}
 
-        {/* 🆕 V.2.8.2 — Mensagem motivacional com veredicto do hook (sem IIFE) */}
         {isCurrentWeek && diasDecorridos < 7 && (
           <div className="mt-3 pt-3 border-t border-gray-800">
             <p className="text-xs text-gray-400 italic">
               {kmTotal >= KM_BASE ? (
-                // Pós-2000 km — usar veredictoKmExtra centralizado
                 veredictoKmExtra === "compensa"
                   ? `✅ Cada km extra rende ${receitaPorKm.toFixed(2)}€ e custa ${custoMarginalKm.toFixed(3)}€ (taxa ${TAXA_ADICIONAL.toFixed(2)}€ + energia ${ENERGIA_POR_KM.toFixed(3)}€). Lucras ${ganhoLiquidoPorKmExtra.toFixed(2)}€/km (margem ${margemPorKmExtra.toFixed(0)}%) — compensa continuar!`
                   : veredictoKmExtra === "limite"
@@ -262,9 +273,7 @@ export function KmRentabilidadeMotorista({
           </div>
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-2xl font-bold text-white">
-              {diasTrabalhados > 0
-                ? formatEuro(lucroLiquidoPorDia)
-                : "—"}
+              {diasTrabalhados > 0 ? formatEuro(lucroLiquidoPorDia) : "—"}
             </p>
             {hasSparklineData && sparklineTendencia && (
               <TrendBadge
@@ -318,9 +327,7 @@ export function KmRentabilidadeMotorista({
           </div>
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-2xl font-bold text-white">
-              {horasTotal > 0
-                ? `${rendimentoHoraLiquido.toFixed(2)}€`
-                : "—"}
+              {horasTotal > 0 ? `${rendimentoHoraLiquido.toFixed(2)}€` : "—"}
             </p>
             {hasSparklineData && sparklineTendencia && (
               <TrendBadge
@@ -345,7 +352,7 @@ export function KmRentabilidadeMotorista({
           )}
         </div>
 
-        {/* 📊 Receita/km — qualidade das corridas */}
+        {/* 📊 Receita/km */}
         <div
           className="bg-gray-900 rounded-xl p-4 border border-gray-800 relative overflow-hidden col-span-2 md:col-span-1"
           style={{
@@ -464,8 +471,7 @@ export function KmRentabilidadeMotorista({
                     Dia mais fraco: {piorDia.dia} — {formatEuro(piorDia.valor)}
                   </p>
                   <p className="text-xs text-gray-600 mt-0.5">
-                    Diferença:{" "}
-                    {formatEuro(melhorDia.valor - piorDia.valor)}
+                    Diferença: {formatEuro(melhorDia.valor - piorDia.valor)}
                   </p>
                 </div>
               )}
@@ -475,20 +481,15 @@ export function KmRentabilidadeMotorista({
           )}
         </div>
 
-        {/* 🔥 Streak + Variação semanal — target dinâmico */}
+        {/* 🔥 Streak + Variação semanal */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">
             Ritmo & tendência
           </p>
-          {/* Streak — usa targetDiario dinâmico */}
           <div className="flex items-center gap-2 mb-3">
             <Flame
               size={18}
-              className={
-                diasAcimaTarget >= 3
-                  ? "text-orange-400"
-                  : "text-gray-600"
-              }
+              className={diasAcimaTarget >= 3 ? "text-orange-400" : "text-gray-600"}
             />
             <div>
               <p className="text-sm font-semibold text-white">
@@ -505,7 +506,6 @@ export function KmRentabilidadeMotorista({
               </p>
             </div>
           </div>
-          {/* TrendBadge normalizado */}
           <div className="border-t border-gray-700 pt-2">
             {hasSparklineData && sparklineTendencia ? (
               <div className="flex flex-col gap-2">
@@ -535,17 +535,13 @@ export function KmRentabilidadeMotorista({
                 )}
                 <span
                   className={`text-sm font-semibold ${
-                    variacaoVsSemanaAnterior >= 0
-                      ? "text-emerald-400"
-                      : "text-red-400"
+                    variacaoVsSemanaAnterior >= 0 ? "text-emerald-400" : "text-red-400"
                   }`}
                 >
                   {variacaoVsSemanaAnterior > 0 ? "+" : ""}
                   {variacaoVsSemanaAnterior}%
                 </span>
-                <span className="text-xs text-gray-500">
-                  vs semana anterior
-                </span>
+                <span className="text-xs text-gray-500">vs semana anterior</span>
               </div>
             ) : null}
           </div>
@@ -591,7 +587,7 @@ export function KmRentabilidadeMotorista({
 
       {/* ═══ GRÁFICOS ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Km acumulados com barra de progresso */}
+        {/* Km acumulados */}
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <h2 className="text-sm font-semibold text-gray-300 mb-4">
             Caminho até aos {KM_BASE.toLocaleString("pt-PT")} km
@@ -654,7 +650,7 @@ export function KmRentabilidadeMotorista({
           </ResponsiveContainer>
         </div>
 
-        {/* Lucro acumulado — dual break-even badges */}
+        {/* Lucro acumulado — dual break-even */}
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-sm font-semibold text-gray-300">
@@ -684,23 +680,11 @@ export function KmRentabilidadeMotorista({
               margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
             >
               <defs>
-                <linearGradient
-                  id="gradLucroMotVerde"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
+                <linearGradient id="gradLucroMotVerde" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
                   <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient
-                  id="gradLucroMotAmarelo"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
+                <linearGradient id="gradLucroMotAmarelo" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15} />
                   <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                 </linearGradient>
@@ -727,9 +711,7 @@ export function KmRentabilidadeMotorista({
                 }}
                 formatter={(v: number, name: string) => [
                   formatEuro(v),
-                  name === "lucroSoRenda"
-                    ? "Sem contar energia"
-                    : "Lucro real",
+                  name === "lucroSoRenda" ? "Sem contar energia" : "Lucro real",
                 ]}
               />
               <ReferenceLine
@@ -763,9 +745,7 @@ export function KmRentabilidadeMotorista({
               />
               <Legend
                 formatter={(value) =>
-                  value === "lucroSoRenda"
-                    ? "Sem contar energia"
-                    : "Lucro real"
+                  value === "lucroSoRenda" ? "Sem contar energia" : "Lucro real"
                 }
                 wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
               />
@@ -774,7 +754,96 @@ export function KmRentabilidadeMotorista({
         </div>
       </div>
 
-      {/* ═══ DETALHE DIÁRIO — com tooltip rico + badge Folga ═══ */}
+      {/* ═══ 🆕 V.2.8.5 — CARD DESVIO ENERGIA (Real vs Estimado) ═══ */}
+      {kmTotal > 0 && energiaTotalReal > 0 && (
+        <div
+          className={`rounded-xl p-4 border mb-6 ${
+            desvioEnergiaColor === "emerald"
+              ? "bg-emerald-950/40 border-emerald-800/50"
+              : desvioEnergiaColor === "amber"
+                ? "bg-amber-950/40 border-amber-800/50"
+                : "bg-red-950/40 border-red-800/50"
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Battery
+              size={16}
+              className={
+                desvioEnergiaColor === "emerald"
+                  ? "text-emerald-400"
+                  : desvioEnergiaColor === "amber"
+                    ? "text-amber-400"
+                    : "text-red-400"
+              }
+            />
+            <p className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+              Energia — Real vs Modelo
+            </p>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                desvioEnergiaColor === "emerald"
+                  ? "bg-emerald-900/70 text-emerald-300"
+                  : desvioEnergiaColor === "amber"
+                    ? "bg-amber-900/70 text-amber-300"
+                    : "bg-red-900/70 text-red-300"
+              }`}
+            >
+              {desvioEnergiaIcon} {desvioEnergiaLabel}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-lg font-bold text-white">
+                {formatEuro(energiaTotalReal)}
+              </p>
+              <p className="text-xs text-gray-500">Custo real</p>
+              <p className="text-[10px] text-gray-600">
+                (carregamentos reais)
+              </p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-gray-400">
+                {formatEuro(energiaEstimada)}
+              </p>
+              <p className="text-xs text-gray-500">Estimativa modelo</p>
+              <p className="text-[10px] text-gray-600">
+                ({kmTotal.toLocaleString("pt-PT")} km × {ENERGIA_POR_KM}€)
+              </p>
+            </div>
+            <div>
+              <p
+                className={`text-lg font-bold ${
+                  desvioEnergiaColor === "emerald"
+                    ? "text-emerald-400"
+                    : desvioEnergiaColor === "amber"
+                      ? "text-amber-400"
+                      : "text-red-400"
+                }`}
+              >
+                {desvioEnergia > 0 ? "+" : ""}
+                {desvioEnergia.toFixed(1)}%
+              </p>
+              <p className="text-xs text-gray-500">Desvio</p>
+              <p className="text-[10px] text-gray-600">
+                {desvioEnergia > 0
+                  ? "Real acima do modelo"
+                  : desvioEnergia < 0
+                    ? "Real abaixo do modelo"
+                    : "Modelo alinhado"}
+              </p>
+            </div>
+          </div>
+          {desvioAbs >= 15 && (
+            <div className="mt-3 pt-3 border-t border-red-800/30">
+              <p className="text-xs text-red-300 italic">
+                💡 Desvio superior a 15% — verifica tarifário de carregamento ou consumo da viatura. Considera ajustar a constante ENERGIA_POR_KM ({ENERGIA_POR_KM}€/km).
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ DETALHE DIÁRIO — V.2.8.5: tooltip com energia REAL ═══ */}
       <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-1">
           Os teus dias, um a um
@@ -852,11 +921,14 @@ export function KmRentabilidadeMotorista({
                     );
                   }
 
-                  const energiaDia = d.km * ENERGIA_POR_KM;
+                  // 🆕 V.2.8.5 FIX: Usar custoEnergiaReal em vez de estimativa
+                  const energiaDia = d.custoEnergiaReal;
+                  const energiaEstDia = d.km * ENERGIA_POR_KM;
                   const rendaDia = d.renda;
                   const liquidoDia = d.receita - rendaDia - energiaDia;
                   const euroPorHora = d.horas > 0 ? liquidoDia / d.horas : 0;
                   const recKm = d.km > 0 ? d.receita / d.km : 0;
+
                   return (
                     <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl">
                       <p className="text-sm font-bold text-white mb-2">
@@ -865,9 +937,7 @@ export function KmRentabilidadeMotorista({
                       <div className="space-y-1 text-xs">
                         <p className="text-indigo-300">
                           🚗 {d.km} km ·{" "}
-                          {d.horas > 0
-                            ? `${d.horas.toFixed(1)}h`
-                            : "sem horas"}
+                          {d.horas > 0 ? `${d.horas.toFixed(1)}h` : "sem horas"}
                         </p>
                         <p className="text-emerald-300">
                           💰 Receita: {formatEuro(d.receita)}
@@ -882,6 +952,16 @@ export function KmRentabilidadeMotorista({
                             Renda: {formatEuro(rendaDia)} · Energia:{" "}
                             {formatEuro(energiaDia)}
                           </p>
+                          {/* V.2.8.5: Indicador se energia real difere da estimada */}
+                          {Math.abs(energiaDia - energiaEstDia) > 0.5 && (
+                            <p className="text-[10px] text-gray-600">
+                              (modelo: {formatEuro(energiaEstDia)} · Δ{" "}
+                              {energiaEstDia > 0
+                                ? (((energiaDia - energiaEstDia) / energiaEstDia) * 100).toFixed(0)
+                                : "—"}
+                              %)
+                            </p>
+                          )}
                           <p className="text-yellow-400 font-semibold">
                             Líquido: {formatEuro(liquidoDia)}
                           </p>
@@ -984,10 +1064,7 @@ export function KmRentabilidadeMotorista({
                         {d.dia}
                       </span>
                       {isFirst && (
-                        <Star
-                          size={14}
-                          className="text-yellow-400 fill-yellow-400"
-                        />
+                        <Star size={14} className="text-yellow-400 fill-yellow-400" />
                       )}
                     </div>
                     <div className="flex gap-4 mt-1">
@@ -1005,9 +1082,7 @@ export function KmRentabilidadeMotorista({
                   </div>
                   <span
                     className={`text-sm font-mono font-bold ${
-                      d.lucroLiquido >= 0
-                        ? "text-emerald-400"
-                        : "text-red-400"
+                      d.lucroLiquido >= 0 ? "text-emerald-400" : "text-red-400"
                     }`}
                   >
                     {formatEuro(d.lucroLiquido)}
@@ -1056,7 +1131,6 @@ export function KmRentabilidadeMotorista({
             <p className="text-xs text-gray-500">por cada 10€</p>
           </div>
         </div>
-        {/* 🆕 V.2.8.2 — Resumo km extra usa veredicto centralizado */}
         {kmExtra > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-700">
             <p className="text-xs text-amber-400">
