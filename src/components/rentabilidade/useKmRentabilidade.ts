@@ -1,12 +1,15 @@
 // =============================================================================
 // src/components/rentabilidade/useKmRentabilidade.ts
 // Hook principal do módulo Rentabilidade km
-// TVDE Fleet Master V.2.8.4
-// 🆕 Análise custo marginal centralizada + veredictoKmExtra
+// TVDE Fleet Master V.2.8.5
+// 🆕 V.2.8.5 FIX #1: Break-even com renda proporcional (accRenda diária)
+// 🆕 V.2.8.5 FIX #2: Custo energético REAL (fuelExpenseAmount)
+//    — Toda a perspetiva "Líquido" usa custo real do Firestore
+//    — ENERGIA_POR_KM mantém-se como fallback e para tabela de sensibilidade
+// ✅ Análise custo marginal centralizada + veredictoKmExtra
 // ✅ Ritmo ideal DINÂMICO — descontar folgas do divisor
-// ✅ Break-even duplo (Só Renda + Líquido) — V.2.8.4 FIX: renda semanal fixa
+// ✅ Break-even duplo (Só Renda + Líquido)
 // ✅ Fix ranking — sobretaxa é semanal, não diária
-// ✅ V.2.8.4 FIX: barra progresso verde ≤ 2000 km
 // hoursWorked = number (decimal). Ex: 8.75 = 8h45min
 // Deteção de folga: isDayOff() — convenção híbrida (nota + zeros)
 // =============================================================================
@@ -121,7 +124,9 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     [shiftLogs, mondayStr, sundayStr]
   );
 
-  // ——— Agrupar shiftLogs por dia da semana (Seg→Dom) ———
+  // ═══════════════════════════════════════════════════════════════
+  // V.2.8.5 — dadosDiarios com custoEnergiaReal (fuelExpenseAmount)
+  // ═══════════════════════════════════════════════════════════════
   const dadosDiarios: DiaData[] = useMemo(() => {
     return DIAS_SEMANA.map((dia, i) => {
       const diaDate = new Date(monday);
@@ -145,11 +150,19 @@ export function useKmRentabilidade(): KmRentabilidadeData {
         0
       );
 
+      // 🆕 V.2.8.5 — Custo energético REAL do Firestore
+      // fuelExpenseAmount está preenchido todos os dias (Cenário A confirmado)
+      // Fallback para estimativa se algum registo tiver o campo undefined/null
+      const custoEnergiaReal = shiftsNoDia.reduce((acc, s) => {
+        const fuel = s.fuelExpenseAmount;
+        return acc + (typeof fuel === "number" ? fuel : km * ENERGIA_POR_KM);
+      }, 0);
+
       // Deteção de folga via isDayOff() — verifica se TODOS os shifts do dia são folga
       const folga =
         shiftsNoDia.length > 0 && shiftsNoDia.every((s) => isDayOff(s));
 
-      return { dia, km, receita, renda, horas, folga };
+      return { dia, km, receita, renda, horas, folga, custoEnergiaReal };
     });
   }, [shiftsNaSemana, monday]);
 
@@ -171,6 +184,18 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     [dadosDiarios]
   );
 
+  // ═══════════════════════════════════════════════════════════════
+  // V.2.8.5 — Energia real vs estimada
+  // ═══════════════════════════════════════════════════════════════
+  const energiaTotalReal = useMemo(
+    () => dadosDiarios.reduce((s, d) => s + d.custoEnergiaReal, 0),
+    [dadosDiarios]
+  );
+  const energiaEstimada = kmTotal * ENERGIA_POR_KM;
+  const desvioEnergia = energiaEstimada > 0
+    ? ((energiaTotalReal - energiaEstimada) / energiaEstimada) * 100
+    : 0;
+
   // ——— Dias trabalhados = dias que NÃO são folga E têm actividade ———
   const diasTrabalhados = useMemo(
     () =>
@@ -190,17 +215,19 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     () => calcularCustoReal(kmTotal, rendaTotal),
     [kmTotal, rendaTotal]
   );
-  const custoEnergia = kmTotal * ENERGIA_POR_KM;
+
+  // 🆕 V.2.8.5 — custoEnergia agora é REAL (não estimado)
+  const custoEnergia = energiaTotalReal;
   const custoComEnergia = custoTotal + custoEnergia;
 
-  // ——— Métricas "Só Renda" ———
+  // ——— Métricas "Só Renda" (inalteradas — não depende de energia) ———
   const lucroSoRenda = receitaTotal - custoTotal;
   const margemSoRenda =
     receitaTotal > 0 ? (lucroSoRenda / receitaTotal) * 100 : 0;
   const rendimentoHoraSoRenda =
     horasTotal > 0 ? lucroSoRenda / horasTotal : 0;
 
-  // ——— Métricas "Líquido" ———
+  // ——— Métricas "Líquido" (agora com energia REAL) ———
   const lucroLiquido = receitaTotal - custoTotal - custoEnergia;
   const margemLiquida =
     receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
@@ -217,17 +244,16 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   const receitaPorKm = kmTotal > 0 ? receitaTotal / kmTotal : 0;
 
   // ═══════════════════════════════════════════════════════════════
-  // 🆕 V.2.8.2 — ANÁLISE CUSTO MARGINAL KM EXTRA (centralizada)
+  // V.2.8.2 — ANÁLISE CUSTO MARGINAL KM EXTRA (centralizada)
   // ═══════════════════════════════════════════════════════════════
 
   /**
    * Custo marginal de cada km acima dos 2000:
    *   TAXA_ADICIONAL (0.25€) + ENERGIA_POR_KM (0.065€) = 0.315€/km
    *
-   * Ganho líquido por km extra = receitaPorKm real − custoMarginalKm
-   *   Se > LIMIAR_COMPENSA (0.05€)  → "compensa"
-   *   Se > 0 mas ≤ LIMIAR_COMPENSA  → "limite"
-   *   Se ≤ 0                        → "nao_compensa"
+   * Nota V.2.8.5: mantém ENERGIA_POR_KM aqui (constante teórica)
+   * porque o custo marginal é uma projeção para FUTUROS km extras,
+   * não o custo dos km já percorridos. O custo real é usado nos totais.
    */
   const custoMarginalKm = TAXA_ADICIONAL + ENERGIA_POR_KM; // 0.315€
 
@@ -249,7 +275,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   // FIM — Análise custo marginal
   // ═══════════════════════════════════════════════════════════════
 
-  // ——— Métricas do MOTORISTA ———
+  // ——— Métricas do MOTORISTA (agora com energia real) ———
   const lucroLiquidoPorDia =
     diasTrabalhados > 0 ? lucroLiquido / diasTrabalhados : 0;
   const custoFixoPorDia =
@@ -293,11 +319,6 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     return day === 0 ? 7 : day;
   }, [isCurrentWeek]);
 
-  /**
-   * Dias efetivos de trabalho na semana (excluindo folgas).
-   * - Semana fechada: 7 - diasFolga (sabemos tudo)
-   * - Semana corrente: diasTrabalhados já contados + dias futuros sem folga registada
-   */
   const diasEfetivos = useMemo(() => {
     if (!isCurrentWeek) {
       return Math.max(1, 7 - diasFolga);
@@ -312,12 +333,6 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     return Math.max(1, diasTrabalhados + diasTrabalhoFuturos);
   }, [isCurrentWeek, diasFolga, diasDecorridos, diasTrabalhados, dadosDiarios]);
 
-  /**
-   * Target diário de km — dinâmico conforme folgas.
-   * Ex: 0 folgas → 2000/7 = 286 km/dia
-   *     1 folga  → 2000/6 = 334 km/dia
-   *     2 folgas → 2000/5 = 400 km/dia
-   */
   const kmDiaTarget = useMemo(
     () => Math.ceil(KM_BASE / diasEfetivos),
     [diasEfetivos]
@@ -329,10 +344,6 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     [dadosDiarios, kmDiaTarget]
   );
 
-  /**
-   * Km/dia necessários para atingir 2000 km (descontando folgas futuras).
-   * Só faz sentido na semana corrente.
-   */
   const kmPorDiaNecessarios = useMemo(() => {
     if (kmTotal >= KM_BASE) return 0;
     if (!isCurrentWeek) return 0;
@@ -354,14 +365,14 @@ export function useKmRentabilidade(): KmRentabilidadeData {
 
   // ——— Ranking de dias por eficiência (€/hora, excluindo folgas) ———
   // Nota: sobretaxa é SEMANAL (acima de 2000 km no total), não diária.
-  // Custo diário individual = renda real registada + energia. Sem sobretaxa.
+  // 🆕 V.2.8.5: lucroLiquido usa custoEnergiaReal em vez de estimativa
   const rankingDias: RankingDia[] = useMemo(() => {
     return diasComActividade
       .map((d) => ({
         dia: d.dia,
         receitaPorKm: d.km > 0 ? d.receita / d.km : 0,
         receitaPorHora: d.horas > 0 ? d.receita / d.horas : 0,
-        lucroLiquido: d.receita - d.renda - d.km * ENERGIA_POR_KM,
+        lucroLiquido: d.receita - d.renda - d.custoEnergiaReal,
       }))
       .sort((a, b) => b.receitaPorHora - a.receitaPorHora);
   }, [diasComActividade]);
@@ -386,29 +397,35 @@ export function useKmRentabilidade(): KmRentabilidadeData {
   const progressoSemanal = Math.min(100, (kmTotal / KM_BASE) * 100);
 
   // ═══════════════════════════════════════════════════════════════
-  // V.2.8.4 FIX — Dados acumulados com RENDA_SEMANAL fixa
+  // V.2.8.5 FIX #1 — Dados acumulados com RENDA PROPORCIONAL
   // ═══════════════════════════════════════════════════════════════
-  // O break-even mostra: "quando é que a receita acumulada paga a renda
-  // semanal (350€)?"
-  // Antes (bug): usava accRenda (50€/dia) → lucro positivo desde dia 1,
-  // ambas as linhas coladas. Agora: renda fixa de 350€ desde o início →
-  // começa a −350€ e sobe até cruzar 0€. A linha "Líquido" cruza DEPOIS
-  // porque desconta também a energia acumulada.
+  // ANTES (V.2.8.4): renda fixa 350€ desde dia 1 → lucro começa a -350€.
+  // AGORA (V.2.8.5): renda real acumulada (accRenda += d.renda).
+  //   → Alinhado com os KPIs que usam rendaTotal.
+  //   → Cada dia mostra a realidade: "quanto ganhei - quanto já paguei".
+  //   → Break-even cruza 0€ quando a receita acumulada supera
+  //     (renda acumulada + sobretaxa).
+  //
+  // V.2.8.5 FIX #2 — Energia acumulada REAL (não estimada)
+  //   → Linha "Líquido" usa soma de custoEnergiaReal por dia.
   // ═══════════════════════════════════════════════════════════════
   const dadosAcumulados: DiaAcumulado[] = useMemo(() => {
     let accKm = 0;
     let accReceita = 0;
+    let accRenda = 0;
+    let accEnergiaReal = 0;
     return dadosDiarios.map((d) => {
       accKm += d.km;
       accReceita += d.receita;
+      accRenda += d.renda;
+      accEnergiaReal += d.custoEnergiaReal;
       // Sobretaxa depende dos km acumulados até este dia
       const kmExtraAcc = Math.max(0, accKm - KM_BASE);
       const sobretaxaAcc = kmExtraAcc * TAXA_ADICIONAL;
-      // Perspetiva "Só Renda": receita − renda semanal completa − sobretaxa
-      const lucroSoRendaAcc = accReceita - RENDA_SEMANAL - sobretaxaAcc;
-      // Perspetiva "Líquido": receita − renda − sobretaxa − energia acumulada
-      const energiaAcc = accKm * ENERGIA_POR_KM;
-      const lucroLiquidoAcc = accReceita - RENDA_SEMANAL - sobretaxaAcc - energiaAcc;
+      // Perspetiva "Só Renda": receita − renda acumulada real − sobretaxa
+      const lucroSoRendaAcc = accReceita - accRenda - sobretaxaAcc;
+      // Perspetiva "Líquido": receita − renda − sobretaxa − energia REAL acumulada
+      const lucroLiquidoAcc = accReceita - accRenda - sobretaxaAcc - accEnergiaReal;
       const margemAcc =
         accReceita > 0 ? (lucroSoRendaAcc / accReceita) * 100 : 0;
       return {
@@ -473,7 +490,8 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     dadosDiarios,
   ]);
 
-  // ——— Tabela de sensibilidade (dupla perspetiva) ———
+  // ——— Tabela de sensibilidade (dupla perspetiva — estimativa) ———
+  // Nota: tabela usa ENERGIA_POR_KM (constante) porque é projeção teórica
   const tabelaSensibilidade: SensibilidadeRow[] = useMemo(() => {
     return [1500, 1800, 2000, 2200, 2500, 2800, 3000, 3500].map((km) => {
       const { kmExtra, sobretaxa, custoTotal } = calcularCustoSemanal(km);
@@ -558,11 +576,16 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     diasEfetivos,
     kmDiaTarget,
 
-    // 🆕 V.2.8.2 — Análise custo marginal km extra
+    // V.2.8.2 — Análise custo marginal km extra
     custoMarginalKm,
     ganhoLiquidoPorKmExtra,
     margemPorKmExtra,
     veredictoKmExtra,
+
+    // 🆕 V.2.8.5 — Energia real
+    energiaTotalReal,
+    energiaEstimada,
+    desvioEnergia,
 
     // Dados
     dadosDiarios,

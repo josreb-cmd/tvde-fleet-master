@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
  * A GMAIL_APP_PASSWORD vem do Secret Manager (injetada como variável de ambiente).
  */
 functions.http('enviarResumoFleetMaster', async (req, res) => {
-  // ── CORS ──
+  // — CORS —
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
@@ -20,7 +20,7 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
     return res.status(405).json({ error: 'Método não permitido. Use POST.' });
   }
 
-  // ── Validação ──
+  // — Validação —
   const { startDate, endDate, shiftLogs, expenses, drivers, vehicles } = req.body || {};
 
   if (!startDate || !endDate) {
@@ -42,8 +42,12 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
   const GMAIL_USER = 'josreb@gmail.com';
   const RECIPIENTS = ['josreb@gmail.com', 'alexreb60@gmail.com'];
 
+  // — Constantes Rentabilidade (alinhadas com KmRentabilidade.tsx) —
+  const KM_BASE = 2000;
+  const TAXA_ADICIONAL = 0.25; // €/km acima de 2000
+
   try {
-    // ── Cálculos ──
+    // — Cálculos —
     const filtered = shiftLogs.filter(s => s.date >= startDate && s.date <= endDate);
     const filteredExpenses = (expenses || []).filter(e => e.date >= startDate && e.date <= endDate);
 
@@ -90,9 +94,15 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
 
     const energy = shiftFuel + standaloneFuel;
     const rental = shiftRental + standaloneRental;
-    const costs = energy + rental + standaloneOther;
+
+    // — Sobretaxa km extra —
+    const kmExtra = Math.max(0, km - KM_BASE);
+    const sobretaxa = kmExtra * TAXA_ADICIONAL;
+
+    const costs = energy + rental + standaloneOther + sobretaxa;
     const profit = gross - costs;
     const receiptIssuance = gross - rental;
+    const costPerKm = km > 0 ? costs / km : 0;
     const distinctDays = new Set(filtered.map(s => s.date)).size || (filtered.length > 0 ? 1 : 0);
     const revenuePerHour = hours > 0 ? gross / hours : 0;
     const avgTripsPerDay = distinctDays > 0 ? trips / distinctDays : 0;
@@ -100,7 +110,12 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
     const hoursH = Math.floor(hours);
     const hoursM = Math.round((hours % 1) * 60);
 
-    // ── Email HTML ──
+    // — Indicador de km (badge dinâmico) —
+    const kmBadge = km > KM_BASE
+      ? `<span style="color:#dc2626;font-weight:700;">⚠️ ${kmExtra.toLocaleString('pt-PT')} km acima do limite</span>`
+      : `<span style="color:#059669;font-weight:700;">✅ Sem sobretaxa (&lt; ${KM_BASE.toLocaleString('pt-PT')}km)</span>`;
+
+    // — Email HTML —
     const fmt = (v) => v.toFixed(2).replace('.', ',') + ' €';
     const subject = `[TVDE Fleet Master] Resumo de Desempenho (${startDate} a ${endDate})`;
 
@@ -124,6 +139,10 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
             <td style="padding:10px 8px;font-weight:600;color:#3730a3;">🧾 Emissão de Recibo</td>
             <td style="padding:10px 8px;text-align:right;font-weight:700;color:#3730a3;">${fmt(receiptIssuance)}</td>
           </tr>
+          <tr style="border-bottom:1px solid #f1f5f9;background:#fef2f2;">
+            <td style="padding:10px 8px;font-weight:600;color:#dc2626;">📉 Custos Totais</td>
+            <td style="padding:10px 8px;text-align:right;font-weight:700;color:#dc2626;">${fmt(costs)}</td>
+          </tr>
           <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px 8px;font-weight:600;">✅ Lucro Líquido</td>
             <td style="padding:10px 8px;text-align:right;font-weight:700;color:#059669;">${fmt(profit)}</td>
@@ -141,17 +160,27 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
             <td style="padding:10px 8px;text-align:right;font-weight:700;">${fmt(revenuePerTrip)}</td>
           </tr>
           <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:10px 8px;font-weight:600;">📏 Total Kms</td>
+            <td style="padding:10px 8px;font-weight:600;">📍 Total Kms</td>
             <td style="padding:10px 8px;text-align:right;font-weight:700;">${km.toLocaleString('pt-PT')} kms</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f1f5f9;background:#fffbeb;">
+            <td style="padding:10px 8px;font-weight:600;color:#b45309;">📏 Custo por Km</td>
+            <td style="padding:10px 8px;text-align:right;font-weight:700;color:#b45309;">${costPerKm.toFixed(3).replace('.', ',')} €/km — ${kmBadge}</td>
           </tr>
           <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px 8px;font-weight:600;">⛽ Custo Energia</td>
             <td style="padding:10px 8px;text-align:right;font-weight:700;color:#dc2626;">${fmt(energy)}</td>
           </tr>
-          <tr>
+          <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px 8px;font-weight:600;">🏠 Custo Renda</td>
             <td style="padding:10px 8px;text-align:right;font-weight:700;color:#dc2626;">${fmt(rental)}</td>
           </tr>
+          ${sobretaxa > 0 ? `
+          <tr style="background:#fef2f2;">
+            <td style="padding:10px 8px;font-weight:600;color:#dc2626;">⚠️ Sobretaxa Km Extra</td>
+            <td style="padding:10px 8px;text-align:right;font-weight:700;color:#dc2626;">${fmt(sobretaxa)} (${kmExtra.toLocaleString('pt-PT')} km × ${TAXA_ADICIONAL.toFixed(2).replace('.', ',')} €)</td>
+          </tr>
+          ` : ''}
         </table>
         <p style="margin:18px 0 0;font-size:11px;color:#94a3b8;text-align:center;">
           Enviado automaticamente por TVDE Fleet Master • Cloud Function
@@ -159,7 +188,7 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
       </div>
     </div>`;
 
-    // ── Enviar ──
+    // — Enviar —
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
