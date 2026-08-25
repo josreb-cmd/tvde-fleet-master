@@ -1,5 +1,9 @@
 // src/components/rentabilidade/KmRentabilidadeGestor.tsx
-// Vista Gestor — V.2.8.1 com TrendBadge normalizado + ritmo ideal dinâmico
+// Vista Gestor — V.2.8.7
+// ✅ V.2.8.1: TrendBadge normalizado + ritmo ideal dinâmico
+// ✅ V.2.8.7 FIX #1: Barras folga com cor distinta (#1e1b4b) no Detalhe Diário
+// ✅ V.2.8.7 FIX #2: Tooltip custom no Detalhe Diário (renda, energia real, lucro, €/hora)
+// =============================================================================
 import React from "react";
 import {
   AreaChart,
@@ -93,7 +97,7 @@ export function KmRentabilidadeGestor({
     dadosDiarios,
     dadosAcumulados,
     tabelaSensibilidade,
-    // 🆕 V.2.8.1
+    // V.2.8.1
     diasEfetivos,
     kmDiaTarget,
   } = data;
@@ -335,7 +339,7 @@ export function KmRentabilidadeGestor({
           </div>
         </div>
 
-        {/* Card INFO — 🆕 V.2.8.1 legenda inclui nota sobre ritmo dinâmico */}
+        {/* Card INFO — V.2.8.1 legenda inclui nota sobre ritmo dinâmico */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 border-l-[3px] border-l-indigo-500">
           <p className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Info size={14} className="text-indigo-400" />
@@ -407,7 +411,7 @@ export function KmRentabilidadeGestor({
                 </div>
               </div>
             )}
-            {/* 🆕 V.2.8.1 — Nota sobre ritmo dinâmico */}
+            {/* V.2.8.1 — Nota sobre ritmo dinâmico */}
             <div className="border-t border-gray-700 pt-2 space-y-1 text-gray-500">
               <p>⚡ Energia: {ENERGIA_POR_KM.toFixed(3)}€/km</p>
               <p>📍 Base: {KM_BASE.toLocaleString("pt-PT")} km</p>
@@ -610,7 +614,9 @@ export function KmRentabilidadeGestor({
         </div>
       </div>
 
-      {/* —— Detalhe diário —— */}
+      {/* ═══════════════════════════════════════════════════════════
+       * V.2.8.7 FIX #1 + #2 — Detalhe diário com folgas e tooltip custom
+       * ═══════════════════════════════════════════════════════════ */}
       <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-1">
           Km rodados e receita por dia
@@ -661,6 +667,7 @@ export function KmRentabilidadeGestor({
                 tickFormatter={(v) => `${v}€`}
                 width={55}
               />
+              {/* ═══ V.2.8.7 — Tooltip custom (alinhado com Motorista) ═══ */}
               <Tooltip
                 contentStyle={{
                   background: "#111827",
@@ -668,10 +675,86 @@ export function KmRentabilidadeGestor({
                   borderRadius: 8,
                   fontSize: 12,
                 }}
-                formatter={(v: number, name: string) => [
-                  name === "km" ? `${v} km` : formatEuro(v),
-                  name === "km" ? "Km rodados" : "Receita bruta",
-                ]}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || payload.length === 0) return null;
+                  const d = dadosDiarios.find((x) => x.dia === label);
+                  if (!d) return null;
+
+                  // ═══ V.2.8.7 FIX #1: tooltip de folga ═══
+                  if (d.folga) {
+                    return (
+                      <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl">
+                        <p className="text-sm font-bold text-white mb-1">
+                          {label}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🛌</span>
+                          <span className="text-sm text-indigo-300 font-medium">
+                            Dia de folga
+                          </span>
+                        </div>
+                        {d.renda > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Renda: {formatEuro(d.renda)} (custo fixo)
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  // ═══ V.2.8.7 FIX #2: tooltip completo para gestor ═══
+                  const energiaDia = d.custoEnergiaReal;
+                  const energiaEstDia = d.km * ENERGIA_POR_KM;
+                  const rendaDia = d.renda;
+                  const liquidoDia = d.receita - rendaDia - energiaDia;
+                  const euroPorHora = d.horas > 0 ? liquidoDia / d.horas : 0;
+                  const recKm = d.km > 0 ? d.receita / d.km : 0;
+
+                  return (
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl">
+                      <p className="text-sm font-bold text-white mb-2">
+                        {label}
+                      </p>
+                      <div className="space-y-1 text-xs">
+                        <p className="text-indigo-300">
+                          🚗 {d.km} km ·{" "}
+                          {d.horas > 0 ? `${d.horas.toFixed(1)}h` : "sem horas"}
+                        </p>
+                        <p className="text-emerald-300">
+                          💰 Receita: {formatEuro(d.receita)}
+                        </p>
+                        {d.km > 0 && (
+                          <p className="text-gray-400">
+                            📊 {recKm.toFixed(3)}€/km
+                          </p>
+                        )}
+                        <div className="border-t border-gray-700 pt-1 mt-1">
+                          <p className="text-gray-400">
+                            Renda: {formatEuro(rendaDia)} · Energia:{" "}
+                            {formatEuro(energiaDia)}
+                          </p>
+                          {Math.abs(energiaDia - energiaEstDia) > 0.5 && (
+                            <p className="text-[10px] text-gray-600">
+                              (modelo: {formatEuro(energiaEstDia)} · Δ{" "}
+                              {energiaEstDia > 0
+                                ? (((energiaDia - energiaEstDia) / energiaEstDia) * 100).toFixed(0)
+                                : "—"}
+                              %)
+                            </p>
+                          )}
+                          <p className="text-yellow-400 font-semibold">
+                            Líquido: {formatEuro(liquidoDia)}
+                          </p>
+                          {d.horas > 0 && (
+                            <p className="text-yellow-300">
+                              €/hora: {euroPorHora.toFixed(2)}€
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }}
               />
               <Legend
                 formatter={(value) =>
@@ -683,6 +766,7 @@ export function KmRentabilidadeGestor({
                   paddingTop: 8,
                 }}
               />
+              {/* ═══ V.2.8.7 FIX #1: barras folga com cor distinta ═══ */}
               <Bar
                 yAxisId="km"
                 dataKey="km"
@@ -693,7 +777,13 @@ export function KmRentabilidadeGestor({
                 {dadosDiarios.map((d, i) => (
                   <Cell
                     key={i}
-                    fill={d.km === 0 ? "#374151" : "#6366f1"}
+                    fill={
+                      d.folga
+                        ? "#1e1b4b"
+                        : d.km === 0
+                          ? "#374151"
+                          : "#6366f1"
+                    }
                   />
                 ))}
               </Bar>
@@ -707,7 +797,13 @@ export function KmRentabilidadeGestor({
                 {dadosDiarios.map((d, i) => (
                   <Cell
                     key={i}
-                    fill={d.receita === 0 ? "#374151" : "#10b981"}
+                    fill={
+                      d.folga
+                        ? "#1e1b4b"
+                        : d.receita === 0
+                          ? "#374151"
+                          : "#10b981"
+                    }
                   />
                 ))}
               </Bar>
