@@ -211,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </p>
         </button>
         <div className="mt-3 text-[10px] text-slate-500 font-medium">
-          V. 2.4.0 • TVDE Fleet Manager
+          V. 2.8.7 • TVDE Fleet Manager
         </div>
       </div>
     </div>
