@@ -417,7 +417,7 @@ export function KmRentabilidadeGestor({
               <p>📍 Base: {KM_BASE.toLocaleString("pt-PT")} km</p>
               <p>💰 Sobretaxa: {TAXA_ADICIONAL.toFixed(2)}€/km</p>
               <p>
-                🎯 Ritmo: {kmDiaTarget} km/dia ({diasEfetivos} dias úteis
+                🎯 Ritmo: {kmDiaTarget} km/dia ({diasEfetivos} dias efetivos
                 {data.diasFolga > 0 && (
                   <span className="text-amber-400">
                     {" "}· {data.diasFolga} folga{data.diasFolga !== 1 ? "s" : ""}
@@ -435,7 +435,7 @@ export function KmRentabilidadeGestor({
         <div className="bg-indigo-950 border border-indigo-800 rounded-xl p-4 mb-6 flex flex-wrap gap-6 items-center">
           <div>
             <p className="text-xs text-indigo-300 font-mono uppercase tracking-wider mb-1">
-              Projecção ao fim da semana
+              Projeção ao fim da semana
             </p>
             <p className="text-2xl font-bold text-indigo-100">
               ~{projecao.kmProjetado.toLocaleString("pt-PT")} km
@@ -614,9 +614,9 @@ export function KmRentabilidadeGestor({
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
        * V.2.8.7 FIX #1 + #2 — Detalhe diário com folgas e tooltip custom
-       * ═══════════════════════════════════════════════════════════ */}
+       * ═══════════════════════════════════════════════════════ */}
       <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 mb-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-1">
           Km rodados e receita por dia
