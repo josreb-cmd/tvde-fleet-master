@@ -114,7 +114,7 @@ export const CarregamentosView: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ChargeFormData>({
     date: todayStr(),
-    paidBy: 'jose',
+    paidBy: 'alexandre',
     grossAmount: 0,
     discount: 0,
     location: ''
@@ -209,7 +209,7 @@ export const CarregamentosView: React.FC = () => {
 
   // ── Handlers ──────────────────────────────────────────────────
   const resetForm = useCallback(() => {
-    setFormData({ date: todayStr(), paidBy: 'jose', grossAmount: 0, discount: 0, location: '' });
+    setFormData({ date: todayStr(), paidBy: 'alexandre', grossAmount: 0, discount: 0, location: '' });
     setEditingId(null);
     setShowForm(false);
   }, []);
