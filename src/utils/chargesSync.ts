@@ -6,7 +6,9 @@ import {
   where,
   getDocs,
   doc,
-  updateDoc
+  updateDoc,
+  setDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -29,12 +31,10 @@ export function getISOWeekId(dateStr: string): string {
 
 /**
  * Sincroniza a soma de netAmount das charges de um dia
- * para o shiftLog.fuelExpenseAmount correspondente.
+ * para o shiftLog.fuelExpenseAmount E para expenses (fuel_charging).
  *
- * @param date - Data no formato "YYYY-MM-DD"
- * @param knownTotal - (opcional) Total já calculado localmente,
- *   usado como fallback se a query Firestore ainda não refletir
- *   a escrita mais recente (race condition de indexação).
+ * @param date      - Data no formato "YYYY-MM-DD"
+ * @param knownTotal - (opcional) Total já calculado localmente (evita race condition)
  */
 export async function syncChargesToShiftLog(
   date: string,
@@ -56,9 +56,7 @@ export async function syncChargesToShiftLog(
     });
     queryTotal = Math.round(queryTotal * 100) / 100;
 
-    // 3. Usar o maior entre queryTotal e knownTotal
-    //    Se knownTotal foi passado e é maior, a query ainda não
-    //    indexou o documento mais recente → usar knownTotal
+    // 3. Usar o maior entre queryTotal e knownTotal (race condition guard)
     let totalNet = queryTotal;
     if (knownTotal !== undefined) {
       const rounded = Math.round(knownTotal * 100) / 100;
@@ -84,11 +82,26 @@ export async function syncChargesToShiftLog(
     }
 
     // 5. Atualizar cada shiftLog deste dia (normalmente só 1)
-    const updates = shiftSnap.docs.map((shiftDoc) =>
-      updateDoc(doc(db, 'shiftLogs', shiftDoc.id), {
+    //    E sincronizar o expense de energia correspondente
+    const updates = shiftSnap.docs.map(async (shiftDoc) => {
+      const shiftData = shiftDoc.data();
+
+      // 5a. Atualizar fuelExpenseAmount no shiftLog
+      await updateDoc(doc(db, 'shiftLogs', shiftDoc.id), {
         fuelExpenseAmount: totalNet
-      })
-    );
+      });
+
+      // 5b. Sincronizar expense fuel_charging (Opção A)
+      await syncFuelExpenseForShift({
+        shiftId: shiftDoc.id,
+        date,
+        totalNet,
+        vehicleId:   shiftData.vehicleId   || '',
+        vehiclePlate: shiftData.vehiclePlate || '',
+        driverId:    shiftData.driverId    || '',
+        driverName:  shiftData.driverName  || ''
+      });
+    });
 
     await Promise.all(updates);
     console.log(
@@ -102,8 +115,54 @@ export async function syncChargesToShiftLog(
 }
 
 /**
+ * Cria ou atualiza (upsert) o expense de energia (fuel_charging)
+ * correspondente a um shiftLog, usando o total das charges como valor.
+ * Se totalNet = 0, elimina o expense (evitar linha a 0€ no módulo Custos).
+ */
+async function syncFuelExpenseForShift(params: {
+  shiftId: string;
+  date: string;
+  totalNet: number;
+  vehicleId: string;
+  vehiclePlate: string;
+  driverId: string;
+  driverName: string;
+}): Promise<void> {
+  const { shiftId, date, totalNet, vehicleId, vehiclePlate, driverId, driverName } = params;
+  const expenseId = `exp-fuel-shift-${shiftId}`;
+  const expenseRef = doc(db, 'expenses', expenseId);
+
+  if (totalNet <= 0) {
+    // Sem charges neste dia → remover o expense de energia
+    try {
+      await deleteDoc(expenseRef);
+      console.log(`[chargesSync] Expense ${expenseId} eliminado (totalNet=0)`);
+    } catch (_) {
+      // Ignorar se já não existia
+    }
+    return;
+  }
+
+  // Upsert do expense com o valor correto das charges
+  const fuelExpense = {
+    id: expenseId,
+    category: 'fuel_charging',
+    title: `Combustível / Energia (${vehiclePlate})`,
+    amount: totalNet,
+    date,
+    vehicleId,
+    vehiclePlate,
+    driverId,
+    driverName,
+    description: `Sincronizado de Faturação Diária (${driverName})`
+  };
+
+  await setDoc(expenseRef, fuelExpense);
+  console.log(`[chargesSync] Expense ${expenseId} → ${totalNet}€`);
+}
+
+/**
  * Verifica se existem charges registados para uma data específica.
- * Mantida para retrocompatibilidade (usada noutros componentes).
  */
 export async function hasChargesForDate(date: string): Promise<boolean> {
   try {
@@ -121,8 +180,6 @@ export async function hasChargesForDate(date: string): Promise<boolean> {
 
 /**
  * Verifica se existem charges para uma data E retorna o total.
- * Combina hasChargesForDate + buscar valor num só round-trip.
- * Usado pelo ShiftModal para decidir read-only E exibir o valor correto.
  */
 export async function getChargesInfoForDate(date: string): Promise<{
   hasCharges: boolean;
