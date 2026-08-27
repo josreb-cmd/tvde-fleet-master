@@ -21,10 +21,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser]         = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<AuthorizedUser | null>(null);
-  const [role, setRole]         = useState<'gestor' | 'motorista' | null>(null);
-  const [loading, setLoading]   = useState(true);
+  const [role, setRole] = useState<'gestor' | 'motorista' | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchUserRoleAndDoc = useCallback(async (u: User | null) => {
     if (!u || !u.email) {
@@ -41,14 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserData(authDoc);
         setRole(authDoc.role);
       } else {
-        // Se o email não estiver registado em authorizedUsers, efetua logout
+        // Email not registered in AuthorizedUsers — force logout
         await logout();
         setUser(null);
         setUserData(null);
         setRole(null);
       }
     } catch (err) {
-      console.error('Erro ao verificar utilizador no AuthContext:', err);
+      console.error('Error checking user in AuthContext:', err);
       setUser(u);
     }
   }, []);
@@ -98,6 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }

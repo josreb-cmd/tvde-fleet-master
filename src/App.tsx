@@ -8,16 +8,17 @@ import { Sidebar } from './components/Sidebar';
 import { MobileBottomNav } from './components/MobileBottomNav';
 
 // ── Lazy-loaded Views ────────────────────────────────────────────
-const DashboardView      = React.lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })));
-const DriverPortalView   = React.lazy(() => import('./components/DriverPortalView').then(m => ({ default: m.DriverPortalView })));
-const ShiftLogsView      = React.lazy(() => import('./components/ShiftLogsView').then(m => ({ default: m.ShiftLogsView })));
-const ExpensesView       = React.lazy(() => import('./components/ExpensesView').then(m => ({ default: m.ExpensesView })));
-const FleetView          = React.lazy(() => import('./components/FleetView').then(m => ({ default: m.FleetView })));
-const DriversView        = React.lazy(() => import('./components/DriversView').then(m => ({ default: m.DriversView })));
-const NotificationsView  = React.lazy(() => import('./components/NotificationsView').then(m => ({ default: m.NotificationsView })));
-const ProfitabilityView  = React.lazy(() => import('./components/ProfitabilityView').then(m => ({ default: m.ProfitabilityView })));
-const CustomQueryView    = React.lazy(() => import('./components/CustomQueryView').then(m => ({ default: m.CustomQueryView })));
-const KmRentabilidade    = React.lazy(() => import('./components/KmRentabilidade').then(m => ({ default: m.KmRentabilidade })));
+const DashboardView        = React.lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })));
+const DriverPortalView     = React.lazy(() => import('./components/DriverPortalView').then(m => ({ default: m.DriverPortalView })));
+const ShiftLogsView        = React.lazy(() => import('./components/ShiftLogsView').then(m => ({ default: m.ShiftLogsView })));
+const ExpensesView         = React.lazy(() => import('./components/ExpensesView').then(m => ({ default: m.ExpensesView })));
+const CarregamentosView    = React.lazy(() => import('./components/CarregamentosView').then(m => ({ default: m.CarregamentosView })));
+const FleetView            = React.lazy(() => import('./components/FleetView').then(m => ({ default: m.FleetView })));
+const DriversView          = React.lazy(() => import('./components/DriversView').then(m => ({ default: m.DriversView })));
+const NotificationsView    = React.lazy(() => import('./components/NotificationsView').then(m => ({ default: m.NotificationsView })));
+const ProfitabilityView    = React.lazy(() => import('./components/ProfitabilityView').then(m => ({ default: m.ProfitabilityView })));
+const CustomQueryView      = React.lazy(() => import('./components/CustomQueryView').then(m => ({ default: m.CustomQueryView })));
+const KmRentabilidade      = React.lazy(() => import('./components/KmRentabilidade').then(m => ({ default: m.KmRentabilidade })));
 
 // ── Lazy-loaded Modals ──────────────────────────────────────────
 const ShiftModal           = React.lazy(() => import('./components/modals/ShiftModal').then(m => ({ default: m.ShiftModal })));
@@ -150,6 +151,8 @@ function AppContent() {
                 onEditExpense={handleEditExpense}
               />
             )}
+
+            {activeTab === 'carregamentos' && <CarregamentosView />}
 
             {activeTab === 'fleet' && (
               <FleetView

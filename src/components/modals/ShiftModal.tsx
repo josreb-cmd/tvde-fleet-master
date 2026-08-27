@@ -1,8 +1,10 @@
+// src/components/modals/ShiftModal.tsx
 import React, { useState, useEffect } from 'react';
 import { useTVDE } from '../../contexts/TVDEContext';
 import { DailyShiftLog } from '../../types';
-import { X, Receipt, Edit3 } from 'lucide-react';
+import { X, Receipt, Edit3, Zap, AlertTriangle, Lock } from 'lucide-react';
 import { formatHoursToHHMM, parseHHMMToHours } from '../../utils/formatters';
+import { hasChargesForDate } from '../../utils/chargesSync';
 
 interface ShiftModalProps {
   isOpen: boolean;
@@ -25,6 +27,10 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
   const [fuelExpense, setFuelExpense] = useState<string>('');
   const [rentalExpense, setRentalExpense] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+
+  // Estado para controlo de charges
+  const [fuelReadOnly, setFuelReadOnly] = useState(false);
+  const [noChargesWarning, setNoChargesWarning] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,18 +61,47 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
         setRentalExpense('');
         setNotes('');
       }
+      // Reset estados de charges
+      setFuelReadOnly(false);
+      setNoChargesWarning(false);
     }
   }, [isOpen, initialData, drivers, vehicles]);
 
+  // Verificar se existem charges quando a data muda
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
+    if (!isOpen || !date) return;
+
+    let cancelled = false;
+
+    const checkCharges = async () => {
+      try {
+        const has = await hasChargesForDate(date);
+        if (cancelled) return;
+        setFuelReadOnly(has);
+        // Aviso: turno tem custo energia manual mas sem charges no módulo
+        if (initialData && !has && (initialData.fuelExpenseAmount || 0) > 0) {
+          setNoChargesWarning(true);
+        } else {
+          setNoChargesWarning(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setFuelReadOnly(false);
+          setNoChargesWarning(false);
+        }
       }
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
+
+    checkCharges();
+    return () => { cancelled = true; };
+  }, [isOpen, date, initialData]);
+
+  // Fechar com Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
@@ -95,7 +130,10 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
       boltEarnings: boltNum,
       otherEarnings: 0,
       hoursWorked: parseHHMMToHours(hoursWorked),
-      fuelExpenseAmount: parseFloat(fuelExpense) || 0,
+      // Se read-only (charges existem), preservar valor original do auto-sync
+      fuelExpenseAmount: fuelReadOnly && initialData
+        ? (initialData.fuelExpenseAmount ?? (parseFloat(fuelExpense) || 0))
+        : (parseFloat(fuelExpense) || 0),
       rentalExpenseAmount: parseFloat(rentalExpense) || 0,
       notes
     };
@@ -118,6 +156,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
         onClick={e => e.stopPropagation()}
         className="bg-white border border-slate-200 rounded-md w-full max-w-lg p-6 shadow-xl relative overflow-hidden max-h-[90vh] overflow-y-auto"
       >
+        {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center space-x-2">
             {initialData ? (
@@ -135,6 +174,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-xs">
+          {/* Campos principais */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-medium mb-1">Motorista *</label>
@@ -250,17 +290,42 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
             </div>
           </div>
 
+          {/* Custos: Carregamento + Renda */}
           <div className="grid grid-cols-2 gap-3">
+            {/* Campo Carregamento com lógica read-only */}
             <div>
-              <label className="block text-slate-700 font-medium mb-1">Custo Carregamento / Combustível (€)</label>
+              <label className={`flex items-center space-x-1 font-medium mb-1 ${
+                fuelReadOnly ? 'text-emerald-700' : 'text-slate-700'
+              }`}>
+                {fuelReadOnly && <Lock className="w-3 h-3" />}
+                <span>Custo Carregamento (€)</span>
+                {fuelReadOnly && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] bg-emerald-100 text-emerald-700 font-bold ml-1">
+                    <Zap className="w-2.5 h-2.5 mr-0.5" />
+                    via Carregamentos
+                  </span>
+                )}
+              </label>
               <input
                 type="number"
                 step="0.01"
                 placeholder="Ex: 16.50"
                 value={fuelExpense}
-                onChange={e => setFuelExpense(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-md p-2.5 text-slate-900 focus:outline-none focus:border-blue-600"
+                onChange={e => !fuelReadOnly && setFuelExpense(e.target.value)}
+                readOnly={fuelReadOnly}
+                tabIndex={fuelReadOnly ? -1 : undefined}
+                className={`w-full border rounded-md p-2.5 text-slate-900 focus:outline-none ${
+                  fuelReadOnly
+                    ? 'bg-emerald-50 border-emerald-300 cursor-not-allowed opacity-80'
+                    : 'bg-white border-slate-300 focus:border-blue-600'
+                }`}
               />
+              {fuelReadOnly && (
+                <p className="text-[10px] text-emerald-600 mt-0.5 flex items-center">
+                  <Zap className="w-2.5 h-2.5 mr-0.5" />
+                  Valor sincronizado do módulo Carregamentos.
+                </p>
+              )}
             </div>
 
             <div>
@@ -276,11 +341,29 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
             </div>
           </div>
 
+          {/* Alerta: dia com custo energia manual, sem charges */}
+          {noChargesWarning && (
+            <div className="bg-amber-50 border border-amber-300 rounded-md p-2.5 text-[11px] text-amber-800 flex items-start space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Atenção:</strong> Este turno tem custo de carregamento ({fuelExpense}€)
+                mas não existem registos no módulo <strong>Carregamentos</strong> para {date}.
+                Considere registar os carregamentos para controlo mais detalhado.
+              </div>
+            </div>
+          )}
+
+          {/* Info sync automática */}
           <div className="bg-blue-50/80 border border-blue-200 rounded-md p-2.5 text-[11px] text-blue-800 flex items-start space-x-2">
-            <span className="font-bold text-blue-600 flex-shrink-0">💡 Sincronização Automática:</span>
-            <span>Ao preencher o Combustível e/ou Renda da Viatura no turno, o sistema cria e atualiza automaticamente os registos no módulo <strong>Custos e Rendas</strong>, sem necessidade de introdução duplicada!</span>
+            <span className="font-bold text-blue-600 flex-shrink-0">💡</span>
+            <span>
+              Ao preencher o Combustível e/ou Renda da Viatura no turno, o sistema cria
+              e atualiza automaticamente os registos no módulo <strong>Custos e Rendas</strong>,
+              sem necessidade de introdução duplicada!
+            </span>
           </div>
 
+          {/* Observações */}
           <div>
             <label className="block text-slate-700 font-medium mb-1">Observações</label>
             <input
@@ -292,6 +375,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
             />
           </div>
 
+          {/* Botões */}
           <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200">
             <button
               type="button"

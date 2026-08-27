@@ -5,6 +5,7 @@ import {
   UserCheck,
   Receipt,
   DollarSign,
+  Zap,
   Car,
   Users,
   TrendingUp,
@@ -72,6 +73,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Custos & Rendas',
       icon: DollarSign,
       badge: null,
+      roles: ['manager', 'driver']
+    },
+    {
+      id: 'carregamentos',
+      label: 'Carregamentos',
+      icon: Zap,
+      badge: 'Novo',
+      badgeColor: 'bg-amber-500 text-white',
       roles: ['manager', 'driver']
     },
     {
