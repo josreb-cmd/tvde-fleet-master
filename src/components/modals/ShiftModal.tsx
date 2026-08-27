@@ -4,7 +4,7 @@ import { useTVDE } from '../../contexts/TVDEContext';
 import { DailyShiftLog } from '../../types';
 import { X, Receipt, Edit3, Zap, AlertTriangle, Lock } from 'lucide-react';
 import { formatHoursToHHMM, parseHHMMToHours } from '../../utils/formatters';
-import { hasChargesForDate } from '../../utils/chargesSync';
+import { getChargesInfoForDate } from '../../utils/chargesSync';
 
 interface ShiftModalProps {
   isOpen: boolean;
@@ -32,6 +32,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
   const [fuelReadOnly, setFuelReadOnly] = useState(false);
   const [noChargesWarning, setNoChargesWarning] = useState(false);
 
+  // useEffect 1 — Inicialização dos campos quando o modal abre
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
@@ -61,13 +62,13 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
         setRentalExpense('');
         setNotes('');
       }
-      // Reset estados de charges
+      // Reset estados de charges (serão atualizados pelo useEffect 2)
       setFuelReadOnly(false);
       setNoChargesWarning(false);
     }
   }, [isOpen, initialData, drivers, vehicles]);
 
-  // Verificar se existem charges quando a data muda
+  // useEffect 2 — Verificar charges e atualizar valor + lock
   useEffect(() => {
     if (!isOpen || !date) return;
 
@@ -75,11 +76,20 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
 
     const checkCharges = async () => {
       try {
-        const has = await hasChargesForDate(date);
+        const { hasCharges, totalNet } = await getChargesInfoForDate(date);
         if (cancelled) return;
-        setFuelReadOnly(has);
+
+        setFuelReadOnly(hasCharges);
+
+        // ★ CORREÇÃO: atualizar o valor exibido com o total real
+        // das charges (fonte de verdade), substituindo qualquer
+        // valor stale que veio do initialData
+        if (hasCharges) {
+          setFuelExpense(totalNet.toFixed(2));
+        }
+
         // Aviso: turno tem custo energia manual mas sem charges no módulo
-        if (initialData && !has && (initialData.fuelExpenseAmount || 0) > 0) {
+        if (initialData && !hasCharges && (initialData.fuelExpenseAmount || 0) > 0) {
           setNoChargesWarning(true);
         } else {
           setNoChargesWarning(false);
@@ -130,10 +140,10 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
       boltEarnings: boltNum,
       otherEarnings: 0,
       hoursWorked: parseHHMMToHours(hoursWorked),
-      // Se read-only (charges existem), preservar valor original do auto-sync
-      fuelExpenseAmount: fuelReadOnly && initialData
-        ? (initialData.fuelExpenseAmount ?? (parseFloat(fuelExpense) || 0))
-        : (parseFloat(fuelExpense) || 0),
+      // ★ CORREÇÃO: usar sempre o valor exibido no campo.
+      // Se fuelReadOnly=true, o campo já contém o total real das charges
+      // (atualizado pelo useEffect 2). Não depender de initialData stale.
+      fuelExpenseAmount: parseFloat(fuelExpense) || 0,
       rentalExpenseAmount: parseFloat(rentalExpense) || 0,
       notes
     };

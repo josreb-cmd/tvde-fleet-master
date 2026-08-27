@@ -103,7 +103,7 @@ export async function syncChargesToShiftLog(
 
 /**
  * Verifica se existem charges registados para uma data específica.
- * Usado pelo ShiftModal para decidir se fuelExpenseAmount é read-only.
+ * Mantida para retrocompatibilidade (usada noutros componentes).
  */
 export async function hasChargesForDate(date: string): Promise<boolean> {
   try {
@@ -116,5 +116,39 @@ export async function hasChargesForDate(date: string): Promise<boolean> {
   } catch (error) {
     console.error('[chargesSync] Erro ao verificar charges para', date, error);
     return false;
+  }
+}
+
+/**
+ * Verifica se existem charges para uma data E retorna o total.
+ * Combina hasChargesForDate + buscar valor num só round-trip.
+ * Usado pelo ShiftModal para decidir read-only E exibir o valor correto.
+ */
+export async function getChargesInfoForDate(date: string): Promise<{
+  hasCharges: boolean;
+  totalNet: number;
+}> {
+  try {
+    const q = query(
+      collection(db, 'charges'),
+      where('date', '==', date)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return { hasCharges: false, totalNet: 0 };
+    }
+
+    let totalNet = 0;
+    snapshot.forEach((d) => {
+      const data = d.data();
+      totalNet += data.netAmount ?? 0;
+    });
+    totalNet = Math.round(totalNet * 100) / 100;
+
+    return { hasCharges: true, totalNet };
+  } catch (error) {
+    console.error('[chargesSync] Erro ao verificar charges para', date, error);
+    return { hasCharges: false, totalNet: 0 };
   }
 }
