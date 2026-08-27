@@ -17,9 +17,7 @@ import { db } from '../lib/firebase';
 export function getISOWeekId(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   const day = date.getDay();
-  // ISO: segunda=1 … domingo=7
   const isoDay = day === 0 ? 7 : day;
-  // A quinta-feira da mesma semana ISO determina o ano e nº da semana
   const thursday = new Date(date);
   thursday.setDate(date.getDate() + (4 - isoDay));
   const yearStart = new Date(thursday.getFullYear(), 0, 1);
@@ -33,10 +31,15 @@ export function getISOWeekId(dateStr: string): string {
  * Sincroniza a soma de netAmount das charges de um dia
  * para o shiftLog.fuelExpenseAmount correspondente.
  *
- * Chamado automaticamente ao criar/editar/apagar um charge.
- * Só atualiza shiftLogs que já existam (não cria novos).
+ * @param date - Data no formato "YYYY-MM-DD"
+ * @param knownTotal - (opcional) Total já calculado localmente,
+ *   usado como fallback se a query Firestore ainda não refletir
+ *   a escrita mais recente (race condition de indexação).
  */
-export async function syncChargesToShiftLog(date: string): Promise<void> {
+export async function syncChargesToShiftLog(
+  date: string,
+  knownTotal?: number
+): Promise<void> {
   try {
     // 1. Buscar todas as charges deste dia
     const chargesQuery = query(
@@ -45,17 +48,30 @@ export async function syncChargesToShiftLog(date: string): Promise<void> {
     );
     const chargesSnap = await getDocs(chargesQuery);
 
-    // 2. Somar netAmount
-    let totalNet = 0;
+    // 2. Somar netAmount da query
+    let queryTotal = 0;
     chargesSnap.forEach((d) => {
       const data = d.data();
-      totalNet += data.netAmount ?? 0;
+      queryTotal += data.netAmount ?? 0;
     });
+    queryTotal = Math.round(queryTotal * 100) / 100;
 
-    // Arredondar a 2 casas
-    totalNet = Math.round(totalNet * 100) / 100;
+    // 3. Usar o maior entre queryTotal e knownTotal
+    //    Se knownTotal foi passado e é maior, a query ainda não
+    //    indexou o documento mais recente → usar knownTotal
+    let totalNet = queryTotal;
+    if (knownTotal !== undefined) {
+      const rounded = Math.round(knownTotal * 100) / 100;
+      if (rounded > queryTotal) {
+        console.warn(
+          `[chargesSync] Race condition detetada para ${date}: ` +
+          `query=${queryTotal}€, local=${rounded}€ → usar local`
+        );
+        totalNet = rounded;
+      }
+    }
 
-    // 3. Encontrar o shiftLog deste dia
+    // 4. Encontrar o shiftLog deste dia
     const shiftQuery = query(
       collection(db, 'shiftLogs'),
       where('date', '==', date)
@@ -67,7 +83,7 @@ export async function syncChargesToShiftLog(date: string): Promise<void> {
       return;
     }
 
-    // 4. Atualizar cada shiftLog deste dia (normalmente só 1)
+    // 5. Atualizar cada shiftLog deste dia (normalmente só 1)
     const updates = shiftSnap.docs.map((shiftDoc) =>
       updateDoc(doc(db, 'shiftLogs', shiftDoc.id), {
         fuelExpenseAmount: totalNet
@@ -75,7 +91,10 @@ export async function syncChargesToShiftLog(date: string): Promise<void> {
     );
 
     await Promise.all(updates);
-    console.log(`[chargesSync] ${date}: fuelExpenseAmount → ${totalNet}€ (${chargesSnap.size} charges)`);
+    console.log(
+      `[chargesSync] ${date}: fuelExpenseAmount → ${totalNet}€ ` +
+      `(${chargesSnap.size} charges na query)`
+    );
   } catch (error) {
     console.error('[chargesSync] Erro ao sincronizar', date, error);
     throw error;

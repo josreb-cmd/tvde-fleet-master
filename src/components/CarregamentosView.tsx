@@ -23,7 +23,7 @@ import { useCharges } from '../hooks/useCharges';
 import { useAuth } from '../contexts/AuthContext';
 import { useTVDE } from '../contexts/TVDEContext';
 import { ChargeFormData } from '../types/charges';
-import { isDayOff } from '../utils/dayOff';                       // ✅ NOVO
+import { isDayOff } from '../utils/dayOff';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@ export const CarregamentosView: React.FC = () => {
     const sunStr = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`;
     return charges
       .filter(c => c.date >= monStr && c.date <= sunStr)
-     .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+      .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
   }, [charges, monday, sunday]);
 
   // ── KPIs da semana ────────────────────────────────────────────
@@ -156,7 +156,7 @@ export const CarregamentosView: React.FC = () => {
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   }, [weekCharges]);
 
-  // ── Cross-check com shiftLogs ─────────────────────────────── // ✅ CORRIGIDO — inclui alerta no-shift
+  // ── Cross-check com shiftLogs ─────────────────────────────────
   const crossCheckAlerts = useMemo(() => {
     const monStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
     const sunStr = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`;
@@ -166,7 +166,6 @@ export const CarregamentosView: React.FC = () => {
 
     // 1) Para cada shiftLog da semana → verificar missing / mismatch
     weekLogs.forEach(sl => {
-      // Ignorar dias de folga na verificação de missing
       if (isDayOff(sl)) return;
 
       const dayCharges = charges.filter(c => c.date === sl.date);
@@ -205,7 +204,6 @@ export const CarregamentosView: React.FC = () => {
       }
     });
 
-    // Ordenar por data (mais recente primeiro)
     return alerts.sort((a, b) => b.date.localeCompare(a.date));
   }, [shiftLogs, charges, weekCharges, monday, sunday]);
 
@@ -248,9 +246,14 @@ export const CarregamentosView: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string) => {                    // ✅ CORRIGIDO
     try {
-      await deleteCharge(id);
+      const charge = charges.find(c => c.id === id);
+      if (!charge) {
+        console.error('Carregamento não encontrado:', id);
+        return;
+      }
+      await deleteCharge(charge);                                  // ✅ passa objeto Charge completo
       setConfirmDelete(null);
     } catch (err) {
       console.error('Erro ao apagar carregamento:', err);
@@ -269,7 +272,7 @@ export const CarregamentosView: React.FC = () => {
     }
   };
 
-  const isGestor = role === 'gestor';                              // ✅ CORRIGIDO — era 'manager'
+  const isGestor = role === 'gestor';
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -365,7 +368,7 @@ export const CarregamentosView: React.FC = () => {
       </div>
 
       {/* ── Alertas cross-check ──────────────────────────────── */}
-      {crossCheckAlerts.length > 0 && (                            /* ✅ CORRIGIDO — era shiftLogAlerts */
+      {crossCheckAlerts.length > 0 && (
         <div className="space-y-2">
           {crossCheckAlerts.map((alert, i) => (
             <div
@@ -375,17 +378,17 @@ export const CarregamentosView: React.FC = () => {
                   ? 'bg-amber-50 border-amber-200 text-amber-800'
                   : alert.type === 'mismatch'
                     ? 'bg-rose-50 border-rose-200 text-rose-800'
-                    : 'bg-orange-50 border-orange-200 text-orange-800'   /* ✅ NOVO — no-shift */
+                    : 'bg-orange-50 border-orange-200 text-orange-800'
               }`}
             >
-              {alert.type === 'no-shift' ? (                       /* ✅ NOVO — ícone Zap para no-shift */
+              {alert.type === 'no-shift' ? (
                 <Zap className="w-4 h-4 mt-0.5 flex-shrink-0" />
               ) : (
                 <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               )}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold">{fmtDayMonth(alert.date)}</span>
-                {alert.type === 'no-shift' && (                    /* ✅ NOVO — badge "Sem turno" */
+                {alert.type === 'no-shift' && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full">
                     <Zap className="w-3 h-3" />
                     Sem turno
