@@ -1,5 +1,5 @@
 // src/components/modals/ShiftModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTVDE } from '../../contexts/TVDEContext';
 import { DailyShiftLog } from '../../types';
 import { X, Receipt, Edit3, Zap, AlertTriangle, Lock } from 'lucide-react';
@@ -31,6 +31,12 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
   // Estado para controlo de charges
   const [fuelReadOnly, setFuelReadOnly] = useState(false);
   const [noChargesWarning, setNoChargesWarning] = useState(false);
+
+  // ═══ V.2.9.1 FIX: ref para guardar o totalNet confirmado das charges ═══
+  // Permite ao handleSubmit aceder ao valor correto mesmo que o state
+  // do input ainda não tenha sido atualizado (race condition de render)
+  const chargesTotalRef = useRef<number | null>(null);
+  const chargesCheckCompleteRef = useRef<boolean>(false);
 
   // useEffect 1 — Inicialização dos campos quando o modal abre
   useEffect(() => {
@@ -65,6 +71,8 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
       // Reset estados de charges (serão atualizados pelo useEffect 2)
       setFuelReadOnly(false);
       setNoChargesWarning(false);
+      chargesTotalRef.current = null;
+      chargesCheckCompleteRef.current = false;
     }
   }, [isOpen, initialData, drivers, vehicles]);
 
@@ -81,12 +89,15 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
 
         setFuelReadOnly(hasCharges);
 
-        // ★ CORREÇÃO: atualizar o valor exibido com o total real
-        // das charges (fonte de verdade), substituindo qualquer
-        // valor stale que veio do initialData
         if (hasCharges) {
           setFuelExpense(totalNet.toFixed(2));
+          // ═══ V.2.9.1: guardar na ref para o handleSubmit ═══
+          chargesTotalRef.current = totalNet;
+        } else {
+          chargesTotalRef.current = null;
         }
+
+        chargesCheckCompleteRef.current = true;
 
         // Aviso: turno tem custo energia manual mas sem charges no módulo
         if (initialData && !hasCharges && (initialData.fuelExpenseAmount || 0) > 0) {
@@ -98,6 +109,8 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
         if (!cancelled) {
           setFuelReadOnly(false);
           setNoChargesWarning(false);
+          chargesTotalRef.current = null;
+          chargesCheckCompleteRef.current = true;
         }
       }
     };
@@ -127,6 +140,24 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
     const uberNum = uberEarnings !== '' ? parseFloat(uberEarnings) || 0 : grossNum;
     const boltNum = parseFloat(boltEarnings) || 0;
 
+    // ═══════════════════════════════════════════════════════════════
+    // V.2.9.1 FIX: Determinar fuelExpenseAmount de forma segura
+    // 
+    // Prioridade:
+    // 1. Se a ref tem valor (charges confirmadas) → usar esse valor
+    //    (mesmo que fuelReadOnly ainda não tenha renderizado)
+    // 2. Se fuelReadOnly está true → usar o campo (já atualizado)
+    // 3. Fallback → valor do campo (edição manual, sem charges)
+    // ═══════════════════════════════════════════════════════════════
+    let finalFuelAmount: number;
+    if (chargesTotalRef.current !== null) {
+      // Fonte de verdade: valor confirmado da query ao Firestore
+      finalFuelAmount = chargesTotalRef.current;
+    } else {
+      // Sem charges → valor manual introduzido pelo utilizador
+      finalFuelAmount = parseFloat(fuelExpense) || 0;
+    }
+
     const payload = {
       driverId: selectedDriver?.id || 'drv-1',
       driverName: selectedDriver?.name || 'Alexandre Rebelo',
@@ -140,10 +171,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, initial
       boltEarnings: boltNum,
       otherEarnings: 0,
       hoursWorked: parseHHMMToHours(hoursWorked),
-      // ★ CORREÇÃO: usar sempre o valor exibido no campo.
-      // Se fuelReadOnly=true, o campo já contém o total real das charges
-      // (atualizado pelo useEffect 2). Não depender de initialData stale.
-      fuelExpenseAmount: parseFloat(fuelExpense) || 0,
+      fuelExpenseAmount: finalFuelAmount,
       rentalExpenseAmount: parseFloat(rentalExpense) || 0,
       notes
     };

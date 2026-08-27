@@ -6,7 +6,10 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
-  writeBatch
+  writeBatch,
+  getDocs,
+  query,
+  where
 } from 'firebase/firestore';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
@@ -39,13 +42,12 @@ interface TVDEContextType {
   shiftLogs: DailyShiftLog[];
   expenses: Expense[];
   notifications: AppNotification[];
-  selectedMonth: string; // YYYY-MM
+  selectedMonth: string;
   setSelectedMonth: (month: string) => void;
   selectedPresetId: string | null;
   setSelectedPresetId: (id: string | null) => void;
   isCloudSynced: boolean;
   
-  // Actions
   addShiftLog: (log: Omit<DailyShiftLog, 'id' | 'status'>) => void;
   updateShiftLog: (id: string, logData: Partial<DailyShiftLog>) => void;
   updateShiftLogStatus: (id: string, status: DailyShiftLog['status']) => void;
@@ -67,10 +69,8 @@ interface TVDEContextType {
   markAllNotificationsAsRead: () => void;
   addNotification: (notification: Omit<AppNotification, 'id' | 'date' | 'read'>) => void;
   
-  // Reset Data
   resetToDefaultData: () => void;
   
-  // Calculated Statistics
   monthlyStats: MonthlyStats;
   historicalMonthlyData: MonthlyStats[];
   driverPerformanceList: Array<{
@@ -100,7 +100,6 @@ const STORAGE_KEYS = {
   MONTH: 'tvde_selected_month_v1'
 };
 
-// Helper to remove undefined fields before writing to Firestore
 function cleanObject<T extends Record<string, any>>(obj: T): T {
   const cleaned: Record<string, any> = {};
   Object.keys(obj).forEach(key => {
@@ -138,7 +137,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
 
-  // Sign in anonymously if available, or proceed
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -148,7 +146,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const cred = await signInAnonymously(auth);
           setAuthUser(cred.user);
         } catch (err) {
-          // Ignore if anonymous auth is disabled on project
+          // Ignore if anonymous auth is disabled
         }
       }
     });
@@ -214,7 +212,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await batch.commit();
       } else {
         const loaded = snapshot.docs.map(doc => doc.data() as DailyShiftLog);
-        // Sort descending by date
         loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setShiftLogs(loaded);
         setIsCloudSynced(true);
@@ -324,7 +321,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(STORAGE_KEYS.MONTH, month);
   };
 
-  // Check vehicle maintenance alerts whenever shiftLogs change
+  // Check vehicle maintenance alerts
   useEffect(() => {
     vehicles.forEach(vehicle => {
       const kmToMaintenance = vehicle.nextMaintenanceKm - vehicle.currentKm;
@@ -346,12 +343,18 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [shiftLogs, vehicles]);
 
-  // Helper to sync rental and fuel expenses linked to a shift log
+  // ═══════════════════════════════════════════════════════════════
+  // syncShiftExpenses — V.2.9.1 FIX
+  // Sincroniza expenses de renda e fuel a partir de um shiftLog.
+  // REGRA FUEL: se existem registos na coleção "charges" para o
+  // mesmo dia, o chargesSync.ts é a fonte de verdade — esta função
+  // NÃO toca no expense de fuel para evitar conflito de escrita.
+  // ═══════════════════════════════════════════════════════════════
   const syncShiftExpenses = async (shiftLog: DailyShiftLog) => {
     const rentalExpId = `exp-rnd-shift-${shiftLog.id}`;
     const fuelExpId = `exp-fuel-shift-${shiftLog.id}`;
 
-    // 1. Rental Expense Sync
+    // 1. Rental Expense Sync (sem alterações)
     if (shiftLog.rentalExpenseAmount && shiftLog.rentalExpenseAmount > 0) {
       const rentalExpense: Expense = {
         id: rentalExpId,
@@ -376,7 +379,25 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try { await deleteDoc(doc(db, 'expenses', rentalExpId)); } catch (_) {}
     }
 
-    // 2. Fuel Expense Sync
+    // 2. Fuel Expense Sync — V.2.9.1: verificar se charges existem
+    let hasChargesForDay = false;
+    try {
+      const chargesSnap = await getDocs(
+        query(collection(db, 'charges'), where('date', '==', shiftLog.date))
+      );
+      hasChargesForDay = !chargesSnap.empty;
+    } catch (err) {
+      // Se falhar a query (ex: índice em falta), comportamento seguro:
+      // assumir que NÃO há charges → manter lógica original
+      console.warn("Could not check charges for day, falling back to manual sync:", err);
+    }
+
+    if (hasChargesForDay) {
+      // chargesSync.ts é a fonte de verdade — NÃO tocar
+      return;
+    }
+
+    // Lógica original — só para dias SEM módulo carregamentos
     if (shiftLog.fuelExpenseAmount && shiftLog.fuelExpenseAmount > 0) {
       const fuelExpense: Expense = {
         id: fuelExpId,
@@ -632,7 +653,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Helper to identify duplicate seed/shift fuel and rental expenses
   const isDuplicateShiftExpense = (e: { id?: string; description?: string }) => {
     if (!e) return false;
     if (e.id && (
@@ -656,7 +676,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // CALCULATED MONTHLY STATS
   const monthlyStats = useMemo(() => {
-    const targetMonth = selectedMonth; // e.g. '2026-07', '2026', or 'all'
+    const targetMonth = selectedMonth;
     const isAll = targetMonth === 'all';
     const matchesMonth = (d: string) => isAll || d.startsWith(targetMonth);
 
