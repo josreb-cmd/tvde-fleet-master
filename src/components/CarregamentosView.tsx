@@ -129,7 +129,7 @@ export const CarregamentosView: React.FC = () => {
     const sunStr = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`;
     return charges
       .filter(c => c.date >= monStr && c.date <= sunStr)
-      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.toMillis() - a.createdAt.toMillis());
+     .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
   }, [charges, monday, sunday]);
 
   // ── KPIs da semana ────────────────────────────────────────────
