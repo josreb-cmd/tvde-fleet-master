@@ -1,24 +1,23 @@
 // src/types/charges.ts
-// Tipos para o módulo de Carregamentos
 
 export interface Charge {
   id: string;
-  date: string;                // "YYYY-MM-DD"
+  date: string;           // "YYYY-MM-DD"
   paidBy: 'jose' | 'alexandre';
-  grossAmount: number;         // Valor bruto pago (€)
-  discount: number;            // Desconto pessoal (€) — geralmente só Alexandre
-  netAmount: number;           // grossAmount - discount → fonte para fuelExpenseAmount
-  location: string;            // Local do carregamento
-  createdBy: string;           // UID do utilizador que criou
-  createdAt: string;           // ISO timestamp
-  weekId: string;              // ISO week "2026-W33"
-  settled: boolean;            // Acerto semanal feito?
+  grossAmount: number;    // valor bruto do carregamento
+  discount: number;       // desconto obtido (ex: cartão energia)
+  netAmount: number;      // grossAmount - discount (calculado)
+  location: string;       // local do carregamento
+  createdBy: string;      // quem registou
+  createdAt: string;      // ISO timestamp
+  weekId: string;         // ex: "2026-W35" (ISO week Seg–Dom)
+  settled: boolean;       // true = acerto semanal feito
 }
 
 export interface ChargeFormData {
   date: string;
   paidBy: 'jose' | 'alexandre';
-  grossAmount: string;
-  discount: string;
+  grossAmount: number;    // corrigido: era string
+  discount: number;       // corrigido: era string
   location: string;
 }
