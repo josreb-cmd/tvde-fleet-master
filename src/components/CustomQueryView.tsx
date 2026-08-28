@@ -170,7 +170,9 @@ export const CustomQueryView: React.FC = () => {
     setSavedQueries(savedQueries.filter(q => q.id !== id));
   };
 
-  // Date Filtering Logic
+  // ============================================================
+  // Date Filtering Logic — CORRIGIDO (v2.9.2)
+  // ============================================================
   const filterByDateRange = (dateStr: string): boolean => {
     if (!dateStr) return true;
     const recordDate = new Date(dateStr);
@@ -178,25 +180,33 @@ export const CustomQueryView: React.FC = () => {
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
     if (dateFilter === 'this_week') {
-      const day = now.getDay();
+      const day = now.getDay(); // 0=Dom, 1=Seg, ..., 6=Sáb
       const monday = new Date(now);
-      monday.setDate(monday.getDate() - day + (day === 0 ? -6 : 1));
+      // Se hoje é domingo (0), a segunda foi há 6 dias
+      // Se hoje é segunda (1), a segunda foi há 0 dias
+      // Se hoje é terça (2), a segunda foi há 1 dia, etc.
+      const daysFromMonday = day === 0 ? 6 : day - 1;
+      monday.setDate(monday.getDate() - daysFromMonday);
       monday.setHours(0, 0, 0, 0);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       sunday.setHours(23, 59, 59, 999);
       return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
     }
+
     if (dateFilter === 'last_week') {
       const day = now.getDay();
       const monday = new Date(now);
-      monday.setDate(monday.getDate() - day + (day === 0 ? -6 : 1) - 7);
+      const daysFromMonday = day === 0 ? 6 : day - 1;
+      // Vai para a segunda-feira passada (menos 7 dias)
+      monday.setDate(monday.getDate() - daysFromMonday - 7);
       monday.setHours(0, 0, 0, 0);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       sunday.setHours(23, 59, 59, 999);
       return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
     }
+
     if (dateFilter === 'last_7_days') {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(now.getDate() - 7);
