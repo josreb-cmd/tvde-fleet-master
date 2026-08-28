@@ -171,27 +171,36 @@ export const CustomQueryView: React.FC = () => {
   };
 
   // ============================================================
-  // Date Filtering Logic — CORRIGIDO (v2.9.2)
+  // Date Filtering Logic — CORRIGIDO (v2.9.3)
   // ============================================================
   const filterByDateRange = (dateStr: string): boolean => {
     if (!dateStr) return true;
-    const recordDate = new Date(dateStr);
     const now = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    
+    // Função para formatar data local (YYYY-MM-DD)
+    const formatDateLocal = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     if (dateFilter === 'this_week') {
       const day = now.getDay(); // 0=Dom, 1=Seg, ..., 6=Sáb
       const monday = new Date(now);
-      // Se hoje é domingo (0), a segunda foi há 6 dias
-      // Se hoje é segunda (1), a segunda foi há 0 dias
-      // Se hoje é terça (2), a segunda foi há 1 dia, etc.
+      // Calcula quantos dias faltam para a segunda-feira
       const daysFromMonday = day === 0 ? 6 : day - 1;
       monday.setDate(monday.getDate() - daysFromMonday);
       monday.setHours(0, 0, 0, 0);
+      
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       sunday.setHours(23, 59, 59, 999);
-      return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
+      
+      const mondayStr = formatDateLocal(monday);
+      const sundayStr = formatDateLocal(sunday);
+      
+      return dateStr >= mondayStr && dateStr <= sundayStr;
     }
 
     if (dateFilter === 'last_week') {
@@ -201,16 +210,23 @@ export const CustomQueryView: React.FC = () => {
       // Vai para a segunda-feira passada (menos 7 dias)
       monday.setDate(monday.getDate() - daysFromMonday - 7);
       monday.setHours(0, 0, 0, 0);
+      
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       sunday.setHours(23, 59, 59, 999);
-      return dateStr >= formatDate(monday) && dateStr <= formatDate(sunday);
+      
+      const mondayStr = formatDateLocal(monday);
+      const sundayStr = formatDateLocal(sunday);
+      
+      return dateStr >= mondayStr && dateStr <= sundayStr;
     }
 
     if (dateFilter === 'last_7_days') {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(now.getDate() - 7);
-      return dateStr >= formatDate(sevenDaysAgo) && dateStr <= formatDate(now);
+      const startStr = formatDateLocal(sevenDaysAgo);
+      const endStr = formatDateLocal(now);
+      return dateStr >= startStr && dateStr <= endStr;
     }
     if (dateFilter === 'this_month') {
       const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -224,7 +240,9 @@ export const CustomQueryView: React.FC = () => {
     if (dateFilter === 'last_30_days') {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(now.getDate() - 30);
-      return recordDate >= thirtyDaysAgo && recordDate <= now;
+      const startStr = formatDateLocal(thirtyDaysAgo);
+      const endStr = formatDateLocal(now);
+      return dateStr >= startStr && dateStr <= endStr;
     }
     if (dateFilter === 'this_year') {
       return dateStr.startsWith(`${now.getFullYear()}`);
