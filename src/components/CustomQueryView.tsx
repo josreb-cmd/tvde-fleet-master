@@ -1,3 +1,4 @@
+SX
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTVDE } from '../contexts/TVDEContext';
 import { DailyShiftLog, Expense } from '../types';
@@ -44,10 +45,10 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-
+ 
 export const CustomQueryView: React.FC = () => {
   const { shiftLogs, expenses, drivers, vehicles, selectedPresetId, setSelectedPresetId } = useTVDE();
-
+ 
   // Saved queries state
   const [savedQueries, setSavedQueries] = useState<SavedQueryPreset[]>(() => {
     try {
@@ -61,7 +62,7 @@ export const CustomQueryView: React.FC = () => {
     }
     return DEFAULT_PRESETS;
   });
-
+ 
   // Query configuration states
   const [queryName, setQueryName] = useState<string>('');
   const [dataSource, setDataSource] = useState<'shifts' | 'expenses' | 'consolidated'>('shifts');
@@ -82,7 +83,7 @@ export const CustomQueryView: React.FC = () => {
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
   const [activeTabVisual, setActiveTabVisual] = useState<'table' | 'chart'>('table');
-
+ 
   // Available column choices
   const ALL_SHIFT_COLUMNS = [
     { id: 'date', label: 'Data' },
@@ -100,7 +101,7 @@ export const CustomQueryView: React.FC = () => {
     { id: 'rentalExpenseAmount', label: 'Renda Viatura (€)' },
     { id: 'netProfit', label: 'Lucro Líquido Est. (€)' }
   ];
-
+ 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'date',
     'driverName',
@@ -116,7 +117,7 @@ export const CustomQueryView: React.FC = () => {
     'rentalExpenseAmount',
     'netProfit'
   ]);
-
+ 
   // Load a preset or saved query
   const handleSelectPreset = (preset: SavedQueryPreset) => {
     setDataSource(preset.dataSource);
@@ -132,7 +133,7 @@ export const CustomQueryView: React.FC = () => {
     setVisibleColumns(preset.visibleColumns);
     setQueryName(preset.name);
   };
-
+ 
   // Load preset if selected from external view (e.g. Dashboard on mobile)
   useEffect(() => {
     if (selectedPresetId) {
@@ -143,7 +144,7 @@ export const CustomQueryView: React.FC = () => {
       setSelectedPresetId(null);
     }
   }, [selectedPresetId, savedQueries]);
-
+ 
   // Save current query configuration
   const handleSaveQuery = () => {
     if (!queryName.trim()) return;
@@ -163,7 +164,7 @@ export const CustomQueryView: React.FC = () => {
       aggregation,
       visibleColumns
     };
-
+ 
     const userCustomQueries = savedQueries.filter(q => q.id.startsWith('user-query-'));
     const updatedUserQueries = [newPreset, ...userCustomQueries];
     
@@ -172,11 +173,11 @@ export const CustomQueryView: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-
+ 
     setSavedQueries([...DEFAULT_PRESETS, ...updatedUserQueries]);
     setShowSaveModal(false);
   };
-
+ 
   const handleDeleteSavedQuery = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Deseja eliminar esta consulta guardada?')) return;
@@ -188,14 +189,14 @@ export const CustomQueryView: React.FC = () => {
     }
     setSavedQueries(savedQueries.filter(q => q.id !== id));
   };
-
+ 
   // Date Filtering Logic
   const filterByDateRange = (dateStr: string) => {
     if (!dateStr) return true;
     const recordDate = new Date(dateStr);
     const now = new Date();
     const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
+ 
     // ✅ CORRIGIDO: now nunca é mutado — cada cálculo usa new Date(now)
     if (dateFilter === 'this_week') {
       const day = now.getDay();
@@ -246,7 +247,7 @@ export const CustomQueryView: React.FC = () => {
     }
     return true; // 'all'
   };
-
+ 
   // Filtered raw dataset
   const filteredShifts = useMemo(() => {
     return shiftLogs.filter(s => {
@@ -259,7 +260,7 @@ export const CustomQueryView: React.FC = () => {
       return true;
     });
   }, [shiftLogs, dateFilter, startDate, endDate, driverId, vehicleId, platform, minAmount]);
-
+ 
   const filteredExpensesList = useMemo(() => {
     return expenses.filter(e => {
       if (!filterByDateRange(e.date)) return false;
@@ -269,7 +270,7 @@ export const CustomQueryView: React.FC = () => {
       return true;
     });
   }, [expenses, dateFilter, startDate, endDate, driverId, vehicleId, minAmount]);
-
+ 
   // Aggregated or Detailed Query Results
   const queryResults = useMemo(() => {
     if (groupBy === 'none') {
@@ -281,7 +282,7 @@ export const CustomQueryView: React.FC = () => {
         const netEst = s.grossEarnings - fuel - rental;
         const ePerHour = hoursNum > 0 ? s.grossEarnings / hoursNum : 0;
         const ePerKm = s.kilometers > 0 ? s.grossEarnings / s.kilometers : 0;
-
+ 
         return {
           id: s.id,
           date: s.date,
@@ -303,7 +304,7 @@ export const CustomQueryView: React.FC = () => {
         };
       });
     }
-
+ 
     // Grouping Logic
     const groups: Record<string, {
       key: string;
@@ -318,11 +319,11 @@ export const CustomQueryView: React.FC = () => {
       rentalList: number[];
       expensesTotalList: number[];
     }> = {};
-
+ 
     filteredShifts.forEach(s => {
       let groupKey = 'Outro';
       let groupLabel = 'Outro';
-
+ 
       if (groupBy === 'driver') {
         groupKey = s.driverId;
         groupLabel = s.driverName;
@@ -341,7 +342,7 @@ export const CustomQueryView: React.FC = () => {
         groupKey = `day-${dayIndex}`;
         groupLabel = days[dayIndex];
       }
-
+ 
       if (!groups[groupKey]) {
         groups[groupKey] = {
           key: groupKey,
@@ -357,7 +358,7 @@ export const CustomQueryView: React.FC = () => {
           expensesTotalList: []
         };
       }
-
+ 
       const hNum = parseHHMMToHours(s.hoursWorked);
       groups[groupKey].grossEarningsList.push(s.grossEarnings);
       groups[groupKey].uberList.push(s.uberEarnings || 0);
@@ -368,7 +369,7 @@ export const CustomQueryView: React.FC = () => {
       groups[groupKey].fuelList.push(s.fuelExpenseAmount || 0);
       groups[groupKey].rentalList.push(s.rentalExpenseAmount || 0);
     });
-
+ 
     // Also include extra standalone expenses in group total if consolidated
     if (dataSource === 'consolidated') {
       filteredExpensesList.forEach(e => {
@@ -382,18 +383,18 @@ export const CustomQueryView: React.FC = () => {
         ) {
           return;
         }
-
+ 
         let groupKey = '';
         if (groupBy === 'driver' && e.driverId) groupKey = e.driverId;
         if (groupBy === 'vehicle' && (e.vehicleId || e.vehiclePlate)) groupKey = e.vehicleId || e.vehiclePlate || '';
         if (groupBy === 'month') groupKey = e.date.substring(0, 7);
-
+ 
         if (groupKey && groups[groupKey]) {
           groups[groupKey].expensesTotalList.push(e.amount);
         }
       });
     }
-
+ 
     // Helper aggregation function
     const aggregate = (arr: number[]) => {
       if (arr.length === 0) return 0;
@@ -403,7 +404,7 @@ export const CustomQueryView: React.FC = () => {
       if (aggregation === 'min') return Math.min(...arr);
       return 0;
     };
-
+ 
     return Object.values(groups).map(g => {
       const gross = aggregate(g.grossEarningsList);
       const uber = aggregate(g.uberList);
@@ -416,10 +417,10 @@ export const CustomQueryView: React.FC = () => {
       const extraExp = aggregate(g.expensesTotalList);
       const totalExp = fuel + rental + extraExp;
       const net = gross - totalExp;
-
+ 
       const ePerHour = hours > 0 ? gross / hours : 0;
       const ePerKm = km > 0 ? gross / km : 0;
-
+ 
       return {
         id: g.key,
         date: g.label,
@@ -441,11 +442,11 @@ export const CustomQueryView: React.FC = () => {
       };
     });
   }, [filteredShifts, filteredExpensesList, groupBy, aggregation, dataSource]);
-
+ 
   // Search & Sorting of Query Results
   const processedResults = useMemo(() => {
     let list = [...queryResults];
-
+ 
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       list = list.filter(r =>
@@ -454,11 +455,11 @@ export const CustomQueryView: React.FC = () => {
         (r.date && r.date.toLowerCase().includes(term))
       );
     }
-
+ 
     list.sort((a, b) => {
       let valA: any;
       let valB: any;
-
+ 
       if (sortField === 'date') {
         valA = (a as any).rawDateSortKey || a.date;
         valB = (b as any).rawDateSortKey || b.date;
@@ -466,19 +467,19 @@ export const CustomQueryView: React.FC = () => {
         valA = a[sortField as keyof typeof a];
         valB = b[sortField as keyof typeof b];
       }
-
+ 
       if (valA === undefined) valA = 0;
       if (valB === undefined) valB = 0;
-
+ 
       if (typeof valA === 'string') {
         return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
       }
       return sortDirection === 'asc' ? valA - valB : valB - valA;
     });
-
+ 
     return list;
   }, [queryResults, searchTerm, sortField, sortDirection]);
-
+ 
   // Overall KPI Summary of active query
   const totalGrossQuery = useMemo(() => processedResults.reduce((acc, r) => acc + r.grossEarnings, 0), [processedResults]);
   const totalHoursQuery = useMemo(() => processedResults.reduce((acc, r) => acc + r.hoursWorked, 0), [processedResults]);
@@ -488,12 +489,18 @@ export const CustomQueryView: React.FC = () => {
   const totalRentalQuery = useMemo(() => processedResults.reduce((acc, r) => acc + r.rentalExpenseAmount, 0), [processedResults]);
   const totalNetQuery = useMemo(() => processedResults.reduce((acc, r) => acc + r.netProfit, 0), [processedResults]);
   const avgPerHourQuery = totalHoursQuery > 0 ? totalGrossQuery / totalHoursQuery : 0;
-
-  // Calculate unique active shift days and period calendar days for temporal averages
+ 
+  // ─────────────────────────────────────────────────────────────────
+  // uniqueShiftDaysCount — CORRIGIDO (V.2.9.x)
+  // Conta apenas dias com faturação > 0 para a média de horas/dia.
+  // Dias de folga (grossEarnings = 0) não entram no denominador.
+  // ─────────────────────────────────────────────────────────────────
   const uniqueShiftDaysCount = useMemo(() => {
-    return new Set(filteredShifts.map(s => s.date)).size;
+    return new Set(
+      filteredShifts.filter(s => s.grossEarnings > 0).map(s => s.date)
+    ).size;
   }, [filteredShifts]);
-
+ 
   const periodCalendarDaysCount = useMemo(() => {
     const now = new Date();
     if (dateFilter === 'this_month') {
@@ -526,10 +533,10 @@ export const CustomQueryView: React.FC = () => {
     }
     return uniqueShiftDaysCount || 1;
   }, [dateFilter, startDate, endDate, filteredShifts, uniqueShiftDaysCount]);
-
+ 
   const avgHoursPerActiveDay = uniqueShiftDaysCount > 0 ? totalHoursQuery / uniqueShiftDaysCount : 0;
   const avgHoursPerCalendarDay = periodCalendarDaysCount > 0 ? totalHoursQuery / periodCalendarDaysCount : 0;
-
+ 
   // Toggle Column Helper
   const toggleColumn = (colId: string) => {
     if (visibleColumns.includes(colId)) {
@@ -540,13 +547,13 @@ export const CustomQueryView: React.FC = () => {
       setVisibleColumns([...visibleColumns, colId]);
     }
   };
-
+ 
   // Export to CSV
   const handleExportCSV = () => {
     if (processedResults.length === 0) return;
     const activeCols = ALL_SHIFT_COLUMNS.filter(c => visibleColumns.includes(c.id));
     const headers = activeCols.map(c => c.label).join(';');
-
+ 
     const rows = processedResults.map(r => {
       return activeCols.map(c => {
         let val = r[c.id as keyof typeof r];
@@ -557,7 +564,7 @@ export const CustomQueryView: React.FC = () => {
         return `"${val ?? ''}"`;
       }).join(';');
     });
-
+ 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers, ...rows].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
@@ -567,7 +574,7 @@ export const CustomQueryView: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
-
+ 
   // Export JSON
   const handleExportJSON = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(processedResults, null, 2));
@@ -578,7 +585,7 @@ export const CustomQueryView: React.FC = () => {
     downloadAnchor.click();
     downloadAnchor.remove();
   };
-
+ 
   // Generate Clean Printable HTML Document
   const generatePrintableHtml = () => {
     const printDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -595,7 +602,7 @@ export const CustomQueryView: React.FC = () => {
       this_year: 'Este Ano',
       custom: 'Personalizado'
     };
-
+ 
     const filterLabels: string[] = [];
     if (dateFilter !== 'all') filterLabels.push(`Período: ${dateLabels[dateFilter] || dateFilter}`);
     if (driverId !== 'all') {
@@ -607,7 +614,7 @@ export const CustomQueryView: React.FC = () => {
       if (v) filterLabels.push(`Viatura: ${v.plate}`);
     }
     if (platform !== 'all') filterLabels.push(`Plataforma: ${platform.toUpperCase()}`);
-
+ 
     return `
       <!DOCTYPE html>
       <html lang="pt">
@@ -653,9 +660,9 @@ export const CustomQueryView: React.FC = () => {
               <div><strong>Sistema:</strong> TVDE FleetMaster</div>
             </div>
           </div>
-
+ 
           ${filterLabels.length > 0 ? `<div class="filters-bar"><strong>Filtros Activos:</strong> ${filterLabels.join(' | ')}</div>` : ''}
-
+ 
           <div class="kpi-grid">
             <div class="kpi-card">
               <div class="kpi-title">Faturação<br>Total</div>
@@ -669,7 +676,7 @@ export const CustomQueryView: React.FC = () => {
             <div class="kpi-card" style="background:#eff6ff; border-color:#93c5fd;">
               <div class="kpi-title" style="color:#1d4ed8;">Média Horas<br>/ Dia</div>
               <div class="kpi-value font-mono" style="color:#1e40af;">${formatHoursToHHMM(avgHoursPerActiveDay)}</div>
-              <div class="kpi-sub" style="color:#2563eb;">${avgHoursPerActiveDay.toFixed(1)}h/dia (${uniqueShiftDaysCount}d)</div>
+              <div class="kpi-sub" style="color:#2563eb;">${avgHoursPerActiveDay.toFixed(1)}h/dia (${uniqueShiftDaysCount}d c/ fat.)</div>
             </div>
             <div class="kpi-card">
               <div class="kpi-title">Rendimento<br>Médio</div>
@@ -693,7 +700,7 @@ export const CustomQueryView: React.FC = () => {
               <div class="kpi-value" style="color:#059669;">${totalNetQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
             </div>
           </div>
-
+ 
           <table>
             <thead>
               <tr>
@@ -725,7 +732,7 @@ export const CustomQueryView: React.FC = () => {
               `).join('')}
             </tbody>
           </table>
-
+ 
           <div class="footer">
             <span>TVDE FleetMaster - Gestão Profissional de Frotas</span>
             <span>Documento impresso em ${printDate}</span>
@@ -734,7 +741,7 @@ export const CustomQueryView: React.FC = () => {
       </html>
     `;
   };
-
+ 
   // Direct print via hidden iframe
   const handlePrintInIframe = () => {
     try {
@@ -747,13 +754,13 @@ export const CustomQueryView: React.FC = () => {
       iframe.style.height = '0px';
       iframe.style.border = 'none';
       document.body.appendChild(iframe);
-
+ 
       const doc = iframe.contentWindow?.document || iframe.contentDocument;
       if (doc) {
         doc.open();
         doc.write(html);
         doc.close();
-
+ 
         setTimeout(() => {
           try {
             iframe.contentWindow?.focus();
@@ -776,7 +783,7 @@ export const CustomQueryView: React.FC = () => {
       window.print();
     }
   };
-
+ 
   // Open in New Window (Bypasses iframe sandbox print restrictions completely)
   const handleOpenInNewTab = () => {
     const html = generatePrintableHtml();
@@ -796,7 +803,7 @@ export const CustomQueryView: React.FC = () => {
       alert('O seu navegador bloqueou a nova janela. Por favor permita popups para este site.');
     }
   };
-
+ 
   // Download Printable HTML file
   const handleDownloadPrintableHtml = () => {
     const html = generatePrintableHtml();
@@ -810,12 +817,12 @@ export const CustomQueryView: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
+ 
   // Print Report
   const handlePrint = () => {
     setShowPrintModal(true);
   };
-
+ 
   return (
     <div className="space-y-6 pb-12">
       {/* Header Title Section */}
@@ -831,7 +838,7 @@ export const CustomQueryView: React.FC = () => {
             Crie, filtre e exporte relatórios sob medida com cálculo preciso de horas (<span className="font-mono text-slate-700 font-bold">hh:mm</span>) e rentabilidade sem alterar as vistas originais.
           </p>
         </div>
-
+ 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           <button
@@ -841,7 +848,7 @@ export const CustomQueryView: React.FC = () => {
             <Bookmark className="w-4 h-4" />
             <span>Guardar Esta Consulta</span>
           </button>
-
+ 
           <button
             onClick={handleExportCSV}
             className="flex items-center space-x-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-md text-xs font-medium transition"
@@ -850,7 +857,7 @@ export const CustomQueryView: React.FC = () => {
             <Download className="w-4 h-4" />
             <span>Exportar CSV</span>
           </button>
-
+ 
           <button
             onClick={handlePrint}
             className="flex items-center space-x-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-md text-xs font-medium transition"
@@ -861,7 +868,7 @@ export const CustomQueryView: React.FC = () => {
           </button>
         </div>
       </div>
-
+ 
       {/* Preset Queries Quick Cards */}
       <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm print:hidden">
         <div className="flex items-center justify-between mb-3">
@@ -875,7 +882,7 @@ export const CustomQueryView: React.FC = () => {
             {savedQueries.length} modelos disponíveis
           </span>
         </div>
-
+ 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {savedQueries.map(preset => {
             const isUserSaved = preset.id.startsWith('user-query-');
@@ -904,7 +911,7 @@ export const CustomQueryView: React.FC = () => {
                     {preset.description}
                   </p>
                 </div>
-
+ 
                 <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-400">
                   <span className="capitalize font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">
                     {preset.groupBy === 'none' ? 'Detalhe' : `Agrupado: ${preset.groupBy}`}
@@ -916,7 +923,7 @@ export const CustomQueryView: React.FC = () => {
           })}
         </div>
       </div>
-
+ 
       {/* Main Builder Parameters Form */}
       <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4 print:hidden">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -944,7 +951,7 @@ export const CustomQueryView: React.FC = () => {
             <span>Limpar Filtros</span>
           </button>
         </div>
-
+ 
         {/* Builder Grid Controls */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Origem dos Dados */}
@@ -962,7 +969,7 @@ export const CustomQueryView: React.FC = () => {
               <option value="consolidated">Consolidado (Faturação + Custos)</option>
             </select>
           </div>
-
+ 
           {/* Período / Data */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -984,7 +991,7 @@ export const CustomQueryView: React.FC = () => {
               <option value="custom">Intervalo Personalizado (Datas Livres)</option>
             </select>
           </div>
-
+ 
           {/* Motorista */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1001,7 +1008,7 @@ export const CustomQueryView: React.FC = () => {
               ))}
             </select>
           </div>
-
+ 
           {/* Viatura / Matrícula */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1018,7 +1025,7 @@ export const CustomQueryView: React.FC = () => {
               ))}
             </select>
           </div>
-
+ 
           {/* Plataforma */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1034,7 +1041,7 @@ export const CustomQueryView: React.FC = () => {
               <option value="bolt">Apenas Com Ganho Bolt</option>
             </select>
           </div>
-
+ 
           {/* Agrupar por */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1052,7 +1059,7 @@ export const CustomQueryView: React.FC = () => {
               <option value="dayOfWeek">Agrupar por Dia da Semana</option>
             </select>
           </div>
-
+ 
           {/* Função de Agregação */}
           {groupBy !== 'none' && (
             <div>
@@ -1071,7 +1078,7 @@ export const CustomQueryView: React.FC = () => {
               </select>
             </div>
           )}
-
+ 
           {/* Valor Mínimo */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1086,7 +1093,7 @@ export const CustomQueryView: React.FC = () => {
             />
           </div>
         </div>
-
+ 
         {/* Custom Date Range Picker when selected */}
         {dateFilter === 'custom' && (
           <div className="flex flex-wrap items-center gap-3 bg-blue-50/60 p-3 rounded-md border border-blue-200">
@@ -1114,7 +1121,7 @@ export const CustomQueryView: React.FC = () => {
             </div>
           </div>
         )}
-
+ 
         {/* Column Selection Toggles */}
         <div className="pt-2">
           <label className="block text-xs font-bold text-slate-700 mb-2">
@@ -1142,7 +1149,7 @@ export const CustomQueryView: React.FC = () => {
           </div>
         </div>
       </div>
-
+ 
       {/* KPI Cards Summary for Active Query */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3">
         <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
@@ -1154,7 +1161,7 @@ export const CustomQueryView: React.FC = () => {
           </p>
           <span className="text-[10px] text-emerald-600 font-semibold truncate">da consulta ativa</span>
         </div>
-
+ 
         <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
           <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
             Horas em<br />Serviço
@@ -1164,8 +1171,8 @@ export const CustomQueryView: React.FC = () => {
           </p>
           <span className="text-[10px] text-slate-500 font-mono truncate">({totalHoursQuery.toFixed(1)} h dec.)</span>
         </div>
-
-        {/* New KPI Card: Média de Horas Trabalhadas por Período */}
+ 
+        {/* KPI Card: Média de Horas por Dia com Faturação */}
         <div className="bg-blue-50/40 p-3 sm:p-3.5 rounded-lg border border-blue-200 shadow-sm flex flex-col justify-between min-h-[110px]">
           <span className="text-[10px] xl:text-[11px] text-blue-700 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
             Média Horas<br />/ Dia
@@ -1175,11 +1182,11 @@ export const CustomQueryView: React.FC = () => {
               {formatHoursToHHMM(avgHoursPerActiveDay)} <span className="text-xs font-semibold text-blue-700 font-sans">/dia</span>
             </p>
           </div>
-          <span className="text-[10px] text-blue-600 font-medium truncate" title={`${uniqueShiftDaysCount} dias de trabalho em ${periodCalendarDaysCount} dias no período`}>
-            {avgHoursPerActiveDay > 0 ? `${avgHoursPerActiveDay.toFixed(1)}h em ${uniqueShiftDaysCount}d ativos` : '0h em 0d'}
+          <span className="text-[10px] text-blue-600 font-medium truncate" title={`${uniqueShiftDaysCount} dias com faturação no período`}>
+            {avgHoursPerActiveDay > 0 ? `${avgHoursPerActiveDay.toFixed(1)}h em ${uniqueShiftDaysCount}d c/ fat.` : '0h em 0d'}
           </span>
         </div>
-
+ 
         <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
           <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
             Rendimento<br />Médio
@@ -1189,7 +1196,7 @@ export const CustomQueryView: React.FC = () => {
           </p>
           <span className="text-[10px] text-slate-500 truncate">eficiência global</span>
         </div>
-
+ 
         <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
           <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
             N.º de<br />Viagens
@@ -1197,7 +1204,7 @@ export const CustomQueryView: React.FC = () => {
           <p className="text-base sm:text-lg font-bold text-slate-900 my-1">{totalTripsQuery}</p>
           <span className="text-[10px] text-slate-500 truncate">{totalKmQuery} km total</span>
         </div>
-
+ 
         <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
           <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
             Combustível<br />/ Carga
@@ -1207,7 +1214,7 @@ export const CustomQueryView: React.FC = () => {
           </p>
           <span className="text-[10px] text-slate-500 truncate">custo acumulado</span>
         </div>
-
+ 
         <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
           <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
             Renda<br />Viatura
@@ -1217,7 +1224,7 @@ export const CustomQueryView: React.FC = () => {
           </p>
           <span className="text-[10px] text-slate-500 truncate">custo com rendas</span>
         </div>
-
+ 
         <div className="bg-white p-3 sm:p-3.5 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between min-h-[110px]">
           <span className="text-[10px] xl:text-[11px] text-slate-500 font-bold uppercase tracking-wider block leading-tight min-h-[2rem]">
             Lucro Líquido<br />Est.
@@ -1230,7 +1237,7 @@ export const CustomQueryView: React.FC = () => {
           </span>
         </div>
       </div>
-
+ 
       {/* Results View Switcher (Table vs Chart) */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1239,7 +1246,7 @@ export const CustomQueryView: React.FC = () => {
               Resultados da Consulta ({processedResults.length} Registos)
             </span>
           </div>
-
+ 
           <div className="flex items-center space-x-3">
             {/* Search Box */}
             <div className="relative">
@@ -1252,7 +1259,7 @@ export const CustomQueryView: React.FC = () => {
                 className="pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-blue-600 w-48 sm:w-64"
               />
             </div>
-
+ 
             {/* View Switcher Tabs */}
             <div className="flex items-center bg-slate-200/80 p-0.5 rounded-md text-xs font-medium">
               <button
@@ -1276,7 +1283,7 @@ export const CustomQueryView: React.FC = () => {
             </div>
           </div>
         </div>
-
+ 
         {/* CHART VIEW */}
         {activeTabVisual === 'chart' && (
           <div className="p-5">
@@ -1308,7 +1315,7 @@ export const CustomQueryView: React.FC = () => {
             )}
           </div>
         )}
-
+ 
         {/* TABLE VIEW */}
         {activeTabVisual === 'table' && (
           <div className="overflow-x-auto">
@@ -1412,7 +1419,7 @@ export const CustomQueryView: React.FC = () => {
                   ))
                 )}
               </tbody>
-
+ 
               {/* Table Footer Summary Row */}
               {processedResults.length > 0 && (
                 <tfoot className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300">
@@ -1470,7 +1477,7 @@ export const CustomQueryView: React.FC = () => {
           </div>
         )}
       </div>
-
+ 
       {/* Save Query Modal */}
       {showSaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
@@ -1479,7 +1486,7 @@ export const CustomQueryView: React.FC = () => {
               <Bookmark className="w-5 h-5 text-blue-600" />
               <h3 className="text-base font-bold text-slate-900">Guardar Consulta Personalizada</h3>
             </div>
-
+ 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Nome do Modelo de Consulta *
@@ -1493,11 +1500,11 @@ export const CustomQueryView: React.FC = () => {
                 autoFocus
               />
             </div>
-
+ 
             <p className="text-xs text-slate-500 leading-relaxed">
               Ao guardar, este conjunto de parâmetros (origem de dados, agrupamento, intervalo de datas e colunas visíveis) ficará disponível na sua lista de modelos de consulta.
             </p>
-
+ 
             <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
               <button
                 onClick={() => setShowSaveModal(false)}
@@ -1516,7 +1523,7 @@ export const CustomQueryView: React.FC = () => {
           </div>
         </div>
       )}
-
+ 
       {/* Print Preview & Action Modal */}
       {showPrintModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
@@ -1535,7 +1542,7 @@ export const CustomQueryView: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
+ 
             {/* Modal Actions Bar */}
             <div className="p-3 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="text-slate-600 font-medium">
@@ -1550,7 +1557,7 @@ export const CustomQueryView: React.FC = () => {
                   <Printer className="w-4 h-4" />
                   <span>Imprimir Agora</span>
                 </button>
-
+ 
                 <button
                   onClick={handleOpenInNewTab}
                   className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-md shadow-sm transition flex items-center space-x-1.5"
@@ -1559,7 +1566,7 @@ export const CustomQueryView: React.FC = () => {
                   <ExternalLink className="w-4 h-4 text-blue-600" />
                   <span>Abrir em Nova Aba / PDF</span>
                 </button>
-
+ 
                 <button
                   onClick={handleDownloadPrintableHtml}
                   className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium rounded-md shadow-sm transition flex items-center space-x-1.5"
@@ -1570,7 +1577,7 @@ export const CustomQueryView: React.FC = () => {
                 </button>
               </div>
             </div>
-
+ 
             {/* Document Preview Sheet */}
             <div className="p-4 sm:p-6 overflow-y-auto bg-slate-200/60 flex justify-center flex-1">
               <div className="bg-white shadow-md border border-slate-300 rounded-sm p-6 sm:p-8 max-w-3xl w-full text-slate-900 text-xs space-y-5">
@@ -1586,7 +1593,7 @@ export const CustomQueryView: React.FC = () => {
                     <div>TVDE FleetMaster</div>
                   </div>
                 </div>
-
+ 
                 {/* KPI Preview Grid */}
                 <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 text-[10px]">
                   <div className="border border-slate-200 p-2 rounded bg-slate-50">
@@ -1600,6 +1607,7 @@ export const CustomQueryView: React.FC = () => {
                   <div className="border border-blue-200 p-2 rounded bg-blue-50/50">
                     <div className="text-[8px] font-bold text-blue-700 uppercase">Média h/dia</div>
                     <div className="font-bold font-mono text-blue-900 mt-1">{formatHoursToHHMM(avgHoursPerActiveDay)}</div>
+                    <div className="text-[7px] text-blue-600 mt-0.5">{uniqueShiftDaysCount}d c/ fat.</div>
                   </div>
                   <div className="border border-slate-200 p-2 rounded bg-slate-50">
                     <div className="text-[8px] font-bold text-slate-500 uppercase">Rend. h</div>
@@ -1622,7 +1630,7 @@ export const CustomQueryView: React.FC = () => {
                     <div className="font-bold text-emerald-600 mt-1">{totalNetQuery.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</div>
                   </div>
                 </div>
-
+ 
                 {/* Table Preview */}
                 <div className="border border-slate-200 rounded overflow-hidden">
                   <table className="w-full text-left text-[10px]">
@@ -1660,14 +1668,14 @@ export const CustomQueryView: React.FC = () => {
                     </div>
                   )}
                 </div>
-
+ 
                 <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-400">
                   <span>TVDE FleetMaster Document</span>
                   <span>Página 1 de 1</span>
                 </div>
               </div>
             </div>
-
+ 
             {/* Modal Footer */}
             <div className="p-3 bg-white border-t border-slate-200 flex items-center justify-between">
               <span className="text-xs text-slate-500">
