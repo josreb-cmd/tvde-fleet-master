@@ -377,6 +377,9 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
             query(collection(db, 'charges'), where('date', '==', shift.date))
           );
 
+          // Sem charges para este dia — valor manual é fonte de verdade, ignorar
+          if (chargesSnap.empty) continue;
+
           let chargesTotal = 0;
           chargesSnap.forEach(d => {
             chargesTotal += (d.data().netAmount ?? 0);
