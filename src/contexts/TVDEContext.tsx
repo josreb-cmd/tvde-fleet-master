@@ -393,7 +393,16 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (hasChargesForDay) {
-      // chargesSync.ts é a fonte de verdade — NÃO tocar
+      // chargesSync.ts é a fonte de verdade — re-sincronizar agora que o shiftLog existe.
+      // Cobre o cenário: Carregamento criado ANTES da Faturação Diária.
+      // Na primeira passagem do chargesSync o shiftLog ainda não existia (warn + return);
+      // agora que existe, forçar a criação do expense de Combustível.
+      try {
+        const { syncChargesToShiftLog } = await import('../utils/chargesSync');
+        await syncChargesToShiftLog(shiftLog.date);
+      } catch (err) {
+        console.error('[syncShiftExpenses] Erro ao re-sincronizar charges:', err);
+      }
       return;
     }
 
