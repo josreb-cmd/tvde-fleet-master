@@ -287,21 +287,23 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsub();
   }, []);
 
-  // Real-time Firestore Sync for NOTIFICATIONS
+  // Real-time Firestore Sync for NOTIFICATIONS — V.2.9.3
+  // Comportamento correcto: carregar e manter notificações do Firestore.
+  // O listener anterior apagava tudo ao detectar — notificações nunca persistiam.
   useEffect(() => {
     if (!authUser) return;
-    const unsub = onSnapshot(collection(db, 'notifications'), async snapshot => {
-      if (!snapshot.empty) {
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-        setNotifications([]);
-      } else {
+    const unsub = onSnapshot(collection(db, 'notifications'), snapshot => {
+      if (snapshot.empty) {
         setNotifications([]);
         setIsCloudSynced(true);
+        return;
       }
+      const loaded = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as AppNotification[];
+      loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setNotifications(loaded);
+      setIsCloudSynced(true);
     }, err => {
-      console.error("Firestore notifications listener error:", err);
+      console.error('Firestore notifications listener error:', err);
     });
     return () => unsub();
   }, [authUser]);
@@ -389,7 +391,10 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        if (divergences.length === 0) return;
+        if (divergences.length === 0) {
+          console.log('[reconciliação] Diagnóstico concluído — 0 divergências encontradas.');
+          return;
+        }
 
         // Verificar se já existe notificação não lida do mesmo tipo
         const alreadyExists = notifications.some(
@@ -683,14 +688,16 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const markNotificationAsRead = async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     try {
       await updateDoc(doc(db, 'notifications', id), cleanObject({ read: true }));
     } catch (err) {
-      console.error("Error marking notification read in Firestore:", err);
+      console.error('Error marking notification read in Firestore:', err);
     }
   };
 
   const markAllNotificationsAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     try {
       const batch = writeBatch(db);
       notifications.forEach(n => {
@@ -698,7 +705,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       await batch.commit();
     } catch (err) {
-      console.error("Error marking all notifications read in Firestore:", err);
+      console.error('Error marking all notifications read in Firestore:', err);
     }
   };
 
@@ -710,10 +717,14 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       date: new Date().toISOString(),
       read: false
     };
+    // Actualização optimista — UI responde imediatamente sem esperar onSnapshot
+    setNotifications(prev => [newNotif, ...prev]);
     try {
       await setDoc(doc(db, 'notifications', newId), cleanObject(newNotif));
     } catch (err) {
-      console.error("Error adding notification to Firestore:", err);
+      console.error('Error adding notification to Firestore:', err);
+      // Reverter se falhar
+      setNotifications(prev => prev.filter(n => n.id !== newId));
     }
   };
 
