@@ -697,19 +697,15 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const totalKm = filteredShifts.reduce((acc, s) => acc + s.kilometers, 0);
     const totalHours = filteredShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
 
-    const shiftFuelCost = filteredShifts.reduce((acc, s) => acc + (s.fuelExpenseAmount || 0), 0);
-    const shiftRentalCost = filteredShifts.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
-
-    const standaloneFuelCost = filteredExpenses
-      .filter(e => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e))
+    // V.2.9.2 fix — fonte de verdade: expenses (chargesSync + syncShiftExpenses garantem correctitude)
+    // Remover dupla contagem via shiftFuelCost + standaloneFuelCost
+    const totalFuelCost = filteredExpenses
+      .filter(e => e.category === 'fuel_charging')
       .reduce((acc, e) => acc + e.amount, 0);
 
-    const standaloneRentalCost = filteredExpenses
-      .filter(e => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e))
+    const totalVehicleRentals = filteredExpenses
+      .filter(e => e.category === 'vehicle_rental')
       .reduce((acc, e) => acc + e.amount, 0);
-
-    const totalFuelCost = shiftFuelCost + standaloneFuelCost;
-    const totalVehicleRentals = shiftRentalCost + standaloneRentalCost;
 
     const totalMaintenanceCost = filteredExpenses
       .filter(e => e.category === 'maintenance')
@@ -788,19 +784,14 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const mExpenses = expenses.filter(e => e.date.startsWith(mKey));
 
       const gross = mShifts.reduce((acc, s) => acc + s.grossEarnings, 0);
-      const shiftFuel = mShifts.reduce((acc, s) => acc + (s.fuelExpenseAmount || 0), 0);
-      const shiftRental = mShifts.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
-
-      const standaloneFuel = mExpenses
-        .filter(e => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e))
+      // V.2.9.2 fix — fonte de verdade: expenses (chargesSync + syncShiftExpenses garantem correctitude)
+      const totalFuelCost = mExpenses
+        .filter(e => e.category === 'fuel_charging')
         .reduce((a, e) => a + e.amount, 0);
 
-      const standaloneRental = mExpenses
-        .filter(e => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e))
+      const totalVehicleRentals = mExpenses
+        .filter(e => e.category === 'vehicle_rental')
         .reduce((a, e) => a + e.amount, 0);
-
-      const totalFuelCost = shiftFuel + standaloneFuel;
-      const totalVehicleRentals = shiftRental + standaloneRental;
 
       const totalMaintenanceCost = mExpenses.filter(e => e.category === 'maintenance').reduce((a, e) => a + e.amount, 0);
       const totalInsuranceCost = mExpenses.filter(e => e.category === 'insurance').reduce((a, e) => a + e.amount, 0);

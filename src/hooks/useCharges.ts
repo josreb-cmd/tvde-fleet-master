@@ -108,16 +108,13 @@ export function useCharges() {
       weekId: getISOWeekId(formData.date)
     });
 
-    // Calcular total local: substituir o charge antigo pelo novo valor
-    const localTotal = charges
-      .filter(c => c.date === formData.date)
-      .reduce((sum, c) => sum + (c.id === id ? net : c.netAmount), 0);
-
-    // Se o charge não existia neste dia (veio de outro dia), somar o net
+    // V.2.9.2 fix — cálculo explícito sem ambiguidade de race condition:
+    // outros charges do novo dia (excluindo o editado) + novo valor
     const wasOnThisDay = oldDate === formData.date;
-    const finalTotal = wasOnThisDay
-      ? localTotal
-      : localTotal + net;
+    const otherChargesOnNewDay = charges.filter(
+      c => c.date === formData.date && c.id !== id
+    );
+    const finalTotal = otherChargesOnNewDay.reduce((sum, c) => sum + c.netAmount, 0) + net;
 
     await syncChargesToShiftLog(formData.date, finalTotal);
 
