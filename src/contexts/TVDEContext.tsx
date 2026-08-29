@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import {
   collection,
   doc,
@@ -342,6 +342,87 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
   }, [shiftLogs, vehicles]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // Diagnóstico automático de reconciliação — V.2.9.3
+  // Corre 1x por sessão após shiftLogs carregados.
+  // Compara shiftLog.fuelExpenseAmount com a soma real das charges
+  // do mesmo dia. Se houver divergência > 0.01€, cria notificação
+  // para o gestor corrigir manualmente via Faturação Diária.
+  // Sem escritas no Firestore — apenas leituras + notificação.
+  // ═══════════════════════════════════════════════════════════════
+  const reconciliationRan = useRef(false);
+
+  useEffect(() => {
+    if (reconciliationRan.current) return;
+    if (shiftLogs.length === 0) return;
+
+    reconciliationRan.current = true;
+
+    const runDiagnosis = async () => {
+      try {
+        // Filtrar shiftLogs do mês activo com fuelExpenseAmount > 0
+        const shiftsWithFuel = shiftLogs.filter(
+          s => s.date.startsWith(selectedMonth) && (s.fuelExpenseAmount || 0) > 0
+        );
+
+        if (shiftsWithFuel.length === 0) return;
+
+        const divergences: { date: string; diff: number }[] = [];
+
+        for (const shift of shiftsWithFuel) {
+          const chargesSnap = await getDocs(
+            query(collection(db, 'charges'), where('date', '==', shift.date))
+          );
+
+          let chargesTotal = 0;
+          chargesSnap.forEach(d => {
+            chargesTotal += (d.data().netAmount ?? 0);
+          });
+          chargesTotal = Math.round(chargesTotal * 100) / 100;
+
+          const shiftTotal = Math.round((shift.fuelExpenseAmount || 0) * 100) / 100;
+          const diff = Math.abs(shiftTotal - chargesTotal);
+
+          if (diff > 0.01) {
+            divergences.push({ date: shift.date, diff });
+          }
+        }
+
+        if (divergences.length === 0) return;
+
+        // Verificar se já existe notificação não lida do mesmo tipo
+        const alreadyExists = notifications.some(
+          n => n.type === 'data_reconciliation' && !n.read
+        );
+        if (alreadyExists) return;
+
+        // Construir mensagem com os dias divergentes
+        const detail = divergences
+          .map(d => {
+            const [, m, day] = d.date.split('-');
+            return `${day}/${m} (${d.diff.toFixed(2)}€)`;
+          })
+          .join(', ');
+
+        await addNotification({
+          type: 'data_reconciliation',
+          title: 'Divergência de carregamentos detectada',
+          message: `${divergences.length} dia(s) com valores inconsistentes: ${detail}`,
+          priority: 'medium',
+          actionRequired: `Faturação Diária → ${divergences.map(d => {
+            const [, m, day] = d.date.split('-');
+            return `${day}/${m}`;
+          }).join(', ')} → Guardar`
+        });
+
+      } catch (err) {
+        console.error('[reconciliação] Erro no diagnóstico:', err);
+      }
+    };
+
+    runDiagnosis();
+  }, [shiftLogs]);
 
   // ═══════════════════════════════════════════════════════════════
   // syncShiftExpenses — V.2.9.1 FIX

@@ -9,7 +9,8 @@ import {
   FileText,
   CheckCircle2,
   Send,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 export const NotificationsView: React.FC = () => {
@@ -28,7 +29,8 @@ export const NotificationsView: React.FC = () => {
     maintenance: { label: 'Manutenção', icon: Wrench },
     payment_pending: { label: 'Pagamentos Pendentes', icon: DollarSign },
     document_expiry: { label: 'Validade de Documentos', icon: FileText },
-    performance_alert: { label: 'Alertas Desempenho', icon: Bell }
+    performance_alert: { label: 'Alertas Desempenho', icon: Bell },
+    data_reconciliation: { label: 'Reconciliação de Dados', icon: RefreshCw }
   };
 
   const filteredNotifs = notifications.filter(n => {

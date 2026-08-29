@@ -8,7 +8,7 @@ export type ExpenseCategory = 'fuel_charging' | 'maintenance' | 'insurance' | 'v
 
 export type PlatformType = 'uber' | 'bolt' | 'other';
 
-export type NotificationType = 'maintenance' | 'payment_pending' | 'document_expiry' | 'performance_alert';
+export type NotificationType = 'maintenance' | 'payment_pending' | 'document_expiry' | 'performance_alert' | 'data_reconciliation';
 
 export type NotificationPriority = 'low' | 'medium' | 'high';
 
