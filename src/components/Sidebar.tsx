@@ -106,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'km-rentabilidade',
-      label: 'Rentabilidade km',
+      label: "Performance & Margem",
       icon: Gauge,
       badge: null,
       roles: ['manager']
