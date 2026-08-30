@@ -41,10 +41,10 @@ export function KmRentabilidade() {
       {/* —— Cabeçalho —— */}
       <div className="mb-8">
         <p className="text-xs font-mono tracking-widest text-indigo-400 uppercase mb-1">
-          Análise de Rentabilidade
+          Gestão Semanal de Frota
         </p>
         <h1 className="text-3xl font-bold text-white">
-          Quilómetros & Margem
+          Performance & Margem
         </h1>
         <p className="text-gray-400 mt-1 text-sm">
           Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km
