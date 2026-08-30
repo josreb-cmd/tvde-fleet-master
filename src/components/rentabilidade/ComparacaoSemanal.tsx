@@ -42,14 +42,15 @@ function formatHoras(h: number) {
 }
 
 function weekBounds(weekId: string): { start: string; end: string } {
+  // V.2.9.3 fix: usar UTC para evitar desvio de timezone
+  // jan4 em UTC, weekday ISO (0=Dom → 6, 1=Seg → 0, ..., 6=Sab → 5)
   const [year, week] = weekId.split("-W").map(Number);
-  const jan4 = new Date(year, 0, 4);
-  const startOfWeek1 = new Date(jan4);
-  startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
-  const monday = new Date(startOfWeek1);
-  monday.setDate(startOfWeek1.getDate() + (week - 1) * 7);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  const jan4 = Date.UTC(year, 0, 4);
+  const jan4Day = new Date(jan4).getUTCDay(); // 0=Dom
+  const isoDay = (jan4Day + 6) % 7;           // 0=Seg
+  const startOfWeek1 = jan4 - isoDay * 86400000;
+  const monday = new Date(startOfWeek1 + (week - 1) * 7 * 86400000);
+  const sunday = new Date(monday.getTime() + 6 * 86400000);
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
   return { start: fmt(monday), end: fmt(sunday) };
 }
