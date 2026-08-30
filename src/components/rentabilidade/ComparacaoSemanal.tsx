@@ -56,11 +56,13 @@ function weekBounds(weekId: string): { start: string; end: string } {
 
 function weekLabel(weekId: string): string {
   const { start, end } = weekBounds(weekId);
-  const s = new Date(start + "T00:00:00");
-  const e = new Date(end + "T00:00:00");
+  // V.2.9.3 fix: parsear directamente sem Date() para evitar desvio de timezone
+  const fmtStr = (dateStr: string) => {
+    const [, m, d] = dateStr.split("-");
+    return `${d}/${m}`;
+  };
   const weekNum = parseInt(weekId.split("-W")[1]);
-  const fmt = (d: Date) => `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
-  return `Sem ${weekNum} · ${fmt(s)}–${fmt(e)}`;
+  return `Sem ${weekNum} · ${fmtStr(start)}–${fmtStr(end)}`;
 }
 
 // ——— Componente ———
