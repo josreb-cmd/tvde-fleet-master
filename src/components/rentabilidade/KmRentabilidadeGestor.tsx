@@ -880,6 +880,42 @@ export function KmRentabilidadeGestor({
             </tbody>
           </table>
         </div>
+        {/* Linha dinâmica — posição actual — V.2.9.3 */}
+        {kmTotal > 0 && (() => {
+          const kmExtra = Math.max(0, kmTotal - KM_BASE);
+          const sobretaxa = kmExtra * TAXA_ADICIONAL;
+          const custoTotal = RENDA_SEMANAL + sobretaxa;
+          const energia = kmTotal * ENERGIA_POR_KM;
+          const custoComEnergia = custoTotal + energia;
+          const receita = kmTotal * RECEITA_ESTIMADA_POR_KM;
+          const margem = receita > 0 ? ((receita - custoTotal) / receita) * 100 : 0;
+          const margemLiquida = receita > 0 ? ((receita - custoComEnergia) / receita) * 100 : 0;
+          return (
+            <div className="mt-3 p-3 bg-indigo-950/60 border border-indigo-700/50 rounded-lg">
+              <p className="text-[10px] text-indigo-400 font-semibold mb-2 uppercase tracking-wide">
+                ▶ Posição actual — {kmTotal.toLocaleString("pt-PT")} km esta semana
+              </p>
+              <div className="grid grid-cols-4 gap-3 text-xs font-mono">
+                <div>
+                  <p className="text-gray-500 mb-0.5">Sobretaxa</p>
+                  <p className="text-amber-400 font-semibold">{sobretaxa > 0 ? formatEuro(sobretaxa) : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-0.5">Rec. estimada</p>
+                  <p className="text-gray-300">{formatEuro(receita)}</p>
+                </div>
+                <div>
+                  <p className="text-green-500 mb-0.5">Margem s/ energia</p>
+                  <p className={`font-semibold ${margem >= 0 ? "text-green-400" : "text-red-400"}`}>{margem.toFixed(1)}%</p>
+                </div>
+                <div>
+                  <p className="text-amber-400 mb-0.5">Margem c/ energia</p>
+                  <p className={`font-semibold ${margemLiquida >= 0 ? "text-amber-400" : "text-red-400"}`}>{margemLiquida.toFixed(1)}%</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         <p className="text-xs text-gray-500 mt-3">
           Acima dos {KM_BASE.toLocaleString("pt-PT")} km cada km adicional custa mais{" "}
           {TAXA_ADICIONAL.toFixed(2)}€ — mas continua rentável enquanto a receita
