@@ -740,6 +740,8 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error deleting notification from Firestore:', err);
     }
   };
+
+  const resetToDefaultData = async () => {
     try {
       const batch = writeBatch(db);
 
