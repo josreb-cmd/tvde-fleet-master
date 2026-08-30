@@ -3,8 +3,12 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'fs';
 
 const CLOUD_RUN_URL = 'https://ais-pre-pyvhpmcfqhadg2oqzzoe4h-391670741439.europe-west2.run.app';
+
+// V.2.9.3 — fonte de verdade da versão: package.json
+const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 export default defineConfig(() => {
   return {
@@ -75,6 +79,7 @@ export default defineConfig(() => {
       'import.meta.env.VITE_API_URL': JSON.stringify(
         process.env.VITE_API_URL || CLOUD_RUN_URL
       ),
+      __APP_VERSION__: JSON.stringify(version),
     },
     build: {
       chunkSizeWarningLimit: 700,
