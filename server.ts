@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import nodemailer from 'nodemailer';
@@ -9,8 +8,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { generateSummaryEmailHtml } from './server/emailTemplate';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// V.2.9.3: removido import.meta.url (não disponível em CJS) — __dirname nativo do Node.js CJS
 
 async function fetchFirestoreCollections() {
   try {
