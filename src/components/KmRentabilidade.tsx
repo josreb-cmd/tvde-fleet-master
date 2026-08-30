@@ -14,8 +14,9 @@ import { useKmRentabilidade } from "./rentabilidade/useKmRentabilidade";
 import { useWeeklySparklines } from "./rentabilidade/useWeeklySparklines";
 import { KmRentabilidadeGestor } from "./rentabilidade/KmRentabilidadeGestor";
 import { KmRentabilidadeMotorista } from "./rentabilidade/KmRentabilidadeMotorista";
+import { ComparacaoSemanal } from "./rentabilidade/ComparacaoSemanal";
 
-type ViewMode = "gestor" | "motorista";
+type ViewMode = "gestor" | "motorista" | "comparacao";
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" });
@@ -110,6 +111,16 @@ export function KmRentabilidade() {
             <Car size={15} />
             Motorista
           </button>
+          <button
+            onClick={() => setView("comparacao")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              view === "comparacao"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-400 hover:text-white hover:bg-gray-800"
+            }`}
+          >
+            Comparação
+          </button>
         </div>
       </div>
 
@@ -121,6 +132,8 @@ export function KmRentabilidade() {
             Sem turnos registados para esta semana.
           </p>
         </div>
+      ) : view === "comparacao" ? (
+        <ComparacaoSemanal />
       ) : view === "gestor" ? (
         <KmRentabilidadeGestor
           data={data}
