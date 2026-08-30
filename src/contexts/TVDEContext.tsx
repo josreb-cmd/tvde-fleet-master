@@ -68,6 +68,7 @@ interface TVDEContextType {
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   addNotification: (notification: Omit<AppNotification, 'id' | 'date' | 'read'>) => void;
+  deleteNotification: (id: string) => void;
   
   resetToDefaultData: () => void;
   
@@ -133,10 +134,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shiftLogs, setShiftLogs] = useState<DailyShiftLog[]>(INITIAL_SHIFT_LOGS);
   const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
   const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
-  
-  // Estado para controlar se as notificações já foram carregadas da Cloud
-  const [notificationsLoaded, setNotificationsLoaded] = useState<boolean>(false);
-  
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
@@ -292,23 +289,22 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Real-time Firestore Sync for NOTIFICATIONS — V.2.9.3
+  // Comportamento correcto: carregar e manter notificações do Firestore.
+  // O listener anterior apagava tudo ao detectar — notificações nunca persistiam.
   useEffect(() => {
     if (!authUser) return;
     const unsub = onSnapshot(collection(db, 'notifications'), snapshot => {
       if (snapshot.empty) {
         setNotifications([]);
-        setNotificationsLoaded(true); // Marca como carregado mesmo se vazio
         setIsCloudSynced(true);
         return;
       }
       const loaded = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as AppNotification[];
       loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setNotifications(loaded);
-      setNotificationsLoaded(true); // Marca como carregado
       setIsCloudSynced(true);
     }, err => {
       console.error('Firestore notifications listener error:', err);
-      setNotificationsLoaded(true); // Se der erro, avança na mesma
     });
     return () => unsub();
   }, [authUser]);
@@ -352,19 +348,23 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ═══════════════════════════════════════════════════════════════
   // Diagnóstico automático de reconciliação — V.2.9.3
+  // Corre 1x por sessão após shiftLogs carregados.
+  // Compara shiftLog.fuelExpenseAmount com a soma real das charges
+  // do mesmo dia. Se houver divergência > 0.01€, cria notificação
+  // para o gestor corrigir manualmente via Faturação Diária.
+  // Sem escritas no Firestore — apenas leituras + notificação.
   // ═══════════════════════════════════════════════════════════════
   const reconciliationRan = useRef(false);
 
   useEffect(() => {
     if (reconciliationRan.current) return;
-    
-    // SÓ INICIA QUANDO AS NOTIFICAÇÕES TAMBÉM FOREM CARREGADAS!
-    if (shiftLogs.length === 0 || !notificationsLoaded) return; 
+    if (shiftLogs.length === 0) return;
 
     reconciliationRan.current = true;
 
     const runDiagnosis = async () => {
       try {
+        // Filtrar shiftLogs do mês activo com fuelExpenseAmount > 0
         const shiftsWithFuel = shiftLogs.filter(
           s => s.date.startsWith(selectedMonth) && (s.fuelExpenseAmount || 0) > 0
         );
@@ -378,6 +378,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
             query(collection(db, 'charges'), where('date', '==', shift.date))
           );
 
+          // Sem charges para este dia — valor manual é fonte de verdade, ignorar
           if (chargesSnap.empty) continue;
 
           let chargesTotal = 0;
@@ -399,11 +400,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
+        // Verificar se já existe notificação não lida do mesmo tipo
         const alreadyExists = notifications.some(
           n => n.type === 'data_reconciliation' && !n.read
         );
         if (alreadyExists) return;
 
+        // Construir mensagem com os dias divergentes
         const detail = divergences
           .map(d => {
             const [, m, day] = d.date.split('-');
@@ -428,16 +431,20 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     runDiagnosis();
-  }, [shiftLogs, notificationsLoaded]);
+  }, [shiftLogs]);
 
   // ═══════════════════════════════════════════════════════════════
   // syncShiftExpenses — V.2.9.1 FIX
+  // Sincroniza expenses de renda e fuel a partir de um shiftLog.
+  // REGRA FUEL: se existem registos na coleção "charges" para o
+  // mesmo dia, o chargesSync.ts é a fonte de verdade — esta função
+  // NÃO toca no expense de fuel para evitar conflito de escrita.
   // ═══════════════════════════════════════════════════════════════
   const syncShiftExpenses = async (shiftLog: DailyShiftLog) => {
     const rentalExpId = `exp-rnd-shift-${shiftLog.id}`;
     const fuelExpId = `exp-fuel-shift-${shiftLog.id}`;
 
-    // 1. Rental Expense Sync
+    // 1. Rental Expense Sync (sem alterações)
     if (shiftLog.rentalExpenseAmount && shiftLog.rentalExpenseAmount > 0) {
       const rentalExpense: Expense = {
         id: rentalExpId,
@@ -462,7 +469,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try { await deleteDoc(doc(db, 'expenses', rentalExpId)); } catch (_) {}
     }
 
-    // 2. Fuel Expense Sync — V.2.9.1
+    // 2. Fuel Expense Sync — V.2.9.1: verificar se charges existem
     let hasChargesForDay = false;
     try {
       const chargesSnap = await getDocs(
@@ -470,10 +477,16 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       hasChargesForDay = !chargesSnap.empty;
     } catch (err) {
+      // Se falhar a query (ex: índice em falta), comportamento seguro:
+      // assumir que NÃO há charges → manter lógica original
       console.warn("Could not check charges for day, falling back to manual sync:", err);
     }
 
     if (hasChargesForDay) {
+      // chargesSync.ts é a fonte de verdade — re-sincronizar agora que o shiftLog existe.
+      // Cobre o cenário: Carregamento criado ANTES da Faturação Diária.
+      // Na primeira passagem do chargesSync o shiftLog ainda não existia (warn + return);
+      // agora que existe, forçar a criação do expense de Combustível.
       try {
         const { syncChargesToShiftLog } = await import('../utils/chargesSync');
         await syncChargesToShiftLog(shiftLog.date);
@@ -483,6 +496,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Lógica original — só para dias SEM módulo carregamentos
     if (shiftLog.fuelExpenseAmount && shiftLog.fuelExpenseAmount > 0) {
       const fuelExpense: Expense = {
         id: fuelExpId,
@@ -508,6 +522,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Actions writing directly to Firestore
   const addShiftLog = async (logData: Omit<DailyShiftLog, 'id' | 'status'>) => {
     const newId = `sft-${Date.now()}`;
     const newLog: DailyShiftLog = {
@@ -706,16 +721,25 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       date: new Date().toISOString(),
       read: false
     };
+    // Actualização optimista — UI responde imediatamente sem esperar onSnapshot
     setNotifications(prev => [newNotif, ...prev]);
     try {
       await setDoc(doc(db, 'notifications', newId), cleanObject(newNotif));
     } catch (err) {
       console.error('Error adding notification to Firestore:', err);
+      // Reverter se falhar
       setNotifications(prev => prev.filter(n => n.id !== newId));
     }
   };
 
-  const resetToDefaultData = async () => {
+  const deleteNotification = async (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    try {
+      await deleteDoc(doc(db, 'notifications', id));
+    } catch (err) {
+      console.error('Error deleting notification from Firestore:', err);
+    }
+  };
     try {
       const batch = writeBatch(db);
 
@@ -776,6 +800,8 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const totalKm = filteredShifts.reduce((acc, s) => acc + s.kilometers, 0);
     const totalHours = filteredShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
 
+    // V.2.9.2 fix — fonte de verdade: expenses (chargesSync + syncShiftExpenses garantem correctitude)
+    // Remover dupla contagem via shiftFuelCost + standaloneFuelCost
     const totalFuelCost = filteredExpenses
       .filter(e => e.category === 'fuel_charging')
       .reduce((acc, e) => acc + e.amount, 0);
@@ -861,6 +887,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const mExpenses = expenses.filter(e => e.date.startsWith(mKey));
 
       const gross = mShifts.reduce((acc, s) => acc + s.grossEarnings, 0);
+      // V.2.9.2 fix — fonte de verdade: expenses (chargesSync + syncShiftExpenses garantem correctitude)
       const totalFuelCost = mExpenses
         .filter(e => e.category === 'fuel_charging')
         .reduce((a, e) => a + e.amount, 0);
@@ -977,6 +1004,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
         markNotificationAsRead,
         markAllNotificationsAsRead,
         addNotification,
+        deleteNotification,
         resetToDefaultData,
         monthlyStats,
         historicalMonthlyData,

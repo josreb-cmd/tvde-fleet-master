@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   Send,
   Check,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 
 export const NotificationsView: React.FC = () => {
@@ -18,7 +19,8 @@ export const NotificationsView: React.FC = () => {
     notifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
-    addNotification
+    addNotification,
+    deleteNotification
   } = useTVDE();
 
   const [activeFilter, setActiveFilter] = useState<NotificationType | 'all'>('all');
@@ -218,6 +220,13 @@ export const NotificationsView: React.FC = () => {
                     <Check className="w-4 h-4" />
                   </button>
                 )}
+                <button
+                  onClick={() => deleteNotification(n.id)}
+                  className="p-2 rounded-md bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 transition border border-slate-200"
+                  title="Apagar notificação"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))
