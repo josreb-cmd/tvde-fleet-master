@@ -825,24 +825,14 @@ export function KmRentabilidadeGestor({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left border-b border-gray-800">
-                <th className="pb-2 pr-4 font-medium text-gray-400">
-                  Km/semana
-                </th>
-                <th className="pb-2 pr-4 font-medium text-gray-400">
-                  Km extra
-                </th>
-                <th className="pb-2 pr-4 font-medium text-gray-400">
-                  Sobretaxa
-                </th>
-                <th className="pb-2 pr-4 font-medium text-gray-400">
-                  Custo total
-                </th>
-                <th className="pb-2 pr-4 font-medium text-gray-400">
-                  Rec. estimada
-                </th>
-                <th className="pb-2 pr-4 font-medium text-gray-400">
-                  Margem est.
-                </th>
+                <th className="pb-2 pr-4 font-medium text-gray-400">Km/semana</th>
+                <th className="pb-2 pr-4 font-medium text-gray-400">Km extra</th>
+                <th className="pb-2 pr-4 font-medium text-gray-400">Sobretaxa</th>
+                <th className="pb-2 pr-4 font-medium text-gray-400">Rec. estimada</th>
+                <th className="pb-2 pr-4 font-medium text-green-500">Custo s/ energia</th>
+                <th className="pb-2 pr-4 font-medium text-green-500">Margem s/ energia</th>
+                <th className="pb-2 pr-4 font-medium text-amber-400">Custo c/ energia</th>
+                <th className="pb-2 font-medium text-amber-400">Margem c/ energia</th>
               </tr>
             </thead>
             <tbody>
@@ -864,21 +854,25 @@ export function KmRentabilidadeGestor({
                       )}
                     </td>
                     <td className="py-2 pr-4 font-mono text-gray-300">
-                      {m.kmExtra > 0
-                        ? `+${m.kmExtra.toLocaleString("pt-PT")}`
-                        : "—"}
+                      {m.kmExtra > 0 ? `+${m.kmExtra.toLocaleString("pt-PT")}` : "—"}
                     </td>
                     <td className="py-2 pr-4 font-mono text-amber-400">
                       {m.sobretaxa > 0 ? formatEuro(m.sobretaxa) : "—"}
                     </td>
                     <td className="py-2 pr-4 font-mono text-gray-300">
-                      {formatEuro(m.custoTotal)}
-                    </td>
-                    <td className="py-2 pr-4 font-mono text-gray-300">
                       {formatEuro(m.receita)}
                     </td>
-                    <td className="py-2 font-mono text-gray-300">
+                    <td className="py-2 pr-4 font-mono text-green-400">
+                      {formatEuro(m.custoTotal)}
+                    </td>
+                    <td className={`py-2 pr-4 font-mono font-semibold ${m.margem >= 0 ? "text-green-400" : "text-red-400"}`}>
                       {m.margem.toFixed(1)}%
+                    </td>
+                    <td className="py-2 pr-4 font-mono text-amber-400">
+                      {formatEuro(m.custoComEnergia)}
+                    </td>
+                    <td className={`py-2 font-mono font-semibold ${m.margemLiquida >= 0 ? "text-amber-400" : "text-red-400"}`}>
+                      {m.margemLiquida.toFixed(1)}%
                     </td>
                   </tr>
                 );
