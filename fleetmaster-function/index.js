@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 
 /**
  * Cloud Function: enviarResumoFleetMaster
- * Recebe dados do frontend, calcula o resumo e envia por email via Gmail SMTP.
+ * Recebe dados do frontend, utiliza o preview exato e envia por email via Gmail SMTP.
  * A GMAIL_APP_PASSWORD vem do Secret Manager (injetada como variável de ambiente).
  */
 functions.http('enviarResumoFleetMaster', async (req, res) => {
@@ -21,7 +21,11 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
   }
 
   // — Validação —
-  const { startDate, endDate, shiftLogs, expenses, drivers, vehicles } = req.body || {};
+  const bodyData = req.body || {};
+  const startDate = bodyData.startDate;
+  const endDate = bodyData.endDate;
+  const shiftLogs = bodyData.shiftLogs;
+  const preview = bodyData.preview || {};
 
   if (!startDate || !endDate) {
     return res.status(400).json({ error: 'startDate e endDate são obrigatórios.' });
@@ -42,71 +46,33 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
   const GMAIL_USER = 'josreb@gmail.com';
   const RECIPIENTS = ['josreb@gmail.com', 'alexreb60@gmail.com'];
 
-  // — Constantes Rentabilidade (alinhadas com KmRentabilidade.tsx) —
+  // — Constantes Rentabilidade —
   const KM_BASE = 2000;
   const TAXA_ADICIONAL = 0.25; // €/km acima de 2000
 
   try {
-    // — Cálculos —
-    const filtered = shiftLogs.filter(s => s.date >= startDate && s.date <= endDate);
-    const filteredExpenses = (expenses || []).filter(e => e.date >= startDate && e.date <= endDate);
-
-    const isDuplicateShiftExpense = (e) => {
-      if (!e) return false;
-      if (e.id && (
-        e.id.startsWith('exp-fuel-shift-') ||
-        e.id.startsWith('exp-rnd-shift-') ||
-        e.id.startsWith('exp-nrg-') ||
-        e.id.startsWith('exp-rnd-daily-') ||
-        e.id.startsWith('exp-rnd-monday-')
-      )) return true;
-      if (e.description && (
-        e.description.includes('Custo diário de energia') ||
-        e.description.includes('Renda diária de viatura') ||
-        e.description.includes('Sincronizado de Faturação Diária')
-      )) return true;
-      return false;
-    };
-
-    const parseHHMM = (v) => {
-      if (typeof v === 'number') return v;
-      if (typeof v !== 'string') return 0;
-      const parts = v.split(':');
-      return (parseInt(parts[0]) || 0) + (parseInt(parts[1]) || 0) / 60;
-    };
-
-    const gross = filtered.reduce((a, s) => a + (s.grossEarnings || 0), 0);
-    const trips = filtered.reduce((a, s) => a + (s.tripsCount || 0), 0);
-    const km = filtered.reduce((a, s) => a + (s.kilometers || 0), 0);
-    const hours = filtered.reduce((a, s) => a + parseHHMM(s.hoursWorked), 0);
-    const shiftFuel = filtered.reduce((a, s) => a + (s.fuelExpenseAmount || 0), 0);
-    const shiftRental = filtered.reduce((a, s) => a + (s.rentalExpenseAmount || 0), 0);
-
-    const standaloneFuel = filteredExpenses
-      .filter(e => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e))
-      .reduce((a, e) => a + e.amount, 0);
-    const standaloneRental = filteredExpenses
-      .filter(e => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e))
-      .reduce((a, e) => a + e.amount, 0);
-    const standaloneOther = filteredExpenses
-      .filter(e => e.category !== 'fuel_charging' && e.category !== 'vehicle_rental' && !isDuplicateShiftExpense(e))
-      .reduce((a, e) => a + e.amount, 0);
-
-    const energy = shiftFuel + standaloneFuel;
-    const rental = shiftRental + standaloneRental;
+    // Utiliza os dados exatos calculados no preview do frontend
+    const gross = preview.gross ?? 0;
+    const trips = preview.trips ?? 0;
+    const km = preview.km ?? 0;
+    const hours = preview.hours ?? 0;
+    const energy = preview.energy ?? 0;
+    const rental = preview.rental ?? 0;
+    const shiftCount = preview.shiftCount ?? shiftLogs.length;
+    const distinctDays = preview.distinctDays ?? 1;
+    const revenuePerHour = preview.revenuePerHour ?? 0;
+    const avgTripsPerDay = preview.avgTripsPerDay ?? 0;
+    const revenuePerTrip = preview.revenuePerTrip ?? 0;
 
     // — Sobretaxa km extra —
     const kmExtra = Math.max(0, km - KM_BASE);
     const sobretaxa = kmExtra * TAXA_ADICIONAL;
 
-    const costs = energy + rental + standaloneOther + sobretaxa;
+    const costs = energy + rental + sobretaxa;
     const profit = gross - costs;
     const receiptIssuance = gross - rental;
     const costPerKm = km > 0 ? costs / km : 0;
-    const distinctDays = new Set(filtered.map(s => s.date)).size || (filtered.length > 0 ? 1 : 0);
-    const revenuePerHour = hours > 0 ? gross / hours : 0;
-    const avgTripsPerDay = distinctDays > 0 ? trips / distinctDays : 0;
-    const revenuePerTrip = trips > 0 ? gross / trips : 0;
+    
     const hoursH = Math.floor(hours);
     const hoursM = Math.round((hours % 1) * 60);
 
@@ -116,7 +82,7 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
       : `<span style="color:#059669;font-weight:700;">✅ Sem sobretaxa (&lt; ${KM_BASE.toLocaleString('pt-PT')}km)</span>`;
 
     // — Email HTML —
-    const fmt = (v) => v.toFixed(2).replace('.', ',') + ' €';
+    const fmt = (v) => (v || 0).toFixed(2).replace('.', ',') + ' €';
     const subject = `[TVDE Fleet Master] Resumo de Desempenho (${startDate} a ${endDate})`;
 
     const html = `
@@ -129,7 +95,7 @@ functions.http('enviarResumoFleetMaster', async (req, res) => {
         <table style="width:100%;border-collapse:collapse;font-size:13px;color:#334155;">
           <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px 8px;font-weight:600;">📊 Turnos Registados</td>
-            <td style="padding:10px 8px;text-align:right;font-weight:700;">${filtered.length}</td>
+            <td style="padding:10px 8px;text-align:right;font-weight:700;">${shiftCount}</td>
           </tr>
           <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px 8px;font-weight:600;">💰 Faturação Bruta</td>
