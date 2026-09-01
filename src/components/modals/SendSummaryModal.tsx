@@ -213,7 +213,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
           shiftLogs: shiftLogs.filter(s => s.date >= dateRange.startDate && s.date <= dateRange.endDate),
-expenses: expenses.filter(e => e.date >= dateRange.startDate && e.date <= dateRange.endDate),
+          expenses: expenses.filter(e => e.date >= dateRange.startDate && e.date <= dateRange.endDate),
           drivers,
           vehicles
         })
