@@ -127,19 +127,19 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
     const shiftRental = filteredShifts.reduce((acc, s) => acc + (s.rentalExpenseAmount || 0), 0);
 
     const standaloneFuel = filteredExpenses
-      .filter(e => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e))
+      .filter(e => e.category === 'fuel_charging' && !isDuplicateShiftExpense(e) && e.amount > 0)
       .reduce((acc, e) => acc + e.amount, 0);
 
     const standaloneRental = filteredExpenses
-      .filter(e => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e))
+      .filter(e => e.category === 'vehicle_rental' && !isDuplicateShiftExpense(e) && e.amount > 0)
       .reduce((acc, e) => acc + e.amount, 0);
 
     const standaloneOther = filteredExpenses
-      .filter(e => e.category !== 'fuel_charging' && e.category !== 'vehicle_rental' && !isDuplicateShiftExpense(e))
+      .filter(e => e.category !== 'fuel_charging' && e.category !== 'vehicle_rental' && !isDuplicateShiftExpense(e) && e.amount > 0)
       .reduce((acc, e) => acc + e.amount, 0);
 
-    const energy = shiftFuel + standaloneFuel;
-    const rental = shiftRental + standaloneRental;
+    const energy = shiftFuel > 0 ? shiftFuel : standaloneFuel;
+    const rental = shiftRental > 0 ? shiftRental : standaloneRental;
     const costs = energy + rental + standaloneOther;
     const profit = gross - costs;
     const receiptIssuance = gross - rental;
@@ -150,19 +150,6 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
     const revenuePerHour = hours > 0 ? gross / hours : 0;
     const avgTripsPerDay = distinctDays > 0 ? trips / distinctDays : 0;
     const revenuePerTrip = trips > 0 ? gross / trips : 0;
-
-    // COMANDO DE DIAGNÓSTICO
-    console.log('DEBUG COMPLETO:', {
-      startDate,
-      endDate,
-      totalShifts: shiftLogs.length,
-      filteredShiftsCount: filteredShifts.length,
-      totalExpenses: expenses.length,
-      filteredExpenses,
-      shiftFuel,
-      standaloneFuel,
-      totalEnergy: energy
-    });
 
     return {
       gross,
