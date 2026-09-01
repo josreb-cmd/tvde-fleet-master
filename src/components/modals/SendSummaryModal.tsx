@@ -151,6 +151,19 @@ export const SendSummaryModal: React.FC<SendSummaryModalProps> = ({ isOpen, onCl
     const avgTripsPerDay = distinctDays > 0 ? trips / distinctDays : 0;
     const revenuePerTrip = trips > 0 ? gross / trips : 0;
 
+    // COMANDO DE DIAGNÓSTICO
+    console.log('DEBUG COMPLETO:', {
+      startDate,
+      endDate,
+      totalShifts: shiftLogs.length,
+      filteredShiftsCount: filteredShifts.length,
+      totalExpenses: expenses.length,
+      filteredExpenses,
+      shiftFuel,
+      standaloneFuel,
+      totalEnergy: energy
+    });
+
     return {
       gross,
       profit,
