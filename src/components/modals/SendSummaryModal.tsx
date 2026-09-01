@@ -213,7 +213,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
           shiftLogs: shiftLogs.filter(s => s.date >= dateRange.startDate && s.date <= dateRange.endDate),
-          expenses: expenses.filter(e => e.date >= dateRange.startDate && e.date <= dateRange.endDate),
+expenses: expenses.filter(e => e.date >= dateRange.startDate && e.date <= dateRange.endDate),
           drivers,
           vehicles
         })
@@ -400,7 +400,7 @@ Destinatários: josreb@gmail.com, alexreb60@gmail.com`;
           <div className="p-3.5 rounded-xl bg-slate-100/70 border border-slate-200/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
-                Pré-visualização (ProFlow Layout)
+                Pré-visualização (ProFlow V2)
               </span>
               <span className="text-[10px] text-slate-500 font-medium">
                 {previewData.shiftCount} {previewData.shiftCount === 1 ? 'turno' : 'turnos'} registados
