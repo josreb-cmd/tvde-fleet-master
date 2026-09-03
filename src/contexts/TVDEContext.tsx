@@ -203,20 +203,10 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Real-time Firestore Sync for SHIFT LOGS
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'shiftLogs'), async snapshot => {
-      const hasOldData = snapshot.docs.some(d => d.data().driverName === 'João Silva' || (d.data().boltEarnings || 0) > 0 || d.data().vehiclePlate === 'AA-42-TV');
-      if (snapshot.empty || hasOldData) {
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(d => batch.delete(d.ref));
-        INITIAL_SHIFT_LOGS.forEach(s => {
-          batch.set(doc(db, 'shiftLogs', s.id), cleanObject(s));
-        });
-        await batch.commit();
-      } else {
-        const loaded = snapshot.docs.map(doc => doc.data() as DailyShiftLog);
-        loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setShiftLogs(loaded);
-        setIsCloudSynced(true);
-      }
+      const loaded = snapshot.docs.map(doc => doc.data() as DailyShiftLog);
+      loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setShiftLogs(loaded);
+      setIsCloudSynced(true);
     }, err => {
       console.error("Firestore shiftLogs listener error:", err);
     });
