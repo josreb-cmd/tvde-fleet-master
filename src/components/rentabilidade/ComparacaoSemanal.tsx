@@ -11,7 +11,6 @@ import { getISOWeekId } from "../../utils/chargesSync";
 import {
   KM_BASE,
   TAXA_ADICIONAL,
-  ENERGIA_POR_KM,
 } from "./constants";
 import { parseHHMMToHours } from "../../utils/formatters";
 
@@ -109,10 +108,10 @@ export function ComparacaoSemanal() {
       const horas = wLogs.reduce((a, s) => a + (typeof s.hoursWorked === "number" ? s.hoursWorked : parseHHMMToHours(s.hoursWorked as any || "0:00")), 0);
       const viagens = wLogs.reduce((a, s) => a + (s.tripsCount || 0), 0);
       const renda = wLogs.reduce((a, s) => a + (s.rentalExpenseAmount || 0), 0);
+      const carregamentos = wLogs.reduce((a, s) => a + (s.fuelExpenseAmount || 0), 0);
       const kmExtra = Math.max(0, km - KM_BASE);
       const sobretaxa = kmExtra * TAXA_ADICIONAL;
-      const energia = km * ENERGIA_POR_KM;
-      const custos = renda + sobretaxa + energia;
+      const custos = renda + sobretaxa + carregamentos;
       const ficouNoBolso = faturacao - custos;
       const porCada10 = faturacao > 0 ? (ficouNoBolso / faturacao) * 10 : 0;
 
@@ -175,7 +174,7 @@ export function ComparacaoSemanal() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-white">Comparação Semanal</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{rows.length} semana{rows.length !== 1 ? "s" : ""} · Custos incluem renda, sobretaxa e energia estimada</p>
+          <p className="text-sm text-gray-400 mt-0.5">{rows.length} semana{rows.length !== 1 ? "s" : ""} · Custos incluem renda, sobretaxa e carregamentos reais</p>
         </div>
         <button
           onClick={exportCSV}
