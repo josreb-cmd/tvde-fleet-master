@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { useTVDE } from '../contexts/TVDEContext';
 import { formatHoursToHHMM, parseHHMMToHours } from '../utils/formatters';
 import { SavedQueryPreset, DEFAULT_PRESETS } from '../data/presetQueries';
@@ -919,7 +919,7 @@ export const CustomQueryView: React.FC = () => {
       {/* Alerta sobretaxa */}
       <div className="flex items-start gap-2.5 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
         <span className="mt-0.5 flex-shrink-0">⚠️</span>
-        <span>O <strong>Lucro Líquido Est.</strong> não inclui sobretaxa de km (acima de 2.000 km/semana × 0,25 €/km). Consulta a <strong>Comparação Semanal</strong> em <em>Performance &amp; Margem</em> para o valor final correcto.</span>
+        <span>O <strong>Lucro Líquido Est.</strong> não inclui sobretaxa de km (acima de 2.000 km/semana × 0,25 €/km). Consulta a <strong>Comparação Semanal/Motorista</strong> em <strong>Performance &amp; Margem</strong> para o valor final correto.</span>
       </div>
 
       {/* Resultados */}
