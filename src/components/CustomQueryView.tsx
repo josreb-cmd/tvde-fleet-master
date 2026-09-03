@@ -916,6 +916,12 @@ export const CustomQueryView: React.FC = () => {
         </div>
       </div>
 
+      {/* Alerta sobretaxa */}
+      <div className="flex items-start gap-2.5 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+        <span className="mt-0.5 flex-shrink-0">⚠️</span>
+        <span>O <strong>Lucro Líquido Est.</strong> não inclui sobretaxa de km (acima de 2.000 km/semana × 0,25 €/km). Consulta a <strong>Comparação Semanal</strong> em <em>Performance &amp; Margem</em> para o valor final correcto.</span>
+      </div>
+
       {/* Resultados */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
