@@ -165,12 +165,31 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <option value="2026">Ano Completo 2026</option>
                 </optgroup>
                 <optgroup label="Consultas Mensais">
-                  <option value="2026-08">Agosto 2026</option>
-                  <option value="2026-07">Julho 2026</option>
-                  <option value="2026-06">Junho 2026</option>
-                  <option value="2026-05">Maio 2026</option>
-                  <option value="2026-04">Abril 2026</option>
-                  <option value="2026-03">Março 2026</option>
+                  {(() => {
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    const currentMonth = now.getMonth(); // 0-indexed
+                    const startYear = 2026;
+                    const startMonth = 2; // Março = índice 2
+                    const meses = [
+                      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                    ];
+                    const options: React.ReactElement[] = [];
+                    let y = currentYear;
+                    let m = currentMonth;
+                    while (y > startYear || (y === startYear && m >= startMonth)) {
+                      const value = `${y}-${String(m + 1).padStart(2, '0')}`;
+                      options.push(
+                        <option key={value} value={value}>
+                          {meses[m]} {y}
+                        </option>
+                      );
+                      m--;
+                      if (m < 0) { m = 11; y--; }
+                    }
+                    return options;
+                  })()}
                 </optgroup>
               </select>
             </div>
