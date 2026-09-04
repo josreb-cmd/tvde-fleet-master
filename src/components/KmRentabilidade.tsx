@@ -15,6 +15,7 @@ import { useWeeklySparklines } from "./rentabilidade/useWeeklySparklines";
 import { KmRentabilidadeGestor } from "./rentabilidade/KmRentabilidadeGestor";
 import { KmRentabilidadeMotorista } from "./rentabilidade/KmRentabilidadeMotorista";
 import { ComparacaoSemanal } from "./rentabilidade/ComparacaoSemanal";
+import "../styles/kmRentabilidadeTheme.css";
 
 type ViewMode = "gestor" | "motorista" | "comparacao";
 
@@ -37,16 +38,16 @@ export function KmRentabilidade() {
   } = data;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-4 md:p-8">
+    <div className="min-h-screen bg-[#f8f8f7] text-[#111110] p-4 md:p-8">
       {/* —— Cabeçalho —— */}
       <div className="mb-8">
-        <p className="text-xs font-mono tracking-widest text-indigo-400 uppercase mb-1">
+        <p className="text-xs font-mono font-bold tracking-widest text-indigo-600 uppercase mb-1">
           Gestão Semanal de Frota
         </p>
-        <h1 className="text-3xl font-bold text-white">
+        <h1 className="text-3xl font-bold text-[#111110]">
           Performance & Margem
         </h1>
-        <p className="text-gray-400 mt-1 text-sm">
+        <p className="text-[#6b6b68] mt-1 text-sm">
           Modelo: renda 350€/sem · limiar 2.000 km · sobretaxa +0,25€/km
           acima do limite · semana Seg-Dom
         </p>
@@ -55,22 +56,22 @@ export function KmRentabilidade() {
       {/* —— Controlos: Seletor de semana + Toggle de vista —— */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-8">
         {/* Seletor de semana */}
-        <div className="flex items-center gap-3 bg-gray-900 rounded-xl p-3 border border-gray-800">
+        <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-black/8">
           <button
             onClick={() => setWeekOffset((o) => o - 1)}
-            className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-gray-300"
+            className="p-1.5 rounded-lg hover:bg-black/5 transition-colors text-[#111110]"
           >
             <ChevronLeft size={18} />
           </button>
           <div className="flex items-center gap-2 min-w-[200px] justify-center">
-            <Calendar size={15} className="text-indigo-400" />
+            <Calendar size={15} className="text-indigo-600" />
             <span className="text-sm font-medium">
               {isCurrentWeek ? (
-                <span className="text-indigo-300 font-semibold">
+                <span className="text-indigo-700 font-semibold">
                   Semana actual
                 </span>
               ) : (
-                <span className="text-gray-300">
+                <span className="text-[#111110]">
                   {formatDate(monday)} - {formatDate(sunday)}
                 </span>
               )}
@@ -81,20 +82,20 @@ export function KmRentabilidade() {
               setWeekOffset((o) => Math.min(0, o + 1))
             }
             disabled={isCurrentWeek}
-            className="p-1.5 rounded-lg hover:bg-gray-700 transition-colors text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-lg hover:bg-black/5 transition-colors text-[#111110] disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronRight size={18} />
           </button>
         </div>
 
         {/* Toggle Gestor / Motorista */}
-        <div className="flex items-center gap-1 bg-gray-900 rounded-xl p-1 border border-gray-800">
+        <div className="flex items-center gap-1 bg-white rounded-xl p-1 border border-black/8">
           <button
             onClick={() => setView("gestor")}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               view === "gestor"
-                ? "bg-gray-700 text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-[#f0f0ef] text-[#111110] shadow-sm"
+                : "text-[#6b6b68] hover:text-[#111110]"
             }`}
           >
             <Briefcase size={15} />
@@ -104,8 +105,8 @@ export function KmRentabilidade() {
             onClick={() => setView("motorista")}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               view === "motorista"
-                ? "bg-gray-700 text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-[#f0f0ef] text-[#111110] shadow-sm"
+                : "text-[#6b6b68] hover:text-[#111110]"
             }`}
           >
             <Car size={15} />
@@ -116,7 +117,7 @@ export function KmRentabilidade() {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               view === "comparacao"
                 ? "bg-indigo-600 text-white"
-                : "text-gray-400 hover:text-white hover:bg-gray-800"
+                : "text-[#6b6b68] hover:text-[#111110] hover:bg-[#f0f0ef]"
             }`}
           >
             Comparação
@@ -126,8 +127,8 @@ export function KmRentabilidade() {
 
       {/* —— Sem dados —— */}
       {!temDados ? (
-        <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-          <AlertCircle size={40} className="mb-3 text-gray-700" />
+        <div className="flex flex-col items-center justify-center h-64 text-[#9d9d9a]">
+          <AlertCircle size={40} className="mb-3 text-[#9d9d9a]" />
           <p className="text-sm">
             Sem turnos registados para esta semana.
           </p>
