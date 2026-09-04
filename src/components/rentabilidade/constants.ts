@@ -17,5 +17,5 @@ export const CORES = {
   amarelo: "#f59e0b",
   indigo: "#6366f1",
   vermelho: "#ef4444",
-  cinzaBar: "#374151",
+  cinzaBar: "#e5e5e3",
 } as const;

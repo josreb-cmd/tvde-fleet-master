@@ -1,0 +1,37 @@
+/* =============================================================
+   KmRentabilidade — Light Theme Tokens
+   Substituir em src/styles/ ou importar em cada componente
+   ============================================================= */
+
+:root {
+  /* Superfícies */
+  --km-bg:          #f8f8f7;
+  --km-card:        #ffffff;
+  --km-card-muted:  #f4f4f2;
+  --km-border:      rgba(0, 0, 0, 0.08);
+  --km-border-strong: rgba(0, 0, 0, 0.14);
+
+  /* Texto */
+  --km-text-primary:   #111110;
+  --km-text-secondary: #6b6b68;
+  --km-text-muted:     #9d9d9a;
+
+  /* Dados — mantém-se igual ao dark */
+  --km-green:   #10b981;
+  --km-amber:   #f59e0b;
+  --km-indigo:  #6366f1;
+  --km-red:     #ef4444;
+
+  /* Barra de projecção */
+  --km-proj-bg:     #ffffff;
+  --km-proj-border: rgba(0, 0, 0, 0.10);
+
+  /* Barra resumo motorista (fundo accent subtil) */
+  --km-summary-bg:     #f0f0fe;
+  --km-summary-border: rgba(99, 102, 241, 0.25);
+
+  /* Tabela */
+  --km-table-stripe: #fafaf9;
+  --km-table-pos-bg: rgba(99, 102, 241, 0.06);
+  --km-table-pos-border: rgba(99, 102, 241, 0.35);
+}

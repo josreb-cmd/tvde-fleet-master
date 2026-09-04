@@ -45,21 +45,23 @@ Caminho local: `C:\projetos\tvde-fleet-master\tvde-fleet-master`
 ```
 src/
   components/
-    KmRentabilidade.tsx          # orquestrador (tabs Gestor/Motorista/Comparação)
-    KmRentabilidadeGestor.tsx    # vista gestor (sparklines + tabela sensibilidade)
-    KmRentabilidadeMotorista.tsx # vista motorista (progresso + ranking + resumo)
-    ComparacaoSemanal.tsx        # tabela comparativa semanal + export CSV
-    SparklineChart.tsx           # SVG puro para mini-gráficos (sem deps externas)
+    rentabilidade/               # ← TODOS os ficheiros do módulo vivem AQUI
+      KmRentabilidade.tsx        # orquestrador (tabs Gestor/Motorista/Comparação)
+      KmRentabilidadeGestor.tsx  # vista gestor (sparklines + tabela sensibilidade)
+      KmRentabilidadeMotorista.tsx # vista motorista (progresso + ranking + resumo)
+      ComparacaoSemanal.tsx      # tabela comparativa semanal + export CSV
+      SparklineChart.tsx         # SVG puro para mini-gráficos (sem deps externas)
+      constants.ts               # constantes do modelo de negócio
+      types.ts                   # WeeklySnapshot, SparklineDataPoint, etc.
+      useKmRentabilidade.ts      # hook de cálculos semanais
+      useWeeklySparklines.ts     # tendências 8 semanas (TREND_THRESHOLD=2%)
     Sidebar.tsx                  # versão dinâmica via {__APP_VERSION__}
-  hooks/
-    useKmRentabilidade.ts        # cálculos semanais (hook principal)
-    useWeeklySparklines.ts       # tendências 8 semanas (TREND_THRESHOLD=2%)
   contexts/
     TVDEContext.tsx               # contexto global + listeners Firestore
+  styles/
+    kmRentabilidadeTheme.css     # tokens CSS do tema claro
   utils/
     dayOff.ts                    # isDayOff() centralizado
-  constants.ts                   # constantes do modelo de negócio (ver abaixo)
-  types.ts                       # WeeklySnapshot, SparklineDataPoint, etc.
   __tests__/
     rentabilidade.test.ts        # 23 testes
     monthlyStats.test.ts         # 14 testes
