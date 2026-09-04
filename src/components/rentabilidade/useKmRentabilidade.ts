@@ -348,16 +348,17 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     if (kmTotal >= KM_BASE) return 0;
     if (!isCurrentWeek) return 0;
 
-    const diasFolgaFuturos = dadosDiarios
-      .slice(diasDecorridos)
-      .filter((d) => d.folga).length;
+    // Mesmo critério da projeção: dias restantes = 7 menos os dias já
+    // trabalhados e menos as folgas confirmadas — não menos os dias de
+    // calendário decorridos (um dia sem registo e sem folga não conta
+    // como consumido).
     const diasTrabalhoRestantes = Math.max(
       1,
-      7 - diasDecorridos - diasFolgaFuturos
+      7 - diasTrabalhados - diasFolga
     );
 
     return Math.ceil((KM_BASE - kmTotal) / diasTrabalhoRestantes);
-  }, [kmTotal, isCurrentWeek, diasDecorridos, dadosDiarios]);
+  }, [kmTotal, isCurrentWeek, diasTrabalhados, diasFolga]);
 
   // ═══════════════════════════════════════════════════════════════
   // FIM — Ritmo ideal dinâmico
@@ -462,12 +463,16 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     const kmPorDia = kmTotal / diasTrabalhadosAteAgora;
     const receitaPorDia = receitaTotal / diasTrabalhadosAteAgora;
 
-    const diasFolgaFuturos = dadosDiarios
-      .slice(diasDecorridos)
-      .filter((d) => d.folga).length;
+    // Dias de trabalho ainda disponíveis na semana: 7 menos os dias já
+    // trabalhados e menos as folgas (passadas ou futuras). Um dia sem
+    // registo e sem folga assinalada (ex.: ainda por sincronizar) NÃO
+    // reduz este total — só folgas confirmadas o fazem. Corrige o bug de
+    // usar diasDecorridos (dias de calendário) como se fossem dias de
+    // trabalho consumidos, o que encolhia artificialmente os dias
+    // restantes perto do fim da semana.
     const diasTrabFuturos = Math.max(
       0,
-      7 - diasDecorridos - diasFolgaFuturos
+      7 - diasTrabalhadosAteAgora - diasFolga
     );
 
     const kmProjetado = Math.round(kmTotal + kmPorDia * diasTrabFuturos);
@@ -486,6 +491,7 @@ export function useKmRentabilidade(): KmRentabilidadeData {
     kmTotal,
     receitaTotal,
     diasDecorridos,
+    diasFolga,
     isCurrentWeek,
     dadosDiarios,
   ]);
