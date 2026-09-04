@@ -1,15 +1,12 @@
-﻿import tailwindcss from '@tailwindcss/vite';
+﻿/// <reference types="vitest" />
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'fs';
-
 const CLOUD_RUN_URL = 'https://ais-pre-pyvhpmcfqhadg2oqzzoe4h-391670741439.europe-west2.run.app';
-
-// V.2.9.3 — fonte de verdade da versão: package.json
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
-
 export default defineConfig(() => {
   return {
     plugins: [
@@ -26,16 +23,8 @@ export default defineConfig(() => {
           background_color: '#0f172a',
           theme_color: '#1e40af',
           icons: [
-            {
-              src: '/icon-192.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: '/icon-512.png',
-              sizes: '512x512',
-              type: 'image/png'
-            }
+            { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
           ]
         },
         workbox: {
@@ -47,13 +36,8 @@ export default defineConfig(() => {
               handler: 'CacheFirst',
               options: {
                 cacheName: 'static-assets',
-                expiration: {
-                  maxEntries: 60,
-                  maxAgeSeconds: 30 * 24 * 60 * 60,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
+                expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 },
+                cacheableResponse: { statuses: [0, 200] },
               },
             },
           ],
@@ -61,18 +45,13 @@ export default defineConfig(() => {
       }),
     ],
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
+      alias: { '@': path.resolve(__dirname, '.') },
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
-        '/api': {
-          target: 'http://localhost:3000',
-          changeOrigin: true,
-        },
+        '/api': { target: 'http://localhost:3000', changeOrigin: true },
       },
     },
     define: {
@@ -86,17 +65,18 @@ export default defineConfig(() => {
       rollupOptions: {
         output: {
           manualChunks: {
-  'vendor-firebase': [
-    'firebase/app',
-    'firebase/auth',
-    'firebase/firestore',
-    'firebase/storage',
-  ],
-  'vendor-charts':  ['recharts'],
-  'vendor-misc':    ['lucide-react'],
-},
+            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+            'vendor-charts': ['recharts'],
+            'vendor-misc': ['lucide-react'],
+          },
         },
       },
+    },
+    // ✅ VITEST
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./src/__tests__/setup.ts'],
     },
   };
 });
