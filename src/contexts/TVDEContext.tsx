@@ -155,22 +155,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Real-time Firestore Sync for DRIVERS
+  // V.2.9.5 — removida lógica de detecção de dados antigos (risco de apagamento acidental)
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'drivers'), async snapshot => {
-      const oldIds = ['drv-2', 'drv-3', 'drv-4', 'drv-5'];
-      const hasOldDrivers = snapshot.docs.some(d => oldIds.includes(d.id) || d.data().name === 'João Silva');
-      if (snapshot.empty || hasOldDrivers) {
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(d => batch.delete(d.ref));
-        INITIAL_DRIVERS.forEach(d => {
-          batch.set(doc(db, 'drivers', d.id), cleanObject(d));
-        });
-        await batch.commit();
-      } else {
-        const loaded = snapshot.docs.map(doc => doc.data() as Driver);
-        setDrivers(loaded);
-        setIsCloudSynced(true);
-      }
+    const unsub = onSnapshot(collection(db, 'drivers'), snapshot => {
+      if (snapshot.empty) return;
+      const loaded = snapshot.docs.map(doc => doc.data() as Driver);
+      setDrivers(loaded);
+      setIsCloudSynced(true);
     }, err => {
       console.error("Firestore drivers listener error:", err);
     });
@@ -178,22 +169,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Real-time Firestore Sync for VEHICLES
+  // V.2.9.5 — removida lógica de detecção de dados antigos (risco de apagamento acidental)
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'vehicles'), async snapshot => {
-      const oldIds = ['veh-2', 'veh-3', 'veh-4', 'veh-5'];
-      const hasOldVehicles = snapshot.docs.some(d => oldIds.includes(d.id) || d.data().assignedDriverName === 'João Silva' || d.data().licensePlate === 'AA-42-TV');
-      if (snapshot.empty || hasOldVehicles) {
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(d => batch.delete(d.ref));
-        INITIAL_VEHICLES.forEach(v => {
-          batch.set(doc(db, 'vehicles', v.id), cleanObject(v));
-        });
-        await batch.commit();
-      } else {
-        const loaded = snapshot.docs.map(doc => doc.data() as Vehicle);
-        setVehicles(loaded);
-        setIsCloudSynced(true);
-      }
+    const unsub = onSnapshot(collection(db, 'vehicles'), snapshot => {
+      if (snapshot.empty) return;
+      const loaded = snapshot.docs.map(doc => doc.data() as Vehicle);
+      setVehicles(loaded);
+      setIsCloudSynced(true);
     }, err => {
       console.error("Firestore vehicles listener error:", err);
     });
@@ -280,7 +262,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Real-time Firestore Sync for NOTIFICATIONS — V.2.9.3
   // Comportamento correcto: carregar e manter notificações do Firestore.
-  // O listener anterior apagava tudo ao detectar — notificações nunca persistiam.
   useEffect(() => {
     if (!authUser) return;
     const unsub = onSnapshot(collection(db, 'notifications'), snapshot => {
@@ -354,7 +335,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const runDiagnosis = async () => {
       try {
-        // Filtrar shiftLogs do mês activo com fuelExpenseAmount > 0
         const shiftsWithFuel = shiftLogs.filter(
           s => s.date.startsWith(selectedMonth) && (s.fuelExpenseAmount || 0) > 0
         );
@@ -368,7 +348,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
             query(collection(db, 'charges'), where('date', '==', shift.date))
           );
 
-          // Sem charges para este dia — valor manual é fonte de verdade, ignorar
           if (chargesSnap.empty) continue;
 
           let chargesTotal = 0;
@@ -390,13 +369,11 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Verificar se já existe notificação não lida do mesmo tipo
         const alreadyExists = notifications.some(
           n => n.type === 'data_reconciliation' && !n.read
         );
         if (alreadyExists) return;
 
-        // Construir mensagem com os dias divergentes
         const detail = divergences
           .map(d => {
             const [, m, day] = d.date.split('-');
@@ -425,16 +402,12 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ═══════════════════════════════════════════════════════════════
   // syncShiftExpenses — V.2.9.1 FIX
-  // Sincroniza expenses de renda e fuel a partir de um shiftLog.
-  // REGRA FUEL: se existem registos na coleção "charges" para o
-  // mesmo dia, o chargesSync.ts é a fonte de verdade — esta função
-  // NÃO toca no expense de fuel para evitar conflito de escrita.
   // ═══════════════════════════════════════════════════════════════
   const syncShiftExpenses = async (shiftLog: DailyShiftLog) => {
     const rentalExpId = `exp-rnd-shift-${shiftLog.id}`;
     const fuelExpId = `exp-fuel-shift-${shiftLog.id}`;
 
-    // 1. Rental Expense Sync (sem alterações)
+    // 1. Rental Expense Sync
     if (shiftLog.rentalExpenseAmount && shiftLog.rentalExpenseAmount > 0) {
       const rentalExpense: Expense = {
         id: rentalExpId,
@@ -467,16 +440,10 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       hasChargesForDay = !chargesSnap.empty;
     } catch (err) {
-      // Se falhar a query (ex: índice em falta), comportamento seguro:
-      // assumir que NÃO há charges → manter lógica original
       console.warn("Could not check charges for day, falling back to manual sync:", err);
     }
 
     if (hasChargesForDay) {
-      // chargesSync.ts é a fonte de verdade — re-sincronizar agora que o shiftLog existe.
-      // Cobre o cenário: Carregamento criado ANTES da Faturação Diária.
-      // Na primeira passagem do chargesSync o shiftLog ainda não existia (warn + return);
-      // agora que existe, forçar a criação do expense de Combustível.
       try {
         const { syncChargesToShiftLog } = await import('../utils/chargesSync');
         await syncChargesToShiftLog(shiftLog.date);
@@ -486,7 +453,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Lógica original — só para dias SEM módulo carregamentos
     if (shiftLog.fuelExpenseAmount && shiftLog.fuelExpenseAmount > 0) {
       const fuelExpense: Expense = {
         id: fuelExpId,
@@ -711,13 +677,11 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       date: new Date().toISOString(),
       read: false
     };
-    // Actualização optimista — UI responde imediatamente sem esperar onSnapshot
     setNotifications(prev => [newNotif, ...prev]);
     try {
       await setDoc(doc(db, 'notifications', newId), cleanObject(newNotif));
     } catch (err) {
       console.error('Error adding notification to Firestore:', err);
-      // Reverter se falhar
       setNotifications(prev => prev.filter(n => n.id !== newId));
     }
   };
@@ -792,8 +756,7 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const totalKm = filteredShifts.reduce((acc, s) => acc + s.kilometers, 0);
     const totalHours = filteredShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
 
-    // V.2.9.2 fix — fonte de verdade: expenses (chargesSync + syncShiftExpenses garantem correctitude)
-    // Remover dupla contagem via shiftFuelCost + standaloneFuelCost
+    // V.2.9.2 fix — fonte de verdade: expenses
     const totalFuelCost = filteredExpenses
       .filter(e => e.category === 'fuel_charging')
       .reduce((acc, e) => acc + e.amount, 0);
@@ -879,7 +842,6 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const mExpenses = expenses.filter(e => e.date.startsWith(mKey));
 
       const gross = mShifts.reduce((acc, s) => acc + s.grossEarnings, 0);
-      // V.2.9.2 fix — fonte de verdade: expenses (chargesSync + syncShiftExpenses garantem correctitude)
       const totalFuelCost = mExpenses
         .filter(e => e.category === 'fuel_charging')
         .reduce((a, e) => a + e.amount, 0);
