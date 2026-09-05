@@ -301,7 +301,7 @@ export const CarregamentosView: React.FC = () => {
       </div>
 
       {/* ── Navegação Semanal ────────────────────────────────── */}
-      <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between bg-white rounded-xl border-2 border-slate-300 px-4 py-3 shadow-sm">
         <button
           onClick={() => setWeekOffset(w => w - 1)}
           className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 transition"
