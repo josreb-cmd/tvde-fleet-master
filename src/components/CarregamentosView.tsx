@@ -129,7 +129,7 @@ export const CarregamentosView: React.FC = () => {
     const sunStr = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`;
     return charges
       .filter(c => c.date >= monStr && c.date <= sunStr)
-      .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+      .sort((a, b) => b.date.localeCompare(a.date) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [charges, monday, sunday]);
 
   // ── KPIs da semana ────────────────────────────────────────────
@@ -272,7 +272,7 @@ export const CarregamentosView: React.FC = () => {
     }
   };
 
-  const isGestor = role === 'gestor';
+  const isGestor = role === 'manager';
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -592,7 +592,9 @@ export const CarregamentosView: React.FC = () => {
                               → {charge.netAmount.toFixed(2)}€
                             </span>
                             {charge.settled && (
-                              <Lock className="w-3 h-3 text-slate-400" title="Acertado" />
+                              <span title="Acertado">
+                                <Lock className="w-3 h-3 text-slate-400" />
+                              </span>
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">

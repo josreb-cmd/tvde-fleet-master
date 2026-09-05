@@ -3,7 +3,7 @@ export interface SavedQueryPreset {
   name: string;
   description: string;
   dataSource: 'shifts' | 'expenses' | 'consolidated';
-  dateFilter: 'all' | 'this_month' | 'last_month' | 'last_30_days' | 'this_year' | 'custom';
+  dateFilter: 'all' | 'this_week' | 'last_week' | 'last_7_days' | 'this_month' | 'last_month' | 'last_30_days' | 'this_year' | 'custom';
   startDate: string;
   endDate: string;
   driverId: string;

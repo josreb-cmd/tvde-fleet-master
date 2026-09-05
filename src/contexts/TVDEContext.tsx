@@ -852,13 +852,16 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const totalMaintenanceCost = mExpenses.filter(e => e.category === 'maintenance').reduce((a, e) => a + e.amount, 0);
       const totalInsuranceCost = mExpenses.filter(e => e.category === 'insurance').reduce((a, e) => a + e.amount, 0);
+      const totalIrsCost = mExpenses.filter(e => e.category === 'irs').reduce((a, e) => a + e.amount, 0);
+      const totalIvaCost = mExpenses.filter(e => e.category === 'iva').reduce((a, e) => a + e.amount, 0);
       const totalOtherCost = mExpenses.filter(e => (e.category === 'tolls_wash' || e.category === 'other') && !isDuplicateShiftExpense(e)).reduce((a, e) => a + e.amount, 0);
 
-      const exp = totalFuelCost + totalVehicleRentals + totalMaintenanceCost + totalInsuranceCost + totalOtherCost;
+      const exp = totalFuelCost + totalVehicleRentals + totalMaintenanceCost + totalInsuranceCost + totalIrsCost + totalIvaCost + totalOtherCost;
       const trips = mShifts.reduce((acc, s) => acc + s.tripsCount, 0);
       const km = mShifts.reduce((acc, s) => acc + s.kilometers, 0);
       const hours = mShifts.reduce((acc, s) => acc + parseHHMMToHours(s.hoursWorked), 0);
       const netProfit = gross - exp;
+      const receiptIssuanceAmount = gross - totalVehicleRentals;
 
       return {
         monthKey: mKey,
@@ -873,9 +876,13 @@ export const TVDEProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalMaintenanceCost,
         totalInsuranceCost,
         totalVehicleRentals,
+        totalIrsCost,
+        totalIvaCost,
+        totalOtherCost,
         earningsPerKm: km > 0 ? gross / km : 0,
         earningsPerHour: hours > 0 ? gross / hours : 0,
-        netProfitMarginPct: gross > 0 ? (netProfit / gross) * 100 : 0
+        netProfitMarginPct: gross > 0 ? (netProfit / gross) * 100 : 0,
+        receiptIssuanceAmount
       };
     });
   }, [shiftLogs, expenses]);
