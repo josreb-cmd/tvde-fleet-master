@@ -171,7 +171,7 @@ export function KmRentabilidadeMotorista({
         <p className="text-xs font-mono text-[#3a3a38] uppercase tracking-wider mb-3">
           📖 Resumo da semana (tudo incluído)
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold text-[#111110]">
               {formatEuro(receitaTotal)}
@@ -214,7 +214,17 @@ export function KmRentabilidadeMotorista({
             >
               {rendimentoHoraLiquido.toFixed(2)}€/h
             </p>
-            <p className="text-xs text-[#4a4a48]">Rendimento médio</p>
+            <p className="text-xs text-[#4a4a48]">Líquido/hora</p>
+            <p className="text-[10px] text-[#4a4a48]">após custos</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-indigo-600">
+              {horasTotal > 0
+                ? `${(receitaTotal / horasTotal).toFixed(2)}€/h`
+                : "—"}
+            </p>
+            <p className="text-xs text-[#4a4a48]">Bruto/hora</p>
+            <p className="text-[10px] text-[#4a4a48]">receita ÷ horas</p>
           </div>
           <div>
             <p
