@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { useTVDE } from '../contexts/TVDEContext';
 import { formatHoursToHHMM, parseHHMMToHours } from '../utils/formatters';
 import { SavedQueryPreset, DEFAULT_PRESETS } from '../data/presetQueries';
@@ -955,7 +955,7 @@ export const CustomQueryView: React.FC = () => {
             ) : (
               <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  
+                  <BarChart data={[...processedResults].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 15)} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} unit="€" />
