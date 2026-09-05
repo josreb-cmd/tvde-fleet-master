@@ -115,7 +115,7 @@ export function SparklineChart({
   if (data.length < 2) {
     return (
       <div
-        className="flex items-center justify-center text-[#9d9d9a]"
+        className="flex items-center justify-center text-[#4a4a48]"
         style={{ width, height }}
       >
         <span className="text-[9px]">sem dados</span>
@@ -127,7 +127,7 @@ export function SparklineChart({
   const prevVal = data[data.length - 2];
   const trend = lastVal.value - prevVal.value;
   const trendColor =
-    trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "#9d9d9a";
+    trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "#4a4a48";
 
   return (
     <div className="flex items-center gap-1.5">
@@ -236,7 +236,7 @@ function TrendBadgeLegacy({
   const color = isPositive
     ? "text-emerald-600 bg-emerald-100"
     : isNeutral
-      ? "text-[#6b6b68] bg-black/5"
+      ? "text-[#3a3a38] bg-black/5"
       : "text-red-600 bg-red-100";
   const arrow = isPositive ? "▲" : isNeutral ? "—" : "▼";
 
@@ -264,7 +264,7 @@ function TrendBadgeNormalized({
   // Dead band — variação insignificante → cinza estável
   if (trend.isNeutral) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded text-[#6b6b68] bg-black/5">
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded text-[#3a3a38] bg-black/5">
         — {Math.abs(val).toFixed(1)}
         {trend.displaySuffix}
       </span>
@@ -289,7 +289,7 @@ function TrendBadgeNormalized({
 
       {/* Indicador de semana parcial */}
       {isPartial && diasAtual !== undefined && (
-        <span className="text-[9px] font-mono text-[#9d9d9a]" title={`Dados de ${diasAtual} dia${diasAtual !== 1 ? "s" : ""} — semana incompleta`}>
+        <span className="text-[9px] font-mono text-[#4a4a48]" title={`Dados de ${diasAtual} dia${diasAtual !== 1 ? "s" : ""} — semana incompleta`}>
           ⏳ {diasAtual}/7d
         </span>
       )}

@@ -8,13 +8,13 @@
   --km-bg:          #f8f8f7;
   --km-card:        #ffffff;
   --km-card-muted:  #f4f4f2;
-  --km-border:      rgba(0, 0, 0, 0.08);
+  --km-border:      rgba(0, 0, 0, 0.18);
   --km-border-strong: rgba(0, 0, 0, 0.14);
 
   /* Texto */
   --km-text-primary:   #111110;
-  --km-text-secondary: #6b6b68;
-  --km-text-muted:     #9d9d9a;
+  --km-text-secondary: #3a3a38;
+  --km-text-muted:     #4a4a48;
 
   /* Dados — mantém-se igual ao dark */
   --km-green:   #10b981;

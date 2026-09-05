@@ -174,7 +174,7 @@ export function ComparacaoSemanal() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-[#111110]">Comparação Semanal</h2>
-          <p className="text-sm text-[#6b6b68] mt-0.5">{rows.length} semana{rows.length !== 1 ? "s" : ""} · Custos incluem renda, sobretaxa e carregamentos reais</p>
+          <p className="text-sm text-[#3a3a38] mt-0.5">{rows.length} semana{rows.length !== 1 ? "s" : ""} · Custos incluem renda, sobretaxa e carregamentos reais</p>
         </div>
         <button
           onClick={exportCSV}
@@ -189,7 +189,7 @@ export function ComparacaoSemanal() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Motorista */}
         <div>
-          <label className="text-xs text-[#9d9d9a] mb-1 block">Motorista</label>
+          <label className="text-xs text-[#4a4a48] mb-1 block">Motorista</label>
           <select
             value={driverId}
             onChange={e => setDriverId(e.target.value)}
@@ -204,7 +204,7 @@ export function ComparacaoSemanal() {
 
         {/* Plataforma */}
         <div>
-          <label className="text-xs text-[#9d9d9a] mb-1 block">Plataforma</label>
+          <label className="text-xs text-[#4a4a48] mb-1 block">Plataforma</label>
           <select
             value={plataforma}
             onChange={e => setPlataforma(e.target.value)}
@@ -218,7 +218,7 @@ export function ComparacaoSemanal() {
 
         {/* Data início */}
         <div>
-          <label className="text-xs text-[#9d9d9a] mb-1 block">Data início</label>
+          <label className="text-xs text-[#4a4a48] mb-1 block">Data início</label>
           <input
             type="date"
             value={dataInicio}
@@ -229,7 +229,7 @@ export function ComparacaoSemanal() {
 
         {/* Data fim */}
         <div>
-          <label className="text-xs text-[#9d9d9a] mb-1 block">Data fim</label>
+          <label className="text-xs text-[#4a4a48] mb-1 block">Data fim</label>
           <input
             type="date"
             value={dataFim}
@@ -241,20 +241,20 @@ export function ComparacaoSemanal() {
 
       {/* Tabela */}
       {rows.length === 0 ? (
-        <div className="text-center py-12 text-[#9d9d9a]">Sem dados para os filtros seleccionados.</div>
+        <div className="text-center py-12 text-[#4a4a48]">Sem dados para os filtros seleccionados.</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-black/8">
+        <div className="overflow-x-auto rounded-xl border border-black/18">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-white text-left border-b border-black/8">
-                <th className="px-4 py-3 font-medium text-[#6b6b68] whitespace-nowrap">Semana</th>
-                <th className="px-4 py-3 font-medium text-[#6b6b68] text-right whitespace-nowrap">Faturação</th>
-                <th className="px-4 py-3 font-medium text-[#6b6b68] text-right whitespace-nowrap">Custos</th>
+                <th className="px-4 py-3 font-medium text-[#3a3a38] whitespace-nowrap">Semana</th>
+                <th className="px-4 py-3 font-medium text-[#3a3a38] text-right whitespace-nowrap">Faturação</th>
+                <th className="px-4 py-3 font-medium text-[#3a3a38] text-right whitespace-nowrap">Custos</th>
                 <th className="px-4 py-3 font-medium text-green-700 text-right whitespace-nowrap">Ficou no bolso</th>
                 <th className="px-4 py-3 font-medium text-amber-600 text-right whitespace-nowrap">€/10€</th>
-                <th className="px-4 py-3 font-medium text-[#6b6b68] text-right whitespace-nowrap">Viagens</th>
-                <th className="px-4 py-3 font-medium text-[#6b6b68] text-right whitespace-nowrap">Horas</th>
-                <th className="px-4 py-3 font-medium text-[#6b6b68] text-right whitespace-nowrap">Km</th>
+                <th className="px-4 py-3 font-medium text-[#3a3a38] text-right whitespace-nowrap">Viagens</th>
+                <th className="px-4 py-3 font-medium text-[#3a3a38] text-right whitespace-nowrap">Horas</th>
+                <th className="px-4 py-3 font-medium text-[#3a3a38] text-right whitespace-nowrap">Km</th>
               </tr>
             </thead>
             <tbody>
@@ -307,7 +307,7 @@ export function ComparacaoSemanal() {
             {/* Totais */}
             <tfoot>
               <tr className="bg-white border-t-2 border-black/14 font-semibold">
-                <td className="px-4 py-3 text-[#6b6b68] text-sm">TOTAL / {rows.length} sem.</td>
+                <td className="px-4 py-3 text-[#3a3a38] text-sm">TOTAL / {rows.length} sem.</td>
                 <td className="px-4 py-3 font-mono text-[#111110] text-right">{formatEuro(totais.faturacao)}</td>
                 <td className="px-4 py-3 font-mono text-red-600 text-right">{formatEuro(totais.custos)}</td>
                 <td className={`px-4 py-3 font-mono text-right ${totais.ficouNoBolso >= 0 ? "text-green-600" : "text-red-600"}`}>
