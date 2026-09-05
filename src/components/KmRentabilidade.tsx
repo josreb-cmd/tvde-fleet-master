@@ -92,10 +92,10 @@ export function KmRentabilidade() {
         <div className="flex items-center gap-1 bg-white rounded-xl p-1 border border-black/8">
           <button
             onClick={() => setView("gestor")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
               view === "gestor"
-                ? "bg-[#f0f0ef] text-[#111110] shadow-sm"
-                : "text-[#6b6b68] hover:text-[#111110]"
+                ? "bg-[#f0f0ef] text-[#111110] shadow-sm border-transparent"
+                : "text-[#3f3f3c] border-[0.5px] border-[rgba(0,0,0,0.15)] hover:text-[#111110]"
             }`}
           >
             <Briefcase size={15} />
@@ -103,10 +103,10 @@ export function KmRentabilidade() {
           </button>
           <button
             onClick={() => setView("motorista")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
               view === "motorista"
-                ? "bg-[#f0f0ef] text-[#111110] shadow-sm"
-                : "text-[#6b6b68] hover:text-[#111110]"
+                ? "bg-[#f0f0ef] text-[#111110] shadow-sm border-transparent"
+                : "text-[#3f3f3c] border-[0.5px] border-[rgba(0,0,0,0.15)] hover:text-[#111110]"
             }`}
           >
             <Car size={15} />
@@ -114,10 +114,10 @@ export function KmRentabilidade() {
           </button>
           <button
             onClick={() => setView("comparacao")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
               view === "comparacao"
-                ? "bg-indigo-600 text-white"
-                : "text-[#6b6b68] hover:text-[#111110] hover:bg-[#f0f0ef]"
+                ? "bg-indigo-600 text-white border-transparent"
+                : "text-[#3f3f3c] border-[0.5px] border-[rgba(0,0,0,0.15)] hover:text-[#111110] hover:bg-[#f0f0ef]"
             }`}
           >
             Comparação
