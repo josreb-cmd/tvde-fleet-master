@@ -12,7 +12,8 @@
     "lint": "tsc --noEmit",
     "deploy": "gh-pages -d dist",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "release": "standard-version"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.0.1",
@@ -44,6 +45,7 @@
     "esbuild": "^0.25.0",
     "gh-pages": "^6.3.0",
     "jsdom": "^30.0.1",
+    "standard-version": "^9.5.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
