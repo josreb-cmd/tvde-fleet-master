@@ -187,8 +187,8 @@ export const CarregamentosView: React.FC = () => {
     });
 
     // 2) Para cada dia COM carregamentos → verificar se existe shiftLog (no-shift)
-    const datesWithCharges = new Set(weekCharges.map(c => c.date));
-    datesWithCharges.forEach(date => {
+    const datesWithCharges = new Set<string>(weekCharges.map(c => c.date));
+    datesWithCharges.forEach((date: string) => {
       const sl = weekLogs.find(l => l.date === date);
       if (!sl || isDayOff(sl)) {
         const dayTotal = charges

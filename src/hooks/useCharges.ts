@@ -61,8 +61,8 @@ export function useCharges() {
 
   // Adicionar novo carregamento
   const addCharge = async (formData: ChargeFormData): Promise<void> => {
-    const gross = parseFloat(formData.grossAmount) || 0;
-    const disc = parseFloat(formData.discount) || 0;
+    const gross = formData.grossAmount || 0;
+    const disc = formData.discount || 0;
     const net = Math.round((gross - disc) * 100) / 100;
 
     const charge: Omit<Charge, 'id'> = {
@@ -90,8 +90,8 @@ export function useCharges() {
 
   // Atualizar carregamento existente
   const updateCharge = async (id: string, formData: ChargeFormData): Promise<void> => {
-    const gross = parseFloat(formData.grossAmount) || 0;
-    const disc = parseFloat(formData.discount) || 0;
+    const gross = formData.grossAmount || 0;
+    const disc = formData.discount || 0;
     const net = Math.round((gross - disc) * 100) / 100;
 
     // Guardar a data antiga antes de atualizar (pode ter mudado de dia)
