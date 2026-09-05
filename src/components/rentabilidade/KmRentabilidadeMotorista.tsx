@@ -171,7 +171,7 @@ export function KmRentabilidadeMotorista({
         <p className="text-xs font-mono text-[#3a3a38] uppercase tracking-wider mb-3">
           📖 Resumo da semana (tudo incluído)
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold text-[#111110]">
               {formatEuro(receitaTotal)}
@@ -201,6 +201,30 @@ export function KmRentabilidadeMotorista({
                 : "—"}
             </p>
             <p className="text-xs text-[#4a4a48]">por cada 10€</p>
+          </div>
+          <div>
+            <p
+              className={`text-2xl font-bold ${
+                rendimentoHoraLiquido >= 10
+                  ? "text-emerald-600"
+                  : rendimentoHoraLiquido >= 6.5
+                  ? "text-amber-600"
+                  : "text-red-600"
+              }`}
+            >
+              {rendimentoHoraLiquido.toFixed(2)}€/h
+            </p>
+            <p className="text-xs text-[#4a4a48]">Rendimento médio</p>
+          </div>
+          <div>
+            <p
+              className={`text-2xl font-bold ${
+                kmTotal <= 2000 ? "text-indigo-500" : "text-amber-600"
+              }`}
+            >
+              {kmTotal.toLocaleString("pt-PT")} km
+            </p>
+            <p className="text-xs text-[#4a4a48]">Km percorridos</p>
           </div>
         </div>
         {kmExtra > 0 && (
