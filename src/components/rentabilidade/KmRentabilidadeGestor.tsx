@@ -79,6 +79,7 @@ export function KmRentabilidadeGestor({
     custoTotal,
     custoEnergia,
     receitaTotal,
+    diasTrabalhados,
     rendaTotal,
     lucroSoRenda,
     lucroLiquido,
@@ -115,9 +116,13 @@ export function KmRentabilidadeGestor({
         const custoTotal = RENDA_SEMANAL + sobretaxa;
         const energia = kmTotal * ENERGIA_POR_KM;
         const custoComEnergia = custoTotal + energia;
-        const receita = kmTotal * RECEITA_ESTIMADA_POR_KM;
-        const margem = receita > 0 ? ((receita - custoTotal) / receita) * 100 : 0;
-        const margemLiquida = receita > 0 ? ((receita - custoComEnergia) / receita) * 100 : 0;
+        // Receita real registada no período (Firestore) — não estimativa km × tarifa
+        const recReal = receitaTotal;
+        // Projeção fim de semana: ritmo actual (receita / dias com turno) × 7 dias
+        const projFimSemana =
+          diasTrabalhados > 0 ? (receitaTotal / diasTrabalhados) * 7 : 0;
+        const margemLiquida =
+          recReal > 0 ? ((recReal - custoComEnergia) / recReal) * 100 : 0;
         return (
           <div className="mb-6 bg-white rounded-xl p-5 border border-black/14 border-l-[3px] border-l-indigo-500">
             <p className="text-xs font-mono text-[#3a3a38] uppercase tracking-wider mb-3">
@@ -131,14 +136,12 @@ export function KmRentabilidadeGestor({
                 <p className="text-xs text-[#4a4a48]">Sobretaxa</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-[#111110]">{formatEuro(receita)}</p>
-                <p className="text-xs text-[#4a4a48]">Rec. estimada</p>
+                <p className="text-2xl font-bold text-[#111110]">{formatEuro(recReal)}</p>
+                <p className="text-xs text-[#4a4a48]">Rec. real</p>
               </div>
               <div>
-                <p className={`text-2xl font-bold ${margem >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {margem.toFixed(1)}%
-                </p>
-                <p className="text-xs text-[#4a4a48]">Margem s/ energia</p>
+                <p className="text-2xl font-bold text-[#111110]">{formatEuro(projFimSemana)}</p>
+                <p className="text-xs text-[#4a4a48]">Proj. fim semana</p>
               </div>
               <div>
                 <p className={`text-2xl font-bold ${margemLiquida >= 0 ? "text-amber-600" : "text-red-600"}`}>
