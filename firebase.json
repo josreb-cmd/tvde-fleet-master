@@ -1,4 +1,17 @@
 {
+  "functions": [
+    {
+      "source": "backup-function",
+      "codebase": "backup",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ],
   "firestore": {
     "database": "ai-studio-tvdefleetmasterg-300d7ace-afbe-48b4-b1fb-ca191a9d7c9f",
     "location": "europe-west2",
