@@ -1,7 +1,7 @@
 # TVDE Fleet Master — Contexto para Claude Code
 
 ## Projecto
-App de gestão de frota TVDE. Versão actual: **V.2.9.5**
+App de gestão de frota TVDE. Versão actual: **V.2.10.0**
 URL produção: https://frotatvde.solucoeseficazes.pt
 Repositório: josreb-cmd/tvde-fleet-master (privado)
 Caminho local: `C:\projetos\tvde-fleet-master\tvde-fleet-master`
