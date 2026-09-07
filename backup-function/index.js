@@ -2,15 +2,20 @@
  * backupShiftLogs — Cloud Function Gen 2
  * Corre diariamente à meia-noite (Lisboa)
  * Lê shiftLogs do Firestore → gera CSV → envia por email para josreb@gmail.com
+ * → arquiva o CSV numa pasta do Google Drive (archive adicional)
  *
  * Projecto GCP : gen-lang-client-0465939536
  * Firestore DB : ai-studio-tvdefleetmasterg-300d7ace-afbe-48b4-b1fb-ca191a9d7c9f
- * Secret       : GMAIL_APP_PASSWORD (Secret Manager)
+ * Secrets      : GMAIL_APP_PASSWORD, GMAIL_DRIVE_OAUTH_CLIENT (clientId::clientSecret),
+ *               GMAIL_DRIVE_REFRESH_TOKEN (Secret Manager)
+ * Drive        : upload OAuth 2.0 como josreb@gmail.com (refresh token), scope drive.file
  */
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { Firestore } = require("@google-cloud/firestore");
 const { SecretManagerServiceClient } = require("@google-cloud/secret-manager");
+const { drive, auth } = require("@googleapis/drive");
+const { Readable } = require("node:stream");
 const nodemailer = require("nodemailer");
 
 const PROJECT_ID  = "gen-lang-client-0465939536";
@@ -18,6 +23,7 @@ const DATABASE_ID = "ai-studio-tvdefleetmasterg-300d7ace-afbe-48b4-b1fb-ca191a9d
 const COLLECTION  = "shiftLogs";
 const EMAIL_FROM  = "josreb@gmail.com";
 const EMAIL_TO    = "josreb@gmail.com";
+const DRIVE_FOLDER_ID = "1lp9mAAWDDjP4pqrLyeb2VMa-OH3K_XH6";
 
 // Campos a exportar
 const CAMPOS = [
@@ -60,12 +66,55 @@ function docParaLinha(data) {
   }).join(";");
 }
 
-async function getGmailPassword() {
+async function getSecret(nome) {
   const client = new SecretManagerServiceClient();
   const [version] = await client.accessSecretVersion({
-    name: `projects/${PROJECT_ID}/secrets/GMAIL_APP_PASSWORD/versions/latest`,
+    name: `projects/${PROJECT_ID}/secrets/${nome}/versions/latest`,
   });
   return version.payload.data.toString("utf8").trim();
+}
+
+async function getDriveOAuthClient() {
+  const [clientPair, refreshToken] = await Promise.all([
+    getSecret("GMAIL_DRIVE_OAUTH_CLIENT"),
+    getSecret("GMAIL_DRIVE_REFRESH_TOKEN"),
+  ]);
+
+  const sep = clientPair.indexOf("::");
+  if (sep === -1) {
+    throw new Error("GMAIL_DRIVE_OAUTH_CLIENT sem separador '::'");
+  }
+  const clientId = clientPair.slice(0, sep);
+  const clientSecret = clientPair.slice(sep + 2);
+
+  const oauth2 = new auth.OAuth2(clientId, clientSecret);
+  oauth2.setCredentials({ refresh_token: refreshToken });
+  return oauth2;
+}
+
+async function uploadParaDrive(nomeFicheiro, csv) {
+  const authClient = await getDriveOAuthClient();
+  const client = drive({ version: "v3", auth: authClient });
+
+  const res = await client.files.create({
+    requestBody: {
+      name: nomeFicheiro,
+      parents: [DRIVE_FOLDER_ID],
+      mimeType: "text/csv",
+    },
+    media: {
+      mimeType: "text/csv",
+      body: Readable.from(Buffer.from(csv, "utf8")),
+    },
+    fields: "id, name, webViewLink",
+    supportsAllDrives: true,
+  });
+
+  return res.data;
+}
+
+async function getGmailPassword() {
+  return getSecret("GMAIL_APP_PASSWORD");
 }
 
 exports.backupShiftLogs = onSchedule(
@@ -139,5 +188,13 @@ exports.backupShiftLogs = onSchedule(
     });
 
     console.log(`✅ Email enviado para ${EMAIL_TO} com anexo: ${nomeFicheiro}`);
+
+    // 6. Arquivar cópia no Google Drive (archive adicional — falha não quebra o backup)
+    try {
+      const ficheiroDrive = await uploadParaDrive(nomeFicheiro, csv);
+      console.log(`✅ CSV arquivado no Drive: ${ficheiroDrive.name} (id ${ficheiroDrive.id})`);
+    } catch (err) {
+      console.error(`⚠️  Upload para o Drive falhou (email já enviado): ${err.message}`);
+    }
   }
 );
