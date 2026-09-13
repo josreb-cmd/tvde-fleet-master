@@ -30,7 +30,7 @@ import {
   INITIAL_NOTIFICATIONS
 } from '../data/mockData';
 
-export type UserRole = 'manager' | 'driver';
+type UserRole = 'manager' | 'driver';
 
 interface TVDEContextType {
   role: UserRole;

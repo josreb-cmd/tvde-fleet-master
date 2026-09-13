@@ -147,8 +147,7 @@ exports.backupShiftLogs = onSchedule(
 
     // 3. Gerar CSV
     const linhas = [CABECALHO.join(";"), ...docs.map(docParaLinha)];
-    const csv = "\uFEFF" + linhas.join("\n");
-
+    const csv = linhas.join("\n");
     // 4. Nome do ficheiro
     const hoje = new Date().toISOString().slice(0, 10);
     const nomeFicheiro = `shiftLogs_backup_${hoje}.csv`;

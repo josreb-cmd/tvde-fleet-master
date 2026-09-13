@@ -162,23 +162,6 @@ async function syncFuelExpenseForShift(params: {
 }
 
 /**
- * Verifica se existem charges registados para uma data específica.
- */
-export async function hasChargesForDate(date: string): Promise<boolean> {
-  try {
-    const q = query(
-      collection(db, 'charges'),
-      where('date', '==', date)
-    );
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
-  } catch (error) {
-    console.error('[chargesSync] Erro ao verificar charges para', date, error);
-    return false;
-  }
-}
-
-/**
  * Verifica se existem charges para uma data E retorna o total.
  */
 export async function getChargesInfoForDate(date: string): Promise<{

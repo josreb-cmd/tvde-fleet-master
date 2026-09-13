@@ -24,7 +24,7 @@ export interface AuthorizedUser {
   createdAt?: any;
 }
 
-export const INITIAL_USERS: AuthorizedUser[] = [
+const INITIAL_USERS: AuthorizedUser[] = [
   { email: 'josreb@gmail.com', name: 'José Rebelo', role: 'gestor' },
   { email: 'alexreb60@gmail.com', name: 'Alexandre Rebelo', role: 'gestor' },
 ];

@@ -6,11 +6,9 @@ export type DriverStatus = 'active' | 'on_leave' | 'inactive';
 
 export type ExpenseCategory = 'fuel_charging' | 'maintenance' | 'insurance' | 'vehicle_rental' | 'tolls_wash' | 'irs' | 'iva' | 'other';
 
-export type PlatformType = 'uber' | 'bolt' | 'other';
-
 export type NotificationType = 'maintenance' | 'payment_pending' | 'document_expiry' | 'performance_alert' | 'data_reconciliation';
 
-export type NotificationPriority = 'low' | 'medium' | 'high';
+type NotificationPriority = 'low' | 'medium' | 'high';
 
 export interface Driver {
   id: string;

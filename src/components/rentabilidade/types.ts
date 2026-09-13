@@ -88,8 +88,6 @@ export interface SparklineDataPoint {
   value2?: number;            // valor secundário (perspetiva amarela / Líquido)
 }
 
-export type TrendDirection = "up" | "down" | "stable";
-
 // ——— SparklineTendencia — tendências por métrica (usa TrendValue) ———
 
 export interface SparklineTendencia {
