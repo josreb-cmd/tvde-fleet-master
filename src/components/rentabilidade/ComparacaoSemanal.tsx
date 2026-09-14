@@ -35,8 +35,9 @@ function formatEuro(v: number) {
 }
 
 function formatHoras(h: number) {
-  const hh = Math.floor(h);
-  const mm = Math.round((h - hh) * 60);
+  const totalMin = Math.round(h * 60);
+  const hh = Math.floor(totalMin / 60);
+  const mm = totalMin % 60;
   return `${hh}h${mm.toString().padStart(2, "0")}`;
 }
 
