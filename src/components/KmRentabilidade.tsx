@@ -55,38 +55,40 @@ export function KmRentabilidade() {
 
       {/* —— Controlos: Seletor de semana + Toggle de vista —— */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-8">
-        {/* Seletor de semana */}
-        <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-black/8">
-          <button
-            onClick={() => setWeekOffset((o) => o - 1)}
-            className="p-1.5 rounded-lg hover:bg-black/5 transition-colors text-[#111110]"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <div className="flex items-center gap-2 min-w-[200px] justify-center">
-            <Calendar size={15} className="text-indigo-600" />
-            <span className="text-sm font-medium">
-              {isCurrentWeek ? (
-                <span className="text-indigo-700 font-semibold">
-                  Semana actual
-                </span>
-              ) : (
-                <span className="text-[#111110]">
-                  {formatDate(monday)} - {formatDate(sunday)}
-                </span>
-              )}
-            </span>
+        {/* Seletor de semana — oculto na tab Comparação */}
+        {view !== "comparacao" && (
+          <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-black/8">
+            <button
+              onClick={() => setWeekOffset((o) => o - 1)}
+              className="p-1.5 rounded-lg hover:bg-black/5 transition-colors text-[#111110]"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex items-center gap-2 min-w-[200px] justify-center">
+              <Calendar size={15} className="text-indigo-600" />
+              <span className="text-sm font-medium">
+                {isCurrentWeek ? (
+                  <span className="text-indigo-700 font-semibold">
+                    Semana actual
+                  </span>
+                ) : (
+                  <span className="text-[#111110]">
+                    {formatDate(monday)} - {formatDate(sunday)}
+                  </span>
+                )}
+              </span>
+            </div>
+            <button
+              onClick={() =>
+                setWeekOffset((o) => Math.min(0, o + 1))
+              }
+              disabled={isCurrentWeek}
+              className="p-1.5 rounded-lg hover:bg-black/5 transition-colors text-[#111110] disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
-          <button
-            onClick={() =>
-              setWeekOffset((o) => Math.min(0, o + 1))
-            }
-            disabled={isCurrentWeek}
-            className="p-1.5 rounded-lg hover:bg-black/5 transition-colors text-[#111110] disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
+        )}
 
         {/* Toggle Gestor / Motorista */}
         <div className="flex items-center gap-1 bg-white rounded-xl p-1 border border-black/8">
