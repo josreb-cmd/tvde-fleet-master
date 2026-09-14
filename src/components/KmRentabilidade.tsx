@@ -127,16 +127,16 @@ export function KmRentabilidade() {
         </div>
       </div>
 
-      {/* —— Sem dados —— */}
-      {!temDados ? (
+      {/* —— Comparação: independente da semana seleccionada e do gate "sem dados" —— */}
+      {view === "comparacao" ? (
+        <ComparacaoSemanal />
+      ) : !temDados ? (
         <div className="flex flex-col items-center justify-center h-64 text-[#9d9d9a]">
           <AlertCircle size={40} className="mb-3 text-[#9d9d9a]" />
           <p className="text-sm">
             Sem turnos registados para esta semana.
           </p>
         </div>
-      ) : view === "comparacao" ? (
-        <ComparacaoSemanal />
       ) : view === "gestor" ? (
         <KmRentabilidadeGestor
           data={data}
