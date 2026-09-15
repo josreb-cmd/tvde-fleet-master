@@ -23,6 +23,8 @@ const DRIVER_NAME  = "Alexandre Rebelo";
 const VEHICLE_ID   = "veh-1";
 const VEHICLE_PLATE = "CE-84-UO";
 
+const DRY_RUN = process.env.DRY_RUN !== "false";
+
 const db = new Firestore({ projectId: PROJECT_ID, databaseId: DATABASE_ID });
 
 function hhmmToDecimal(hhmm) {
@@ -116,6 +118,11 @@ async function main() {
     console.log(`   sft-imported-${idCounter} → ${r.date}  ${tag}  ${pt(r.km)}km  ${pt(r.viagens)} viagens`);
     idCounter++;
   });
+
+  if (DRY_RUN) {
+    console.log(`\n🟡 DRY_RUN activo — nada escrito no Firestore. Usa DRY_RUN=false para executar.`);
+    return;
+  }
 
   await batch.commit();
   console.log(`\n✅ ${novos.length} registos inseridos com sucesso!`);
