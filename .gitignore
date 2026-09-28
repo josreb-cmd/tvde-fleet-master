@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 get-refresh-token.mjs
+bun.lock
+bun.lockb
