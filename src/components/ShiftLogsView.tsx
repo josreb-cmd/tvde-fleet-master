@@ -56,13 +56,14 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
 
   // CSV Export Handler
   const handleExportCsv = () => {
-    const headers = ['Data', 'Motorista', 'Combustível', 'Viagens', 'Km', 'Horas', 'Valor Ganho', 'Lucro', 'Estado', 'Notas'];
+    const headers = ['Data', 'Motorista', 'Combustível', 'Renda', 'Viagens', 'Km', 'Horas', 'Valor Ganho', 'Lucro', 'Estado', 'Notas'];
     const rows = filteredLogs.map(l => {
       const net = l.grossEarnings - (l.fuelExpenseAmount || 0) - (l.rentalExpenseAmount || 0);
       return [
         l.date,
         `"${l.driverName}"`,
         l.fuelExpenseAmount || 0,
+        l.rentalExpenseAmount || 0,
         l.tripsCount,
         l.kilometers,
         formatHoursToHHMM(l.hoursWorked),
@@ -206,6 +207,7 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
                 <th className="p-3.5">Data</th>
                 <th className="p-3.5">Motorista</th>
                 <th className="p-3.5 text-right">Combustível</th>
+                <th className="p-3.5 text-right">Renda</th>
                 <th className="p-3.5 text-center">Nº Viagens</th>
                 <th className="p-3.5 text-center">Quilómetros</th>
                 <th className="p-3.5 text-center">Horas</th>
@@ -218,7 +220,7 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
             <tbody className="divide-y divide-slate-100">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-slate-500">
+                  <td colSpan={11} className="p-8 text-center text-slate-500">
                     Nenhum registo diário encontrado para os filtros selecionados.
                   </td>
                 </tr>
@@ -231,6 +233,9 @@ export const ShiftLogsView: React.FC<ShiftLogsViewProps> = ({ onOpenNewShiftModa
                       <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.driverName}</td>
                       <td className="p-3.5 text-right font-medium text-slate-700 whitespace-nowrap">
                         {(log.fuelExpenseAmount || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                      <td className="p-3.5 text-right font-medium text-slate-700 whitespace-nowrap">
+                        {(log.rentalExpenseAmount || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                       </td>
                       <td className="p-3.5 text-center font-semibold text-slate-700">{log.tripsCount}</td>
                       <td className="p-3.5 text-center text-slate-700">{log.kilometers} km</td>
